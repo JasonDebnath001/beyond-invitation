@@ -1,0 +1,44 @@
+[
+  {
+    "slug": "wedding",
+    "name": "Wedding",
+    "emoji": "💍",
+    "description": "Beautiful wedding invitation cards for every theme and budget."
+  },
+  {
+    "slug": "housewarming",
+    "name": "Housewarming",
+    "emoji": "🏠",
+    "description": "Welcoming invitations for griha pravesh and house ceremonies."
+  },
+  {
+    "slug": "thread-ceremony",
+    "name": "Thread Ceremony",
+    "emoji": "🪡",
+    "description": "Traditional invitations for upanayanam and thread ceremonies."
+  },
+  {
+    "slug": "naming-ceremony",
+    "name": "Naming Ceremony",
+    "emoji": "👶",
+    "description": "Sweet invitations to celebrate a newborn's naming ceremony."
+  },
+  {
+    "slug": "birthday",
+    "name": "Birthday",
+    "emoji": "🎂",
+    "description": "Fun and festive birthday invitation cards."
+  },
+  {
+    "slug": "baby-shower",
+    "name": "Baby Shower",
+    "emoji": "🍼",
+    "description": "Charming baby shower invitations for the mum-to-be."
+  },
+  {
+    "slug": "luxe",
+    "name": "Luxe Collection",
+    "emoji": "💎",
+    "description": "Exclusive luxury invitation boxes and elite designs."
+  }
+]

@@ -1,0 +1,138 @@
+[
+  {
+    "slug": "white-padded-floral-bride-groom-card",
+    "name": "White Padded Floral Bride Groom Wedding Card",
+    "price": 96,
+    "mrp": 216,
+    "images": ["sale1a.jpg", "sale1b.jpg", "sale1c.jpg"],
+    "emoji": "💐",
+    "category": "wedding",
+    "badge": "Bestseller",
+    "description": "An elegant white padded wedding invitation featuring delicate floral artwork and embossed bride-groom motifs. Crafted on premium textured paper with a soft padded finish.",
+    "onSale": true
+  },
+  {
+    "slug": "blue-padded-floral-palace-card",
+    "name": "Blue Padded Floral Palace Wedding Card",
+    "price": 109,
+    "mrp": 246,
+    "images": ["sale2a.jpg", "sale2b.jpg", "sale2c.jpg"],
+    "emoji": "🏯",
+    "category": "wedding",
+    "description": "A royal blue padded invitation with intricate palace architecture and golden floral borders. Perfect for grand traditional weddings.",
+    "onSale": true
+  },
+  {
+    "slug": "lavender-padded-peacock-palace-card",
+    "name": "Lavender Padded Peacock Palace Wedding Card",
+    "price": 99,
+    "mrp": 228,
+    "images": ["sale3a.jpg", "sale3b.jpg", "sale3c.jpg"],
+    "emoji": "🦚",
+    "category": "wedding",
+    "description": "A serene lavender card with peacock and palace detailing in gold foil. A graceful choice for elegant celebrations.",
+    "onSale": true
+  },
+  {
+    "slug": "blue-floral-luxury-invitation-card",
+    "name": "Blue Floral Luxury Wedding Invitation Card",
+    "price": 149,
+    "mrp": 465,
+    "images": ["sale4a.jpg", "sale4b.jpg", "sale4c.jpg"],
+    "emoji": "🌸",
+    "category": "wedding",
+    "badge": "Trending",
+    "description": "A luxury blue invitation with layered floral cut-work and a refined matte finish. Includes matching inserts and envelope.",
+    "onSale": true
+  },
+  {
+    "slug": "royal-baraat-padded-gold-foil-card",
+    "name": "Royal Baraat Padded Wedding Card with Gold Foil",
+    "price": 121.5,
+    "mrp": 135,
+    "images": ["prem1a.jpg", "prem1b.jpg", "prem1c.jpg"],
+    "emoji": "🪙",
+    "category": "wedding",
+    "description": "A premium padded card depicting a royal baraat procession, finished with rich gold foil stamping on heavyweight board.",
+    "isPremium": true
+  },
+  {
+    "slug": "maroon-floral-handle-padded-card",
+    "name": "Maroon Floral Handle Padded Wedding Invitation",
+    "price": 261.9,
+    "mrp": 291,
+    "images": ["prem2a.jpg", "prem2b.jpg", "prem2c.jpg"],
+    "emoji": "🌺",
+    "category": "wedding",
+    "badge": "Premium",
+    "description": "A deep maroon padded invitation with a decorative carry handle and floral gold accents. A statement piece for premium weddings.",
+    "isPremium": true
+  },
+  {
+    "slug": "grey-gold-floral-padded-card",
+    "name": "Grey Gold Floral Padded Wedding Card",
+    "price": 94.5,
+    "mrp": 105,
+    "images": ["prem3a.jpg", "prem3b.jpg", "prem3c.jpg"],
+    "emoji": "✨",
+    "category": "wedding",
+    "description": "A contemporary grey padded card with subtle gold floral patterns. Modern, understated and elegant.",
+    "isPremium": true
+  },
+  {
+    "slug": "cream-peacock-padded-card",
+    "name": "Cream Peacock Padded Wedding Card",
+    "price": 255.6,
+    "mrp": 284,
+    "images": ["prem4a.jpg", "prem4b.jpg", "prem4c.jpg"],
+    "emoji": "🦚",
+    "category": "wedding",
+    "badge": "Premium",
+    "description": "A cream padded invitation showcasing ornate peacock motifs with gold detailing. Comes with premium matching envelopes.",
+    "isPremium": true
+  },
+  {
+    "slug": "pastel-blue-floral-luxury-box",
+    "name": "Pastel Blue Floral Luxury Invitation Box",
+    "price": 6615,
+    "mrp": 6615,
+    "images": ["luxe1a.jpg", "luxe1b.jpg"],
+    "emoji": "💎",
+    "category": "luxe",
+    "description": "An exclusive pastel blue invitation box with floral embellishments, velvet lining and space for cards, sweets and gifts.",
+    "isPremium": true
+  },
+  {
+    "slug": "gold-premium-luxury-box",
+    "name": "Gold Premium Luxury Invitation Box",
+    "price": 5700,
+    "mrp": 5700,
+    "images": ["luxe2a.jpg", "luxe2b.jpg"],
+    "emoji": "👑",
+    "category": "luxe",
+    "badge": "Luxe",
+    "description": "A regal gold luxury invitation box with hand-finished detailing — the ultimate way to announce a grand celebration.",
+    "isPremium": true
+  },
+  {
+    "slug": "green-padded-floral-god-card",
+    "name": "Green Padded Floral God Wedding Card",
+    "price": 113.4,
+    "mrp": 126,
+    "images": ["new1a.jpg", "new1b.jpg", "new1c.jpg"],
+    "emoji": "🌿",
+    "category": "wedding",
+    "badge": "New",
+    "description": "A traditional green padded card with auspicious god motifs and floral borders, ideal for devout family ceremonies."
+  },
+  {
+    "slug": "blue-housewarming-invitation",
+    "name": "Blue Floral Housewarming Invitation Card",
+    "price": 45,
+    "mrp": 60,
+    "images": ["house1a.jpg", "house1b.jpg"],
+    "emoji": "🏠",
+    "category": "housewarming",
+    "description": "A bright, welcoming card for housewarming ceremonies with floral artwork and space for ceremony details."
+  }
+]

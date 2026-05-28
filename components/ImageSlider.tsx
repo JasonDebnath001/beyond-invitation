@@ -3,24 +3,42 @@
 import { useState } from "react";
 
 interface ImageSliderProps {
-  /** Image file names — resolved against /public/products/ */
   images: string[];
-  /** Emoji fallback shown when an image fails to load or list is empty */
   emoji: string;
-  /** Alt text base for accessibility */
   alt: string;
-  /** Optional badge text rendered top-left */
   badge?: string;
-  /** Show the thumbnail strip below the slider (used on cards) */
   showThumbnails?: boolean;
-  /** Slider height class — cards use a fixed height, detail page a taller one */
   heightClass?: string;
 }
 
-/**
- * A self-contained image carousel. All slider state lives in this component,
- * so any number of sliders can exist on a page without ID collisions.
- */
+function getImageSrc(img: string) {
+  if (!img) return "";
+
+  // ERPNext / external full image URL
+  if (img.startsWith("http://") || img.startsWith("https://")) {
+    return img;
+  }
+
+  // ERPNext relative public/private file path converted earlier or passed directly
+  if (img.startsWith("/files/") || img.startsWith("/private/files/")) {
+    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
+
+    if (erpUrl) {
+      return `${erpUrl}${img}`;
+    }
+
+    return img;
+  }
+
+  // Already a public path inside Next.js app
+  if (img.startsWith("/")) {
+    return img;
+  }
+
+  // Old website behavior: local images from /public/products
+  return `/products/${img}`;
+}
+
 export default function ImageSlider({
   images,
   emoji,
@@ -36,6 +54,7 @@ export default function ImageSlider({
   const hasImages = total > 0;
 
   function go(delta: number) {
+    if (total === 0) return;
     setCurrent((c) => (c + delta + total) % total);
   }
 
@@ -44,40 +63,44 @@ export default function ImageSlider({
   }
 
   return (
-    <div>
-      <div className={`relative ${heightClass} overflow-hidden bg-neutral-100`}>
-        <div
-          className="flex h-full transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(-${current * 100}%)` }}
-        >
-          {hasImages ? (
-            images.map((img, i) => (
+    <div className="space-y-3">
+      <div
+        className={`relative overflow-hidden rounded-[1.75rem] bg-ivory ${heightClass}`}
+      >
+        {hasImages ? (
+          images.map((img, i) => {
+            const src = getImageSrc(img);
+
+            return (
               <div
-                key={img}
-                className="flex h-full w-full shrink-0 items-center justify-center bg-neutral-100 text-6xl"
+                key={`${img}-${i}`}
+                className={`absolute inset-0 transition-opacity duration-500 ${
+                  i === current ? "opacity-100" : "opacity-0"
+                }`}
               >
-                {failed[i] ? (
-                  <span aria-hidden>{emoji}</span>
+                {failed[i] || !src ? (
+                  <div className="flex h-full w-full items-center justify-center bg-ivory text-6xl">
+                    {emoji}
+                  </div>
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/products/${img}`}
-                    alt={`${alt} — image ${i + 1}`}
+                    src={src}
+                    alt={`${alt} ${i + 1}`}
                     onError={() => markFailed(i)}
                     className="h-full w-full object-cover"
                   />
                 )}
               </div>
-            ))
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl">
-              <span aria-hidden>{emoji}</span>
-            </div>
-          )}
-        </div>
+            );
+          })
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-ivory text-6xl">
+            {emoji}
+          </div>
+        )}
 
         {badge && (
-          <span className="absolute left-3 top-3 bg-carbon px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+          <span className="absolute left-4 top-4 rounded-full bg-carbon px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             {badge}
           </span>
         )}
@@ -90,67 +113,53 @@ export default function ImageSlider({
               aria-label="Previous image"
               className="absolute left-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-carbon shadow-sm transition hover:scale-105"
             >
-              &#8592;
+              ←
             </button>
+
             <button
               type="button"
               onClick={() => go(1)}
               aria-label="Next image"
               className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-carbon shadow-sm transition hover:scale-105"
             >
-              &#8594;
+              →
             </button>
 
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-              {images.map((img, i) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => setCurrent(i)}
-                  aria-label={`Go to image ${i + 1}`}
-                  className="flex h-8 w-8 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-carbon transition"
-                >
-                  <span
-                    className={`h-px transition-all ${
-                      i === current ? "w-5 bg-white" : "w-2.5 bg-white/50"
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-
-            <span className="pointer-events-none absolute right-3 top-3 bg-carbon/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            <div className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow-sm">
               {current + 1} / {total}
-            </span>
+            </div>
           </>
         )}
       </div>
 
       {showThumbnails && total > 1 && (
-        <div className="mt-2.5 flex gap-1.5 overflow-x-auto px-px">
-          {images.map((img, i) => (
-            <button
-              key={img}
-              type="button"
-              onClick={() => setCurrent(i)}
-              aria-label={`Show image ${i + 1}`}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border bg-neutral-100 text-lg transition ${
-                i === current ? "border-carbon" : "border-neutral-200"
-              }`}
-            >
-              {failed[i] ? (
-                <span aria-hidden>{emoji}</span>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={`/products/${img}`}
-                  alt=""
-                  onError={() => markFailed(i)}
-                  className="h-full w-full object-cover"
-                />
-              )}
-            </button>
-          ))}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {images.map((img, i) => {
+            const src = getImageSrc(img);
+
+            return (
+              <button
+                key={`${img}-thumb-${i}`}
+                type="button"
+                onClick={() => setCurrent(i)}
+                aria-label={`Show image ${i + 1}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-neutral-100 text-lg transition ${
+                  i === current ? "border-carbon" : "border-neutral-200"
+                }`}
+              >
+                {failed[i] || !src ? (
+                  <span>{emoji}</span>
+                ) : (
+                  <img
+                    src={src}
+                    alt={`${alt} thumbnail ${i + 1}`}
+                    onError={() => markFailed(i)}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

@@ -10,14 +10,14 @@ interface ProductGridProps {
 export function ProductGrid({ products }: ProductGridProps) {
   if (products.length === 0) {
     return (
-      <p className="py-12 text-center text-ink-light">
-        No products found in this collection yet.
+      <p className="border border-dashed border-neutral-200 py-16 text-center text-[14px] text-neutral-400">
+        No products found.
       </p>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-5 gap-y-10 lg:grid-cols-4">
       {products.map((product) => (
         <ProductCard key={product.slug} product={product} />
       ))}
@@ -31,7 +31,7 @@ interface ProductSectionProps {
   products: Product[];
   viewAllHref?: string;
   viewAllText?: string;
-  /** Apply the ivory background band */
+  /** Apply the soft off-white background band */
   shaded?: boolean;
 }
 
@@ -45,31 +45,41 @@ export function ProductSection({
   shaded = false,
 }: ProductSectionProps) {
   return (
-    <section className={shaded ? "bg-ivory py-16" : "py-16"}>
+    <section className={`py-20 md:py-24 ${shaded ? "bg-paper" : "bg-white"}`}>
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mb-11 text-center">
-          <span className="mb-2.5 block text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
-            {label}
-          </span>
-          <h2 className="font-display text-3xl font-semibold text-maroon-dark md:text-[38px]">
-            {title}
-          </h2>
-          <div className="mt-3 flex items-center justify-center gap-3">
-            <span className="h-px w-16 bg-gold/25" />
-            <span className="text-sm text-gold">✦</span>
-            <span className="h-px w-16 bg-gold/25" />
+        <div className="mb-12 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.3em] text-neutral-400">
+              {label}
+            </span>
+            <h2 className="mt-3 font-display text-[30px] font-medium leading-tight tracking-[-0.01em] text-carbon md:text-[42px]">
+              {title}
+            </h2>
+            <div className="mt-5 h-px w-14 bg-carbon" />
           </div>
+
+          {viewAllHref && (
+            <Link
+              href={viewAllHref}
+              className="group hidden shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon sm:inline-flex"
+            >
+              {viewAllText}
+              <span className="transition-transform group-hover:translate-x-1">
+                &#8594;
+              </span>
+            </Link>
+          )}
         </div>
 
         <ProductGrid products={products} />
 
         {viewAllHref && (
-          <div className="mt-9 text-center">
+          <div className="mt-12 text-center sm:hidden">
             <Link
               href={viewAllHref}
-              className="inline-flex items-center gap-2 rounded-lg border-[1.5px] border-maroon px-7 py-2.5 text-[13.5px] font-medium text-maroon transition hover:bg-maroon hover:text-gold-light"
+              className="inline-flex items-center gap-2 border border-carbon px-8 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon transition hover:bg-carbon hover:text-white"
             >
-              {viewAllText} →
+              {viewAllText} &#8594;
             </Link>
           </div>
         )}

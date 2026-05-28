@@ -14,133 +14,158 @@ import type { Product } from "@/types";
 const MAX_DROPDOWN_RESULTS = 6;
 
 export default function SearchBar() {
-    const router = useRouter();
-    const [query, setQuery] = useState("");
-    const [results, setResults] = useState<Product[]>([]);
-    const [open, setOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-    // Debounced live search — waits 250ms after the last keystroke.
-    useEffect(() => {
-        const q = query.trim();
-        if (!q) {
-            setResults([]);
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        const timer = setTimeout(async () => {
-            try {
-                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-                const data = (await res.json()) as { results: Product[] };
-                setResults(data.results ?? []);
-            } catch {
-                setResults([]);
-            } finally {
-                setLoading(false);
-            }
-        }, 250);
-
-        return () => clearTimeout(timer);
-    }, [query]);
-
-    // Close the dropdown when clicking outside the search box.
-    useEffect(() => {
-        function handleClick(e: MouseEvent) {
-            if (
-                containerRef.current &&
-                !containerRef.current.contains(e.target as Node)
-            ) {
-                setOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, []);
-
-    function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        const q = query.trim();
-        if (!q) return;
-        setOpen(false);
-        router.push(`/search?q=${encodeURIComponent(q)}`);
+  // Debounced live search — waits 250ms after the last keystroke.
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setResults([]);
+      setLoading(false);
+      return;
     }
 
-    function goToProduct(slug: string) {
+    setLoading(true);
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+          signal: controller.signal,
+        });
+        const data = (await res.json()) as { results: Product[] };
+        if (!controller.signal.aborted) {
+          setResults(data.results ?? []);
+        }
+      } catch (error) {
+        const err = error as { name?: string };
+        if (err.name !== "AbortError") {
+          setResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  // Close the dropdown when clicking outside the search box.
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
-        setQuery("");
-        router.push(`/products/${slug}`);
+      }
     }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
-    const shown = results.slice(0, MAX_DROPDOWN_RESULTS);
-    const showDropdown = open && query.trim().length > 0;
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    setOpen(false);
+    router.push(`/search?q=${encodeURIComponent(q)}`);
+  }
 
-    return (
-        <div ref={containerRef} className="relative">
-            <form onSubmit={handleSubmit}>
-                <div className="flex items-center">
-                    <span className="pointer-events-none absolute left-3 text-[14px] text-ink-light">
-                        🔍
-                    </span>
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onFocus={() => setOpen(true)}
-                        placeholder="Search cards..."
-                        aria-label="Search products"
-                        className="w-44 rounded-lg border border-gold/25 bg-white py-2 pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-light focus:w-56 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
-                    />
-                </div>
-            </form>
+  function goToProduct(slug: string) {
+    setOpen(false);
+    setQuery("");
+    router.push(`/products/${slug}`);
+  }
 
-            {showDropdown && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fadeDown overflow-hidden rounded-xl border border-gold/25 bg-white shadow-[0_8px_40px_rgba(123,28,46,0.15)]">
-                    {loading && (
-                        <p className="px-4 py-3 text-[13px] text-ink-light">
-                            Searching...
-                        </p>
-                    )}
+  const shown = results.slice(0, MAX_DROPDOWN_RESULTS);
+  const showDropdown = open && query.trim().length > 0;
 
-                    {!loading && shown.length === 0 && (
-                        <p className="px-4 py-3 text-[13px] text-ink-light">
-                            No products found for &ldquo;{query.trim()}&rdquo;
-                        </p>
-                    )}
-
-                    {!loading &&
-                        shown.map((product) => (
-                            <button
-                                key={product.slug}
-                                type="button"
-                                onClick={() => goToProduct(product.slug)}
-                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-gold-pale"
-                            >
-                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gold-pale text-lg">
-                                    {product.emoji}
-                                </span>
-                                <span className="flex-1 truncate text-[13px] font-medium text-ink">
-                                    {product.name}
-                                </span>
-                                <span className="shrink-0 font-display text-[14px] font-semibold text-maroon">
-                                    ₹{product.price.toLocaleString("en-IN")}
-                                </span>
-                            </button>
-                        ))}
-
-                    {!loading && results.length > 0 && (
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            className="block w-full border-t border-gold/20 bg-cream px-4 py-2.5 text-center text-[12.5px] font-medium text-maroon transition hover:bg-gold-pale"
-                        >
-                            See all {results.length} results →
-                        </button>
-                    )}
-                </div>
-            )}
+  return (
+    <div ref={containerRef} className="relative">
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-center">
+          <span className="pointer-events-none absolute left-3 text-neutral-400">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setOpen(true)}
+            placeholder="Search cards"
+            aria-label="Search products"
+            className="w-48 border border-neutral-300 bg-white py-2.5 pl-9 pr-3 text-[13px] text-carbon transition-all placeholder:text-neutral-400 focus:w-64 focus:border-carbon focus:outline-none"
+          />
         </div>
-    );
+      </form>
+
+      {showDropdown && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fadeDown overflow-hidden border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)]">
+          {loading && (
+            <p className="px-4 py-3 text-[13px] text-neutral-400">
+              Searching&hellip;
+            </p>
+          )}
+
+          {!loading && shown.length === 0 && (
+            <p className="px-4 py-3 text-[13px] text-neutral-400">
+              No products found for &ldquo;{query.trim()}&rdquo;
+            </p>
+          )}
+
+          {!loading &&
+            shown.map((product) => (
+              <button
+                key={product.slug}
+                type="button"
+                onClick={() => goToProduct(product.slug)}
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-neutral-50"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-neutral-100 text-lg">
+                  {product.emoji}
+                </span>
+                <span className="flex-1 truncate text-[13px] font-medium text-carbon">
+                  {product.name}
+                </span>
+                <span className="shrink-0 font-display text-[14px] font-medium text-carbon">
+                  &#8377;{product.price.toLocaleString("en-IN")}
+                </span>
+              </button>
+            ))}
+
+          {!loading && results.length > 0 && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="block w-full border-t border-neutral-200 bg-paper px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-carbon transition-colors hover:bg-neutral-100"
+            >
+              See all {results.length} results &#8594;
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

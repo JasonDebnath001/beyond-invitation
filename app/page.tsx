@@ -4,6 +4,7 @@ import {
   getAllCategories,
 } from "@/lib/products";
 import {
+  BrandStatement,
   CelebrationGrid,
   FeatureStrip,
   WhyUs,
@@ -27,23 +28,25 @@ export default async function HomePage() {
   return (
     <>
       <HeroCarousel />
+      <BrandStatement />
       <CelebrationGrid categories={categories} />
-      <FeatureStrip />
 
       <ProductSection
-        label="Limited time offers"
-        title="🔥 Sale Collection"
+        label="Limited-time offers"
+        title="The Sale Collection"
         products={saleProducts}
         viewAllHref="/collections/wedding"
         viewAllText="View All Sale Items"
       />
 
+      <FeatureStrip />
+
       <ProductSection
-        label="Exclusive & Elegant"
+        label="Exclusive & elegant"
         title="Premium Invitations"
         products={premiumProducts}
-        viewAllHref="/collections/wedding"
-        viewAllText="View All Premium Invitations"
+        viewAllHref="/collections/luxe"
+        viewAllText="View All Premium Cards"
         shaded
       />
 

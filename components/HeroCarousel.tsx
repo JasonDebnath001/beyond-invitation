@@ -150,7 +150,7 @@ export default function HeroCarousel() {
         type="button"
         onClick={goPrev}
         aria-label="Previous slide"
-        className="absolute left-5 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white hover:bg-white/5 md:flex"
+        className="absolute left-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/75"
       >
         &#8592;
       </button>
@@ -158,7 +158,7 @@ export default function HeroCarousel() {
         type="button"
         onClick={goNext}
         aria-label="Next slide"
-        className="absolute right-5 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white hover:bg-white/5 md:flex"
+        className="absolute right-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/75"
       >
         &#8594;
       </button>
@@ -171,10 +171,14 @@ export default function HeroCarousel() {
             type="button"
             onClick={() => setCurrent(i)}
             aria-label={`Go to slide ${i + 1}`}
-            className={`h-px transition-all duration-300 ${
-              i === current ? "w-12 bg-white" : "w-6 bg-white/30"
-            }`}
-          />
+            className="flex h-8 w-8 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-white/75 transition"
+          >
+            <span
+              className={`h-px transition-all duration-300 ${
+                i === current ? "w-6 bg-white" : "w-3 bg-white/30"
+              }`}
+            />
+          </button>
         ))}
       </div>
     </section>

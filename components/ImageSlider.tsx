@@ -108,10 +108,14 @@ export default function ImageSlider({
                   type="button"
                   onClick={() => setCurrent(i)}
                   aria-label={`Go to image ${i + 1}`}
-                  className={`h-px transition-all ${
-                    i === current ? "w-5 bg-white" : "w-2.5 bg-white/50"
-                  }`}
-                />
+                  className="flex h-8 w-8 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-carbon transition"
+                >
+                  <span
+                    className={`h-px transition-all ${
+                      i === current ? "w-5 bg-white" : "w-2.5 bg-white/50"
+                    }`}
+                  />
+                </button>
               ))}
             </div>
 

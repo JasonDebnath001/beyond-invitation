@@ -31,19 +31,32 @@ export default function SearchBar() {
     }
 
     setLoading(true);
-    const timer = setTimeout(async () => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+          signal: controller.signal,
+        });
         const data = (await res.json()) as { results: Product[] };
-        setResults(data.results ?? []);
-      } catch {
-        setResults([]);
+        if (!controller.signal.aborted) {
+          setResults(data.results ?? []);
+        }
+      } catch (error) {
+        const err = error as { name?: string };
+        if (err.name !== "AbortError") {
+          setResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   // Close the dropdown when clicking outside the search box.

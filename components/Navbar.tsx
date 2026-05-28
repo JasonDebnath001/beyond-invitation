@@ -11,9 +11,7 @@ import {
 } from "@clerk/nextjs";
 import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
-
-const BRAND = "Beyond Invitation";
-const TAGLINE = "Wedding Invitation Specialists";
+import { BRAND, TAGLINE } from "./siteConfig";
 
 /** Navigation structure — edit this array to change the menu. */
 const navMenu = [
@@ -53,6 +51,7 @@ const navMenu = [
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(null);
 
   // Close the mobile panel on Escape.
   useEffect(() => {
@@ -94,11 +93,22 @@ export default function Navbar() {
 
         {/* Desktop menu */}
         <div className="hidden items-center gap-8 lg:flex">
-          {navMenu.map((item) => (
-            <div key={item.label} className="group relative">
+          {navMenu.map((item, navIndex) => (
+            <div
+              key={item.label}
+              className="group relative"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                  setActiveDropdownIndex(null);
+                }
+              }}
+            >
               <Link
                 href={item.href}
-                className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon transition-colors hover:text-maroon-light"
+                onFocus={() => item.dropdown && setActiveDropdownIndex(navIndex)}
+                aria-haspopup={item.dropdown ? "menu" : undefined}
+                aria-expanded={item.dropdown ? activeDropdownIndex === navIndex : undefined}
+                className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon transition-colors hover:text-carbon"
               >
                 {item.label}
                 {item.dropdown && (
@@ -117,7 +127,7 @@ export default function Navbar() {
               </Link>
 
               {item.dropdown && (
-                <div className="absolute left-1/2 top-full hidden min-w-[230px] -translate-x-1/2 animate-fadeDown border border-neutral-200 bg-white p-1.5 shadow-[0_16px_44px_rgba(90,18,32,0.14)] group-hover:block">
+                <div className="absolute left-1/2 top-full hidden min-w-[230px] -translate-x-1/2 animate-fadeDown border border-neutral-200 bg-white p-1.5 shadow-[0_16px_44px_rgba(90,18,32,0.14)] group-hover:block group-focus-within:block">
                   {item.dropdown.map((d, i) =>
                     "section" in d ? (
                       <div

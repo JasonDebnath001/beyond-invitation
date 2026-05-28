@@ -11,7 +11,7 @@ export function ProductGrid({ products }: ProductGridProps) {
   if (products.length === 0) {
     return (
       <p className="border border-dashed border-neutral-200 py-16 text-center text-[14px] text-neutral-400">
-        No products in this collection yet.
+        No products found.
       </p>
     );
   }

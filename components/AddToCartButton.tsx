@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Product } from "@/types";
 import { useCart } from "./CartProvider";
 
@@ -20,11 +20,26 @@ export default function AddToCartButton({
 }: AddToCartButtonProps) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
+  const addedTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (addedTimeoutRef.current) {
+        clearTimeout(addedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function handleClick() {
     addItem(product);
     setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
+    if (addedTimeoutRef.current) {
+      clearTimeout(addedTimeoutRef.current);
+    }
+    addedTimeoutRef.current = window.setTimeout(() => {
+      setAdded(false);
+      addedTimeoutRef.current = null;
+    }, 1500);
   }
 
   const base =

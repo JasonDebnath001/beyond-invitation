@@ -28,11 +28,11 @@ export default function AddToCartButton({
   }
 
   const base =
-    "w-full rounded-lg font-medium transition focus:outline-none focus:ring-2 focus:ring-gold";
-  const size = large ? "py-3 text-sm" : "py-2.5 text-[13px]";
+    "w-full font-semibold uppercase tracking-[0.13em] transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-carbon focus:ring-offset-2";
+  const size = large ? "py-4 text-[12.5px]" : "py-3 text-[11px]";
   const colors = added
-    ? "border border-maroon bg-maroon text-gold-light"
-    : "border border-gold/25 bg-gold-pale text-maroon hover:border-maroon hover:bg-maroon hover:text-gold-light";
+    ? "border border-carbon bg-carbon text-white"
+    : "border border-carbon bg-white text-carbon hover:bg-carbon hover:text-white";
 
   return (
     <button
@@ -40,7 +40,7 @@ export default function AddToCartButton({
       onClick={handleClick}
       className={`${base} ${size} ${colors}`}
     >
-      {added ? "✓ Added to Cart!" : "Add to Cart"}
+      {added ? "\u2713 Added to Cart" : "Add to Cart"}
     </button>
   );
 }

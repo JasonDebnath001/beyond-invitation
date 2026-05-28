@@ -4,6 +4,9 @@
 
 @layer base {
   body {
-    @apply bg-cream font-body text-ink antialiased;
+    @apply bg-white font-body text-ink antialiased;
+  }
+  ::selection {
+    @apply bg-carbon text-white;
   }
 }

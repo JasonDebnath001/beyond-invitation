@@ -11,6 +11,14 @@ const ERPNEXT_PRICE_LIST = process.env.ERPNEXT_PRICE_LIST ?? "Standard Selling";
 // Override without editing code by setting ERPNEXT_WEBSITE_FIELD in .env.local.
 const ERPNEXT_WEBSITE_FIELD =
   process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
+// Fieldname (NOT the form label) of the "Subject" field under Additional Info
+// on Item — used to split Wedding Cards into Hindu / Muslim / Christian, etc.
+// Custom fields in ERPNext are usually stored with a `custom_` prefix, so the
+// "Subject" label most often maps to `custom_subject`. Confirm via
+// Customize Form → Item or /api/resource/Item/<ITEM_CODE>, and override with
+// ERPNEXT_SUBJECT_FIELD in .env.local if your field name differs.
+const ERPNEXT_SUBJECT_FIELD =
+  process.env.ERPNEXT_SUBJECT_FIELD ?? "custom_subject";
 // How long (seconds) to cache ERPNext responses. Set to 0 in .env.local for
 // always-fresh data (every request hits ERPNext) — useful while testing
 // "Show on Website" toggles. A small value like 60 is a good production default.
@@ -61,6 +69,8 @@ export type ErpProduct = Product & {
   itemCode: string;
   itemGroup: string;
   erpName: string;
+  /** Value of the ERPNext "Subject" field, e.g. "Hindu" / "Muslim". */
+  subject: string;
 };
 
 function requireErpConfig() {
@@ -342,6 +352,7 @@ function mapErpItemToProduct(
     erpName: item.name,
     itemCode,
     itemGroup: item.item_group ?? "",
+    subject: String(item[ERPNEXT_SUBJECT_FIELD] ?? "").trim(),
 
     slug: normalizeSlug(itemCode),
 
@@ -429,6 +440,82 @@ export async function fetchErpProductsByCategory(
   const products = await fetchErpProducts();
 
   return products.filter((product) => product.category === category);
+}
+
+/**
+ * Products whose ERPNext "Subject" field matches `subject` (case-insensitive)
+ * AND that have "Show on Website" enabled. Used by the Wedding Card sub-pages
+ * (Hindu / Muslim / Christian).
+ *
+ * Self-contained on purpose: it runs its own Item query that includes the
+ * subject field, so it does not affect the shared fetchErpProducts() used by
+ * other pages. If ERPNEXT_SUBJECT_FIELD is wrong, only these pages surface the
+ * error — the rest of the site keeps working.
+ */
+export async function fetchErpProductsBySubject(
+  subject: string,
+): Promise<ErpProduct[]> {
+  requireErpConfig();
+
+  const target = subject.trim();
+
+  const itemResponse = await erpFetch<ErpNextListResponse<ErpItem>>(
+    "/api/resource/Item",
+    {
+      fields: JSON.stringify([
+        "name",
+        "item_code",
+        "item_name",
+        "item_group",
+        "description",
+        "image",
+        "disabled",
+        ERPNEXT_WEBSITE_FIELD,
+        ERPNEXT_SUBJECT_FIELD,
+        "standard_rate",
+        "valuation_rate",
+      ]),
+      filters: JSON.stringify([
+        ["Item", "disabled", "=", 0],
+        ["Item", ERPNEXT_WEBSITE_FIELD, "=", 1],
+        ["Item", ERPNEXT_SUBJECT_FIELD, "=", target],
+      ]),
+      limit_page_length: "200",
+      order_by: "modified desc",
+    },
+  );
+
+  // Defensive re-filter in JS: guards the disabled/website flags and matches
+  // the subject case-insensitively (ERPNext "=" can be case-sensitive
+  // depending on the database collation).
+  const visibleItems = itemResponse.data.filter(
+    (item) =>
+      item.disabled !== 1 &&
+      Number(item[ERPNEXT_WEBSITE_FIELD]) === 1 &&
+      String(item[ERPNEXT_SUBJECT_FIELD] ?? "")
+        .trim()
+        .toLowerCase() === target.toLowerCase(),
+  );
+
+  const itemCodes = visibleItems
+    .map((item) => item.item_code || item.name)
+    .filter(Boolean);
+  const priceMap = await fetchItemPrices(itemCodes as string[]);
+  const fileImageMap = await fetchItemImagesFromFiles(visibleItems);
+
+  return visibleItems.map((item) => {
+    const product = mapErpItemToProduct(item, priceMap);
+
+    if (product.images.length === 0) {
+      const fallbackImage = fileImageMap.get(item.name);
+
+      if (fallbackImage) {
+        product.images = [fallbackImage];
+      }
+    }
+
+    return product;
+  });
 }
 
 export async function createErpSalesOrder(payload: {

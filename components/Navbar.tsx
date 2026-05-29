@@ -13,38 +13,31 @@ import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
 import { BRAND, TAGLINE } from "./siteConfig";
 
+/** A dropdown entry is either a link or a non-clickable section heading. */
+type DropdownItem = { label: string; href: string } | { section: string };
+/** A top-level nav item, with an optional hover dropdown. */
+type NavItem = { label: string; href: string; dropdown?: DropdownItem[] };
+
 /** Navigation structure — edit this array to change the menu. */
-const navMenu = [
+const navMenu: NavItem[] = [
   {
-    label: "Invitations",
-    href: "/collections/wedding",
+    label: "Wedding Card",
+    href: "/collections/wedding-card",
     dropdown: [
-      { section: "By Occasion" },
-      { label: "Wedding", href: "/collections/wedding" },
-      { label: "Housewarming", href: "/collections/housewarming" },
-      { label: "Thread Ceremony", href: "/collections/thread-ceremony" },
-      { label: "Naming Ceremony", href: "/collections/naming-ceremony" },
-      { label: "Birthday", href: "/collections/birthday" },
-      { label: "Baby Shower", href: "/collections/baby-shower" },
+      { label: "Hindu", href: "/collections/wedding-card-hindu" },
+      { label: "Muslim", href: "/collections/wedding-card-muslim" },
+      { label: "Christian", href: "/collections/wedding-card-christian" },
     ],
   },
+  { label: "Shagun Envelopes", href: "/collections/shagun-envelopes" },
+  { label: "Shagun Boxes", href: "/collections/shagun-boxes" },
   {
-    label: "Luxe",
-    href: "/collections/luxe",
+    label: "Rakhi",
+    href: "/collections/rakhi",
     dropdown: [
-      { label: "Luxe Invitations", href: "/collections/luxe" },
-      { label: "Luxe Boxes", href: "/collections/luxe" },
-    ],
-  },
-  { label: "Gifts", href: "/collections/wedding" },
-  { label: "Stores", href: "/" },
-  {
-    label: "Explore",
-    href: "/",
-    dropdown: [
-      { label: "Happy Customers", href: "/" },
-      { label: "Become a Dealer", href: "/" },
-      { label: "About Us", href: "/" },
+      { label: "Cards", href: "/collections/rakhi-cards" },
+      { label: "Boxes", href: "/collections/rakhi-boxes" },
+      { label: "Tag", href: "/collections/rakhi-tag" },
     ],
   },
 ];

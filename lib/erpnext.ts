@@ -4,6 +4,19 @@ const ERPNEXT_URL = process.env.ERPNEXT_URL ?? "";
 const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY ?? "";
 const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET ?? "";
 const ERPNEXT_PRICE_LIST = process.env.ERPNEXT_PRICE_LIST ?? "Standard Selling";
+// Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
+// The label is "Show on Website" but ERPNext v14+ stores custom fields with a
+// `custom_` prefix. Confirm the exact name via Customize Form → Item, or by
+// opening /api/resource/Item/<ITEM_CODE> and finding the key set to 1.
+// Override without editing code by setting ERPNEXT_WEBSITE_FIELD in .env.local.
+const ERPNEXT_WEBSITE_FIELD =
+  process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
+// How long (seconds) to cache ERPNext responses. Set to 0 in .env.local for
+// always-fresh data (every request hits ERPNext) — useful while testing
+// "Show on Website" toggles. A small value like 60 is a good production default.
+const ERPNEXT_REVALIDATE = Number(
+  process.env.ERPNEXT_REVALIDATE_SECONDS ?? "60",
+);
 
 type ErpNextListResponse<T> = {
   data: T[];
@@ -156,7 +169,7 @@ async function erpFetch<T>(
 
   const res = await fetch(buildErpUrl(path, params), {
     headers: authHeaders(),
-    next: { revalidate: 300 },
+    next: { revalidate: ERPNEXT_REVALIDATE },
   });
 
   if (!res.ok) {
@@ -359,21 +372,23 @@ export async function fetchErpProducts(): Promise<ErpProduct[]> {
         "description",
         "image",
         "disabled",
+        ERPNEXT_WEBSITE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
-      filters: JSON.stringify([[
-        "Item",
-        "disabled",
-        "=",
-        0,
-      ]]),
+      filters: JSON.stringify([
+        ["Item", "disabled", "=", 0],
+        ["Item", ERPNEXT_WEBSITE_FIELD, "=", 1],
+      ]),
       limit_page_length: "200",
       order_by: "modified desc",
     },
   );
 
-  const visibleItems = itemResponse.data.filter((item) => item.disabled !== 1);
+  const visibleItems = itemResponse.data.filter(
+    (item) =>
+      item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
+  );
   const itemCodes = visibleItems
     .map((item) => item.item_code || item.name)
     .filter(Boolean);

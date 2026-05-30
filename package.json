@@ -13,6 +13,7 @@
     "next": "^15.5.18",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
+    ,"isomorphic-dompurify": "^2.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

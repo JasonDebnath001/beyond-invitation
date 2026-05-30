@@ -1,30 +1,35 @@
 import type { Product, ProductCategory } from "@/types";
+import DOMPurify from "isomorphic-dompurify";
 
 const ERPNEXT_URL = process.env.ERPNEXT_URL ?? "";
 const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY ?? "";
 const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET ?? "";
 const ERPNEXT_PRICE_LIST = process.env.ERPNEXT_PRICE_LIST ?? "Standard Selling";
+
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
-// The label is "Show on Website" but ERPNext v14+ stores custom fields with a
-// `custom_` prefix. Confirm the exact name via Customize Form → Item, or by
-// opening /api/resource/Item/<ITEM_CODE> and finding the key set to 1.
-// Override without editing code by setting ERPNEXT_WEBSITE_FIELD in .env.local.
+// Override with ERPNEXT_WEBSITE_FIELD in .env.local if yours differs.
 const ERPNEXT_WEBSITE_FIELD =
   process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
-// Fieldname (NOT the form label) of the "Subject" field under Additional Info
-// on Item — used to split Wedding Cards into Hindu / Muslim / Christian, etc.
-// Custom fields in ERPNext are usually stored with a `custom_` prefix, so the
-// "Subject" label most often maps to `custom_subject`. Confirm via
-// Customize Form → Item or /api/resource/Item/<ITEM_CODE>, and override with
-// ERPNEXT_SUBJECT_FIELD in .env.local if your field name differs.
+
+// Fieldname of the "Subject" field on Item — used to split Wedding Cards into
+// Hindu / Muslim / Christian. Override with ERPNEXT_SUBJECT_FIELD if needed.
 const ERPNEXT_SUBJECT_FIELD =
   process.env.ERPNEXT_SUBJECT_FIELD ?? "custom_subject";
-// How long (seconds) to cache ERPNext responses. Set to 0 in .env.local for
-// always-fresh data (every request hits ERPNext) — useful while testing
-// "Show on Website" toggles. A small value like 60 is a good production default.
+
+// Caching for ERPNext responses (seconds). Set to 0 in .env.local for
+// always-fresh data while testing; 60 is a good production default.
 const ERPNEXT_REVALIDATE = Number(
   process.env.ERPNEXT_REVALIDATE_SECONDS ?? "60",
 );
+
+// --- Multi-image gallery (the "Item Image" child table on Item) -------------
+// All three auto-detect by default; set them only if detection misfires.
+// ERPNEXT_IMAGE_TABLE_FIELD = the table's fieldname on Item (parentfield).
+// ERPNEXT_IMAGE_ROW_FIELD   = the image column inside each row (usually "image").
+// ERPNEXT_IMAGE_ORDER_FIELD = the numeric order column inside each row.
+const ERPNEXT_IMAGE_TABLE_FIELD = process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
+const ERPNEXT_IMAGE_ROW_FIELD = process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
+const ERPNEXT_IMAGE_ORDER_FIELD = process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
 
 type ErpNextListResponse<T> = {
   data: T[];
@@ -54,15 +59,6 @@ type ErpItemPrice = {
   price_list: string;
   price_list_rate: number;
   currency?: string;
-};
-
-type ErpFile = {
-  name: string;
-  file_name?: string;
-  file_url?: string;
-  attached_to_doctype?: string;
-  attached_to_name?: string;
-  is_private?: 0 | 1;
 };
 
 export type ErpProduct = Product & {
@@ -133,10 +129,7 @@ function buildImageUrl(image?: string): string[] {
 
   if (!cleanImage) return [];
 
-  if (
-    cleanImage.startsWith("http://") ||
-    cleanImage.startsWith("https://")
-  ) {
+  if (cleanImage.startsWith("http://") || cleanImage.startsWith("https://")) {
     return [encodeURI(cleanImage)];
   }
 
@@ -145,20 +138,6 @@ function buildImageUrl(image?: string): string[] {
   }
 
   return [encodeURI(`${cleanBaseUrl()}/${cleanImage}`)];
-}
-
-function isImageFile(fileUrl?: string) {
-  if (!fileUrl) return false;
-
-  const lower = fileUrl.toLowerCase();
-
-  return (
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg") ||
-    lower.endsWith(".png") ||
-    lower.endsWith(".webp") ||
-    lower.endsWith(".gif")
-  );
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -231,110 +210,6 @@ async function fetchItemPrices(itemCodes: string[]) {
   return priceMap;
 }
 
-async function fetchItemImagesFromFiles(items: ErpItem[]) {
-  const imageMap = new Map<string, string>();
-
-  const itemNames = items.map((item) => item.name).filter(Boolean);
-
-  if (itemNames.length === 0) return imageMap;
-
-  // STEP 1: Try File records properly attached to Item
-  const chunks = chunkArray(itemNames, 25);
-
-  for (const chunk of chunks) {
-    const json = await erpFetch<ErpNextListResponse<ErpFile>>(
-      "/api/resource/File",
-      {
-        fields: JSON.stringify([
-          "name",
-          "file_name",
-          "file_url",
-          "attached_to_doctype",
-          "attached_to_name",
-          "is_private",
-        ]),
-        filters: JSON.stringify([
-          ["File", "attached_to_doctype", "=", "Item"],
-          ["File", "attached_to_name", "in", chunk],
-          ["File", "is_private", "=", 0],
-        ]),
-        limit_page_length: "200",
-        order_by: "creation desc",
-      },
-    );
-
-    for (const file of json.data) {
-      if (!file.attached_to_name) continue;
-      if (!isImageFile(file.file_url)) continue;
-
-      if (!imageMap.has(file.attached_to_name)) {
-        const imageUrl = buildImageUrl(file.file_url)[0];
-
-        if (imageUrl) {
-          imageMap.set(file.attached_to_name, imageUrl);
-        }
-      }
-    }
-  }
-
-  // STEP 2: Fallback by file name / file_url match.
-  // Example: Item name 535 -> /files/535.jpg
-  const missingItems = items.filter((item) => !imageMap.has(item.name));
-
-  for (const item of missingItems) {
-    const possibleBaseNames = Array.from(
-      new Set([
-        item.name,
-        item.item_code,
-        item.item_name,
-      ].filter(Boolean)),
-    );
-
-    const possibleFileUrls: string[] = [];
-
-    for (const baseName of possibleBaseNames) {
-      possibleFileUrls.push(`/files/${baseName}.jpg`);
-      possibleFileUrls.push(`/files/${baseName}.jpeg`);
-      possibleFileUrls.push(`/files/${baseName}.png`);
-      possibleFileUrls.push(`/files/${baseName}.webp`);
-    }
-
-    for (const fileUrl of possibleFileUrls) {
-      try {
-        const json = await erpFetch<ErpNextListResponse<ErpFile>>(
-          "/api/resource/File",
-          {
-            fields: JSON.stringify([
-              "name",
-              "file_name",
-              "file_url",
-              "attached_to_doctype",
-              "attached_to_name",
-              "is_private",
-            ]),
-            filters: JSON.stringify([
-              ["File", "file_url", "=", fileUrl],
-              ["File", "is_private", "=", 0],
-            ]),
-            limit_page_length: "1",
-          },
-        );
-
-        const imageFile = json.data.find((file) => isImageFile(file.file_url));
-
-        if (imageFile?.file_url) {
-          imageMap.set(item.name, buildImageUrl(imageFile.file_url)[0]);
-          break;
-        }
-      } catch {
-        // Continue checking next possible image name
-      }
-    }
-  }
-
-  return imageMap;
-}
-
 function mapErpItemToProduct(
   item: ErpItem,
   priceMap: Map<string, number>,
@@ -363,13 +238,134 @@ function mapErpItemToProduct(
     emoji: "💌",
     category: normalizeCategory(item.item_group),
     badge: undefined,
-    description: item.description || "",
+    // Sanitize HTML coming from ERPNext to prevent stored XSS when
+    // rendered with `dangerouslySetInnerHTML` in Server Components.
+    description: DOMPurify.sanitize(String(item.description || "")),
     onSale: false,
     isPremium: false,
   };
 }
 
-export async function fetchErpProducts(): Promise<ErpProduct[]> {
+/** Fetch a full Item document (includes all child tables, in row order). */
+async function fetchErpItemDoc(
+  itemName: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const json = await erpFetch<ErpNextSingleResponse<Record<string, unknown>>>(
+      `/api/resource/Item/${encodeURIComponent(itemName)}`,
+    );
+    return json.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Pull ordered image URLs out of the Item Image child table on a doc. */
+function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
+  if (!doc) return [];
+
+  const urls: string[] = [];
+
+  const looksLikeImage = (v: unknown) =>
+    typeof v === "string" &&
+    (/\.(jpe?g|png|webp|gif)$/i.test(v) ||
+      v.startsWith("/files/") ||
+      v.startsWith("/private/files/") ||
+      v.startsWith("http"));
+
+  const push = (v: unknown) => {
+    if (!looksLikeImage(v)) return;
+    const url = buildImageUrl(v as string)[0];
+    if (url && !urls.includes(url)) urls.push(url);
+  };
+
+  const toNum = (v: unknown): number | null => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)))
+      return Number(v);
+    return null;
+  };
+
+  // Resolve a row's sort key: configured field → a field named like "order" → idx.
+  const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
+    if (ERPNEXT_IMAGE_ORDER_FIELD) {
+      const n = toNum(row[ERPNEXT_IMAGE_ORDER_FIELD]);
+      if (n !== null) return n;
+    }
+    for (const key of Object.keys(row)) {
+      if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
+        const n = toNum(row[key]);
+        if (n !== null) return n;
+      }
+    }
+    const idx = toNum(row.idx);
+    return idx !== null ? idx : fallback;
+  };
+
+  // Candidate child tables: the configured one, else any array-of-objects field.
+  const tables: Record<string, unknown>[][] = [];
+  const preferred = ERPNEXT_IMAGE_TABLE_FIELD
+    ? doc[ERPNEXT_IMAGE_TABLE_FIELD]
+    : null;
+
+  if (Array.isArray(preferred)) {
+    tables.push(preferred as Record<string, unknown>[]);
+  } else {
+    for (const value of Object.values(doc)) {
+      if (Array.isArray(value) && value.length && typeof value[0] === "object") {
+        tables.push(value as Record<string, unknown>[]);
+      }
+    }
+  }
+
+  for (const rows of tables) {
+    const before = urls.length;
+
+    const ordered = rows
+      .map((row, i) => ({ row, i, order: rowOrder(row, i) }))
+      .sort((a, b) => a.order - b.order || a.i - b.i);
+
+    for (const { row } of ordered) {
+      if (!row || typeof row !== "object") continue;
+      const direct = row[ERPNEXT_IMAGE_ROW_FIELD];
+      if (looksLikeImage(direct)) {
+        push(direct);
+        continue;
+      }
+      for (const v of Object.values(row)) {
+        if (looksLikeImage(v)) {
+          push(v);
+          break;
+        }
+      }
+    }
+
+    if (urls.length > before) break; // first table that yielded images wins
+  }
+
+  return urls;
+}
+
+/** Replace each product's images with its full ordered gallery, if present. */
+async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
+  const CONCURRENCY = 8;
+
+  for (let i = 0; i < products.length; i += CONCURRENCY) {
+    const batch = products.slice(i, i + CONCURRENCY);
+
+    await Promise.all(
+      batch.map(async (p) => {
+        const gallery = extractGalleryImages(await fetchErpItemDoc(p.erpName));
+        if (gallery.length > 0) p.images = gallery;
+      }),
+    );
+  }
+
+  return products;
+}
+
+/** Build the base product list (no gallery enrichment). */
+async function buildErpProductList(): Promise<ErpProduct[]> {
   requireErpConfig();
 
   const itemResponse = await erpFetch<ErpNextListResponse<ErpItem>>(
@@ -397,41 +393,34 @@ export async function fetchErpProducts(): Promise<ErpProduct[]> {
   );
 
   const visibleItems = itemResponse.data.filter(
-    (item) =>
-      item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
+    (item) => item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
   );
+
   const itemCodes = visibleItems
     .map((item) => item.item_code || item.name)
     .filter(Boolean);
   const priceMap = await fetchItemPrices(itemCodes as string[]);
-  const fileImageMap = await fetchItemImagesFromFiles(visibleItems);
 
-  console.log(
-    "ERP FILE IMAGE MAP DEBUG:",
-    Array.from(fileImageMap.entries()).slice(0, 20),
-  );
+  return visibleItems.map((item) => mapErpItemToProduct(item, priceMap));
+}
 
-  return visibleItems.map((item) => {
-    const product = mapErpItemToProduct(item, priceMap);
-
-    if (product.images.length === 0) {
-      const fallbackImage = fileImageMap.get(item.name);
-
-      if (fallbackImage) {
-        product.images = [fallbackImage];
-      }
-    }
-
-    return product;
-  });
+export async function fetchErpProducts(): Promise<ErpProduct[]> {
+  const products = await buildErpProductList();
+  return enrichGalleries(products);
 }
 
 export async function fetchErpProductBySlug(
   slug: string,
 ): Promise<ErpProduct | null> {
-  const products = await fetchErpProducts();
+  const products = await buildErpProductList();
+  const product = products.find((p) => p.slug === slug) ?? null;
+  if (!product) return null;
 
-  return products.find((product) => product.slug === slug) ?? null;
+  // Enrich only this product with its ordered gallery (one extra request).
+  const gallery = extractGalleryImages(await fetchErpItemDoc(product.erpName));
+  if (gallery.length > 0) product.images = gallery;
+
+  return product;
 }
 
 export async function fetchErpProductsByCategory(
@@ -446,11 +435,6 @@ export async function fetchErpProductsByCategory(
  * Products whose ERPNext "Subject" field matches `subject` (case-insensitive)
  * AND that have "Show on Website" enabled. Used by the Wedding Card sub-pages
  * (Hindu / Muslim / Christian).
- *
- * Self-contained on purpose: it runs its own Item query that includes the
- * subject field, so it does not affect the shared fetchErpProducts() used by
- * other pages. If ERPNEXT_SUBJECT_FIELD is wrong, only these pages surface the
- * error — the rest of the site keeps working.
  */
 export async function fetchErpProductsBySubject(
   subject: string,
@@ -485,9 +469,9 @@ export async function fetchErpProductsBySubject(
     },
   );
 
-  // Defensive re-filter in JS: guards the disabled/website flags and matches
-  // the subject case-insensitively (ERPNext "=" can be case-sensitive
-  // depending on the database collation).
+  // Defensive re-filter in JS: guards the flags and matches the subject
+  // case-insensitively (ERPNext "=" can be case-sensitive depending on the
+  // database collation).
   const visibleItems = itemResponse.data.filter(
     (item) =>
       item.disabled !== 1 &&
@@ -501,21 +485,12 @@ export async function fetchErpProductsBySubject(
     .map((item) => item.item_code || item.name)
     .filter(Boolean);
   const priceMap = await fetchItemPrices(itemCodes as string[]);
-  const fileImageMap = await fetchItemImagesFromFiles(visibleItems);
 
-  return visibleItems.map((item) => {
-    const product = mapErpItemToProduct(item, priceMap);
+  const products = visibleItems.map((item) =>
+    mapErpItemToProduct(item, priceMap),
+  );
 
-    if (product.images.length === 0) {
-      const fallbackImage = fileImageMap.get(item.name);
-
-      if (fallbackImage) {
-        product.images = [fallbackImage];
-      }
-    }
-
-    return product;
-  });
+  return enrichGalleries(products);
 }
 
 export async function createErpSalesOrder(payload: {

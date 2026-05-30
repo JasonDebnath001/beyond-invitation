@@ -93,24 +93,27 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   return (
     <div className="bg-white">
-      <div className="mx-auto max-w-7xl px-6 py-8 md:py-12">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 md:py-12">
         {/* Breadcrumb */}
-        <nav className="mb-8 text-[12.5px] text-ink-light">
-          <Link href="/" className="transition-colors hover:text-carbon">
+        <nav className="mb-6 flex items-center gap-1.5 overflow-hidden text-[12px] text-ink-light sm:mb-8 sm:text-[12.5px]">
+          <Link
+            href="/"
+            className="shrink-0 whitespace-nowrap transition-colors hover:text-carbon"
+          >
             Home
           </Link>
-          <span className="mx-2 text-gold">/</span>
+          <span className="shrink-0 text-gold">/</span>
           <Link
             href={`/collections/${product.category}`}
-            className="capitalize transition-colors hover:text-carbon"
+            className="shrink-0 whitespace-nowrap capitalize transition-colors hover:text-carbon"
           >
             {categoryLabel}
           </Link>
-          <span className="mx-2 text-gold">/</span>
-          <span className="text-ink">{product.name}</span>
+          <span className="shrink-0 text-gold">/</span>
+          <span className="truncate text-ink">{product.name}</span>
         </nav>
 
-        <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="grid gap-8 lg:grid-cols-2 lg:gap-14">
           {/* Gallery */}
           <ProductGallery
             images={product.images}
@@ -177,7 +180,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <ProductBuyBox product={product} />
 
-            <div className="mt-8 grid grid-cols-3 gap-3">
+            <div className="mt-8 grid grid-cols-3 gap-2.5 sm:gap-3">
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
@@ -197,7 +200,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         </div>
 
         {/* Details */}
-        <div className="mt-16 max-w-3xl">
+        <div className="mt-12 max-w-3xl sm:mt-16">
           <Accordion title="Product Details" defaultOpen>
             <ul className="space-y-2.5 text-[14px] text-ink-mid">
               <SpecRow
@@ -225,7 +228,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
         {/* Related */}
         {related.length > 0 && (
-          <section className="mt-20">
+          <section className="mt-14 sm:mt-20">
             <div className="mb-10 flex items-end justify-between gap-6">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">

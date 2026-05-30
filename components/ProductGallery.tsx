@@ -66,7 +66,7 @@ export default function ProductGallery({
         onKeyDown={onKeyDown}
         aria-roledescription="carousel"
         aria-label={`${alt} images`}
-        className="group relative aspect-[4/5] flex-1 overflow-hidden rounded-2xl border border-gold/25 bg-ivory focus:outline-none focus:ring-2 focus:ring-gold/60"
+        className="group relative aspect-square flex-1 overflow-hidden rounded-2xl border border-gold/25 bg-ivory focus:outline-none focus:ring-2 focus:ring-gold/60 sm:aspect-[4/5]"
       >
         {hasImages ? (
           images.map((img, i) => {
@@ -145,7 +145,7 @@ export default function ProductGallery({
                 onClick={() => setActive(i)}
                 aria-label={`View image ${i + 1}`}
                 aria-current={isActive}
-                className={`relative aspect-square h-[70px] w-[70px] shrink-0 overflow-hidden rounded-xl border bg-ivory transition lg:h-auto lg:w-full ${
+                className={`relative aspect-square h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[70px] sm:w-[70px] lg:h-auto lg:w-full ${
                   isActive
                     ? "border-carbon ring-1 ring-carbon"
                     : "border-gold/25 hover:border-gold"

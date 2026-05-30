@@ -1,70 +1,136 @@
-# Shahi Cards — Next.js E-commerce Website
+# Beyond Invitation
 
-A scalable wedding invitation card store built with **Next.js 14 (App Router)**,
-**TypeScript**, and **Tailwind CSS**. Designed so that adding products and
-connecting ERPNext later is simple.
+Professional wedding invitation card storefront built with **Next.js 15**, **TypeScript**, **Tailwind CSS**, and **Clerk** authentication.
+
+This repository is a production-ready e-commerce shell for Indian wedding cards and invitation stationery. It uses a data-access layer to keep the UI decoupled from the backend, so you can start with local JSON-driven content and migrate to ERPNext or another catalog service later.
 
 ---
 
-## Quick start
+## Key features
 
-You need **Node.js 18.17+** installed ([nodejs.org](https://nodejs.org)).
+- Server-rendered, SEO-friendly storefront using **Next.js App Router**
+- Responsive homepage with hero carousel, product sections, category browsing, testimonials, and milestones
+- Product detail pages with image gallery, related items, and cart actions
+- Category pages generated from `data/categories.json`
+- Search endpoint and search results page
+- Clerk-powered authentication for `/account` routes
+- Cart state managed with a shared provider
+- Clean separation between UI components and data access
+
+---
+
+## Tech stack
+
+- **Next.js 15**
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS**
+- **Clerk** for customer authentication
+- **isomorphic-dompurify** for safe HTML sanitization
+
+---
+
+## Repository layout
+
+```text
+shahi-cards/
+├── app/
+│   ├── account/page.tsx             Account page protected by Clerk
+│   ├── api/search/route.ts          Search API route
+│   ├── cart/page.tsx                Cart page
+│   ├── collections/[category]/page.tsx  Category listing pages
+│   ├── erp-products/page.tsx        ERP product showcase page
+│   ├── products/[slug]/page.tsx     Product detail pages
+│   ├── search/page.tsx              Search results page
+│   ├── layout.tsx                   Root layout with ClerkProvider, CartProvider, navbar, footer
+│   └── page.tsx                     Homepage
+├── components/                      Reusable UI components
+│   ├── CartButton.tsx
+│   ├── CartProvider.tsx
+│   ├── FilterableProductGrid.tsx
+│   ├── Footer.tsx
+│   ├── HeroCarousel.tsx
+│   ├── ImageSlider.tsx
+│   ├── Navbar.tsx
+│   ├── ProductBuyBox.tsx
+│   ├── ProductCard.tsx
+│   ├── ProductGallery.tsx
+│   ├── ProductGrid.tsx
+│   ├── SearchBar.tsx
+│   └── Sections.tsx
+├── data/                            Local product and category fixtures
+│   ├── categories.json
+│   └── products.json
+├── lib/                             Data access and integration helpers
+│   ├── erpnext.ts
+│   └── products.ts
+├── public/products/                 Product image assets
+├── types/                           Shared TypeScript definitions
+│   └── index.ts
+├── middleware.ts                    Clerk route protection
+├── next.config.js
+├── tailwind.config.ts
+└── tsconfig.json
+```
+
+---
+
+## Prerequisites
+
+- Node.js **18.17+**
+- npm (or your preferred package manager)
+
+---
+
+## Local development
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Run the development server
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser.
+Open `http://localhost:3000` in your browser.
+
+---
+
+## Production build
 
 ```bash
-# Build for production
+npm run build
+npm run start
+```
+
+For a production build and preview:
+
+```bash
 npm run build
 npm run start
 ```
 
 ---
 
-## Project structure
+## Product data model
 
-```
-shahi-cards/
-├── app/                          Pages (App Router)
-│   ├── layout.tsx                Navbar + Footer on every page
-│   ├── page.tsx                  Homepage
-│   ├── products/[slug]/page.tsx  Product detail — one page per product, auto
-│   └── collections/[category]/   Category listing — one page per category, auto
-│
-├── components/                   Reusable UI — change once, updates everywhere
-│   ├── Navbar.tsx
-│   ├── Footer.tsx
-│   ├── Sections.tsx              Hero, CelebrationGrid, WhyUs, Testimonials...
-│   ├── ProductCard.tsx           A single product card
-│   ├── ProductGrid.tsx           Grid + section wrapper
-│   ├── ImageSlider.tsx           Multi-image carousel (self-contained state)
-│   └── AddToCartButton.tsx
-│
-├── data/                         Product data lives here (not in code)
-│   ├── products.json
-│   └── categories.json
-│
-├── lib/                          Data access layer
-│   ├── products.ts               All components fetch data through this
-│   └── erpnext.ts                ERPNext API template (not active yet)
-│
-├── types/index.ts                TypeScript types — single source of truth
-└── public/products/              Product images go here
-```
+Products are defined in `data/products.json`. Each product object includes:
 
----
+- `slug`: URL-safe identifier for the product page
+- `name`: Product title
+- `price`: Selling price
+- `mrp`: Original or list price
+- `images`: Array of image filenames stored under `public/products/`
+- `emoji`: Fallback icon if an image cannot be displayed
+- `category`: Category slug used by collection pages
+- `description`: Product description shown on the product page
+- `onSale`: Boolean flag for the homepage sale section
+- `isPremium`: Boolean flag for the premium collection section
 
-## How to add a product
+### Adding a new product
 
-1. Open `data/products.json`.
-2. Add one object:
+1. Add a new product object to `data/products.json`.
+2. Place matching image files in `public/products/`.
+3. Visit `/products/<slug>` to verify the detail page.
+
+Example product entry:
 
 ```json
 {
@@ -76,52 +142,90 @@ shahi-cards/
   "emoji": "🌸",
   "category": "wedding",
   "description": "A graceful pink floral invitation card.",
-  "onSale": true
+  "onSale": true,
+  "isPremium": false
 }
 ```
 
-3. Put the images (`pink1.jpg`, `pink2.jpg`) into `public/products/`.
+---
 
-That's it. The product card, image slider, detail page (`/products/pink-floral-wedding-card`),
-and category listing all update automatically. No HTML to write.
+## Customization guide
 
-> If an image is missing, the card falls back to the `emoji` — no broken images.
+### Changing branding and styles
+
+- Update Tailwind tokens in `tailwind.config.ts`
+- Change global styles in `app/globals.css`
+- Adjust fonts and layout in `app/layout.tsx`
+
+### Updating navigation
+
+- Modify the nav menu inside `components/Navbar.tsx`
+- Add or remove links for new sections and pages
+
+### Homepage content
+
+- Edit `app/page.tsx` to change hero sections, featured collections, and layout order
+- Use the shared components in `components/Sections.tsx` for page content blocks
+
+### Component updates
+
+- `components/ProductCard.tsx` controls product listing cards
+- `components/ProductGallery.tsx` and `components/ImageSlider.tsx` control product media
+- `components/CartProvider.tsx` manages cart state across the app
 
 ---
 
-## How to change the design
+## Authentication and account pages
 
-| Want to change... | Edit this file |
-| --- | --- |
-| Brand colors | `tailwind.config.ts` (the `colors` block) |
-| Product card look | `components/ProductCard.tsx` (one file → all cards) |
-| Navigation menu | `components/Navbar.tsx` (the `navMenu` array) |
-| Homepage sections | `app/page.tsx` |
-| Footer links | `components/Footer.tsx` |
+- Clerk is integrated via `@clerk/nextjs`
+- `app/account/page.tsx` is protected by middleware in `middleware.ts`
+- Public browsing is available for storefront and search
+
+If you want to disable authentication for local testing, remove or modify the `middleware.ts` route matcher.
 
 ---
 
-## Connecting ERPNext (later)
+## ERPNext integration
 
-The app currently uses dummy data from `data/products.json`. To go live with
-ERPNext:
+The project is intentionally structured so backend integration is isolated to `lib/products.ts`.
 
-1. Copy `.env.example` to `.env.local` and fill in your ERPNext URL + API keys.
-2. Implement the functions in `lib/erpnext.ts` (skeletons are provided).
-3. In `lib/products.ts`, replace the JSON lookups with calls to those functions.
+### Current behavior
 
-Because every component fetches data through `lib/products.ts`, **no component
-needs to change** — only that one file. That is the whole point of the
-data-access-layer design.
+- The storefront reads from local JSON files in `data/`
+- `lib/products.ts` exposes async product and category accessors
+- Components never import raw JSON directly
+
+### To migrate to ERPNext
+
+1. Implement ERPNext API calls in `lib/erpnext.ts`
+2. Update `lib/products.ts` functions to call the new ERPNext layer
+3. Keep component code unchanged
+
+This design makes it easy to switch from static fixtures to a real product catalog.
 
 ---
 
-## Deploying
+## Deployment
 
-The easiest host is **Vercel** (made by the Next.js team):
+Recommended host:
 
-1. Push this folder to a GitHub repository.
-2. Import the repository at [vercel.com](https://vercel.com).
-3. Vercel builds and deploys automatically.
+- **Vercel**: connect the Git repository and deploy directly
 
-Other options: Netlify, or any Node.js host via `npm run build && npm run start`.
+Other options:
+
+- Netlify
+- Any Node.js hosting provider supporting `next start`
+
+For Vercel, the standard build command is:
+
+```bash
+npm run build
+```
+
+---
+
+## Notes
+
+- The app uses `next dev`, `next build`, and `next start` from Next.js.
+- Product images should live in `public/products/`.
+- There is no database or backend API enabled by default; the app is powered by local JSON fixtures.

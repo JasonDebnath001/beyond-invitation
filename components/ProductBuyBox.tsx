@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import type { Product } from "@/types";
 import { useCart } from "./CartProvider";
 
+const MIN_QTY = 50;
+const QTY_STEP = 25;
+
 export default function ProductBuyBox({ product }: { product: Product }) {
   const { addItem } = useCart();
   const router = useRouter();
-  const [qty, setQty] = useState(1);
+
+  const [qty, setQty] = useState(MIN_QTY);
   const [added, setAdded] = useState(false);
   const timeout = useRef<number | null>(null);
 
@@ -20,13 +24,17 @@ export default function ProductBuyBox({ product }: { product: Product }) {
   );
 
   function addToCart() {
-    for (let i = 0; i < qty; i++) addItem(product);
+    for (let i = 0; i < qty; i++) {
+      addItem(product);
+    }
   }
 
   function handleAdd() {
     addToCart();
     setAdded(true);
+
     if (timeout.current) clearTimeout(timeout.current);
+
     timeout.current = window.setTimeout(() => {
       setAdded(false);
       timeout.current = null;
@@ -39,51 +47,45 @@ export default function ProductBuyBox({ product }: { product: Product }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-light">
-          Quantity
-        </span>
-        <div className="flex items-center rounded-lg border border-gold/30">
-          <button
-            type="button"
-            onClick={() => setQty((q) => Math.max(1, q - 1))}
-            aria-label="Decrease quantity"
-            disabled={qty <= 1}
-            className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale disabled:opacity-40"
-          >
-            −
-          </button>
-          <span className="w-10 text-center text-[15px] font-semibold text-ink">
-            {qty}
-          </span>
-          <button
-            type="button"
-            onClick={() => setQty((q) => Math.min(99, q + 1))}
-            aria-label="Increase quantity"
-            className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale"
-          >
-            ＋
-          </button>
-        </div>
+    <div>
+      <p className="mb-2 text-sm font-semibold text-carbon">Quantity</p>
+
+      <div className="mb-6 flex w-fit items-center overflow-hidden rounded-full border border-gold/40 bg-white">
+        <button
+          type="button"
+          onClick={() => setQty((q) => Math.max(MIN_QTY, q - QTY_STEP))}
+          aria-label="Decrease quantity"
+          disabled={qty <= MIN_QTY}
+          className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          −
+        </button>
+
+        <span className="w-16 text-center text-sm font-semibold">{qty}</span>
+
+        <button
+          type="button"
+          onClick={() => setQty((q) => q + QTY_STEP)}
+          aria-label="Increase quantity"
+          className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale"
+        >
+          ＋
+        </button>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={handleAdd}
-          className={`flex-1 border py-4 text-[12.5px] font-semibold uppercase tracking-[0.14em] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold/60 ${
-            added
-              ? "border-carbon bg-carbon text-gold-light"
-              : "border-carbon bg-white text-carbon hover:bg-carbon hover:text-gold-light"
-          }`}
+          className="rounded-full bg-carbon px-6 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-gold hover:text-carbon"
         >
           {added ? "✓ Added to Cart" : "Add to Cart"}
         </button>
+
         <button
           type="button"
           onClick={handleBuyNow}
-          className="flex-1 bg-carbon py-4 text-[12.5px] font-semibold uppercase tracking-[0.14em] text-gold-light transition-colors duration-200 hover:bg-carbon-dark focus:outline-none focus:ring-2 focus:ring-gold/60"
+          className="rounded-full border border-gold px-6 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-carbon transition hover:bg-gold"
         >
           Buy Now
         </button>

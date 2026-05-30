@@ -2,7 +2,7 @@
 
 Professional wedding invitation card storefront built with **Next.js 15**, **TypeScript**, **Tailwind CSS**, and **Clerk** authentication.
 
-This repository is a production-ready e-commerce shell for Indian wedding cards and invitation stationery. It uses a data-access layer to keep the UI decoupled from the backend, so you can start with local JSON-driven content and migrate to ERPNext or another catalog service later.
+This repository is a production-ready e-commerce shell for Indian wedding cards and invitation stationery. It integrates with **ERPNext** as the live product catalog backend, with `lib/erpnext.ts` fetching product and pricing data from ERPNext Item and Item Price APIs. Local JSON fixtures remain available for optional development and fallback.
 
 ---
 
@@ -26,6 +26,7 @@ This repository is a production-ready e-commerce shell for Indian wedding cards 
 - **TypeScript**
 - **Tailwind CSS**
 - **Clerk** for customer authentication
+- **ERPNext** for for product related data
 - **isomorphic-dompurify** for safe HTML sanitization
 
 ---
@@ -111,41 +112,30 @@ npm run start
 
 ## Product data model
 
-Products are defined in `data/products.json`. Each product object includes:
+Products are sourced from **ERPNext Item** and **Item Price** records. The live storefront maps ERPNext fields into the app's product model and renders them on the homepage, collection pages, and product detail pages.
 
-- `slug`: URL-safe identifier for the product page
-- `name`: Product title
-- `price`: Selling price
-- `mrp`: Original or list price
-- `images`: Array of image filenames stored under `public/products/`
-- `emoji`: Fallback icon if an image cannot be displayed
-- `category`: Category slug used by collection pages
-- `description`: Product description shown on the product page
-- `onSale`: Boolean flag for the homepage sale section
-- `isPremium`: Boolean flag for the premium collection section
+The ERPNext product mapping includes:
 
-### Adding a new product
+- `slug`: normalized URL slug derived from Item code or name
+- `name`: Item name
+- `price`: price list rate from ERPNext Item Price
+- `mrp`: same price value by default
+- `images`: image URLs from the Item image field and gallery child tables
+- `emoji`: not used for ERPNext-sourced products
+- `category`: derived from Item group and normalized to storefront categories
+- `description`: sanitized ERPNext Item description
+- `onSale` / `isPremium`: available as storefront flags if configured
+- `customisation`, `material`, `includes`: mapped from ERPNext custom fields
 
-1. Add a new product object to `data/products.json`.
-2. Place matching image files in `public/products/`.
-3. Visit `/products/<slug>` to verify the detail page.
+### Managing products in ERPNext
 
-Example product entry:
+1. Create or update an Item record in ERPNext.
+2. Enable website visibility (the configured `Show on Website` checkbox).
+3. Add one or more Item Price records for the configured price list.
+4. Add the primary Item image and optional Item Image gallery rows.
+5. Refresh the storefront or let the configured cache revalidate.
 
-```json
-{
-  "slug": "pink-floral-wedding-card",
-  "name": "Pink Floral Wedding Card",
-  "price": 99,
-  "mrp": 150,
-  "images": ["pink1.jpg", "pink2.jpg"],
-  "emoji": "🌸",
-  "category": "wedding",
-  "description": "A graceful pink floral invitation card.",
-  "onSale": true,
-  "isPremium": false
-}
-```
+Local JSON files under `data/` are kept as optional fixtures and fallback data, but ERPNext is the active catalog source.
 
 ---
 
@@ -187,21 +177,19 @@ If you want to disable authentication for local testing, remove or modify the `m
 
 ## ERPNext integration
 
-The project is intentionally structured so backend integration is isolated to `lib/products.ts`.
+ERPNext is already integrated and is the live product catalog source for the storefront. The `lib/erpnext.ts` module fetches Item and Item Price records directly from ERPNext and converts them into the app's product model.
 
 ### Current behavior
 
-- The storefront reads from local JSON files in `data/`
-- `lib/products.ts` exposes async product and category accessors
-- Components never import raw JSON directly
+- The storefront can fetch live products from ERPNext via `lib/erpnext.ts`
+- `lib/products.ts` remains available as a legacy local fixture helper and fallback layer
+- Components are designed to support a data-access abstraction so backends can be swapped with minimal change
 
-### To migrate to ERPNext
+### ERPNext data source
 
-1. Implement ERPNext API calls in `lib/erpnext.ts`
-2. Update `lib/products.ts` functions to call the new ERPNext layer
-3. Keep component code unchanged
-
-This design makes it easy to switch from static fixtures to a real product catalog.
+1. `lib/erpnext.ts` calls ERPNext REST APIs with `ERPNEXT_URL`, `ERPNEXT_API_KEY`, and `ERPNEXT_API_SECRET`
+2. Product catalog pages use ERPNext data directly
+3. Local JSON fixtures in `data/` are only for optional local/testing use
 
 ---
 
@@ -227,5 +215,5 @@ npm run build
 ## Notes
 
 - The app uses `next dev`, `next build`, and `next start` from Next.js.
-- Product images should live in `public/products/`.
-- There is no database or backend API enabled by default; the app is powered by local JSON fixtures.
+- Product images should live in `public/products/` or be served from ERPNext image URLs.
+- ERPNext is configured as the live backend when valid environment variables are present; `data/` fixtures remain available for offline or fallback development.

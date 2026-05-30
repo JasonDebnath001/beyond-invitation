@@ -12,8 +12,11 @@
     "@clerk/nextjs": "^7.4.1",
     "next": "^15.5.18",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
-    ,"isomorphic-dompurify": "^2.0.2"
+    "react-dom": "^19.2.6",
+    "isomorphic-dompurify": "^2.0.2"
+  },
+  "overrides": {
+    "jsdom": "25.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

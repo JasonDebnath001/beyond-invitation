@@ -16,6 +16,17 @@ const ERPNEXT_WEBSITE_FIELD =
 const ERPNEXT_SUBJECT_FIELD =
   process.env.ERPNEXT_SUBJECT_FIELD ?? "custom_subject";
 
+// Product detail custom fields from ERPNext Item.
+// These are fieldnames, not labels. Override in .env.local if your fieldnames differ.
+const ERPNEXT_CUSTOMISATION_FIELD =
+  process.env.ERPNEXT_CUSTOMISATION_FIELD ?? "custom_customisation";
+
+const ERPNEXT_MATERIAL_FIELD =
+  process.env.ERPNEXT_MATERIAL_FIELD ?? "custom_material";
+
+const ERPNEXT_INCLUDES_FIELD =
+  process.env.ERPNEXT_INCLUDES_FIELD ?? "custom_includes";
+
 // Caching for ERPNext responses (seconds). Set to 0 in .env.local for
 // always-fresh data while testing; 60 is a good production default.
 const ERPNEXT_REVALIDATE = Number(
@@ -25,11 +36,16 @@ const ERPNEXT_REVALIDATE = Number(
 // --- Multi-image gallery (the "Item Image" child table on Item) -------------
 // All three auto-detect by default; set them only if detection misfires.
 // ERPNEXT_IMAGE_TABLE_FIELD = the table's fieldname on Item (parentfield).
-// ERPNEXT_IMAGE_ROW_FIELD   = the image column inside each row (usually "image").
+// ERPNEXT_IMAGE_ROW_FIELD = the image column inside each row (usually "image").
 // ERPNEXT_IMAGE_ORDER_FIELD = the numeric order column inside each row.
-const ERPNEXT_IMAGE_TABLE_FIELD = process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
-const ERPNEXT_IMAGE_ROW_FIELD = process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
-const ERPNEXT_IMAGE_ORDER_FIELD = process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
+const ERPNEXT_IMAGE_TABLE_FIELD =
+  process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
+
+const ERPNEXT_IMAGE_ROW_FIELD =
+  process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
+
+const ERPNEXT_IMAGE_ORDER_FIELD =
+  process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
 
 type ErpNextListResponse<T> = {
   data: T[];
@@ -49,7 +65,6 @@ type ErpItem = {
   disabled?: 0 | 1;
   standard_rate?: number;
   valuation_rate?: number;
-
   [key: string]: unknown;
 };
 
@@ -65,6 +80,7 @@ export type ErpProduct = Product & {
   itemCode: string;
   itemGroup: string;
   erpName: string;
+
   /** Value of the ERPNext "Subject" field, e.g. "Hindu" / "Muslim". */
   subject: string;
 };
@@ -126,7 +142,6 @@ function buildImageUrl(image?: string): string[] {
   if (!image) return [];
 
   const cleanImage = image.trim();
-
   if (!cleanImage) return [];
 
   if (cleanImage.startsWith("http://") || cleanImage.startsWith("https://")) {
@@ -138,6 +153,15 @@ function buildImageUrl(image?: string): string[] {
   }
 
   return [encodeURI(`${cleanBaseUrl()}/${cleanImage}`)];
+}
+
+function cleanTextValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  const text = String(value).trim();
+  if (!text) return "";
+
+  return DOMPurify.sanitize(text);
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -227,20 +251,26 @@ function mapErpItemToProduct(
     erpName: item.name,
     itemCode,
     itemGroup: item.item_group ?? "",
-    subject: String(item[ERPNEXT_SUBJECT_FIELD] ?? "").trim(),
+    subject: cleanTextValue(item[ERPNEXT_SUBJECT_FIELD]),
 
     slug: normalizeSlug(itemCode),
-
     name: item.item_name || itemCode,
     price,
     mrp,
     images: buildImageUrl(item.image),
-    emoji: "💌",
+    emoji: "",
     category: normalizeCategory(item.item_group),
     badge: undefined,
+
     // Sanitize HTML coming from ERPNext to prevent stored XSS when
     // rendered with `dangerouslySetInnerHTML` in Server Components.
     description: DOMPurify.sanitize(String(item.description || "")),
+
+    // Product detail fields from ERPNext custom fields.
+    customisation: cleanTextValue(item[ERPNEXT_CUSTOMISATION_FIELD]),
+    material: cleanTextValue(item[ERPNEXT_MATERIAL_FIELD]),
+    includes: cleanTextValue(item[ERPNEXT_INCLUDES_FIELD]),
+
     onSale: false,
     isPremium: false,
   };
@@ -254,6 +284,7 @@ async function fetchErpItemDoc(
     const json = await erpFetch<ErpNextSingleResponse<Record<string, unknown>>>(
       `/api/resource/Item/${encodeURIComponent(itemName)}`,
     );
+
     return json.data ?? null;
   } catch {
     return null;
@@ -275,14 +306,23 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
 
   const push = (v: unknown) => {
     if (!looksLikeImage(v)) return;
+
     const url = buildImageUrl(v as string)[0];
+
     if (url && !urls.includes(url)) urls.push(url);
   };
 
   const toNum = (v: unknown): number | null => {
     if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)))
+
+    if (
+      typeof v === "string" &&
+      v.trim() !== "" &&
+      Number.isFinite(Number(v))
+    ) {
       return Number(v);
+    }
+
     return null;
   };
 
@@ -292,18 +332,21 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
       const n = toNum(row[ERPNEXT_IMAGE_ORDER_FIELD]);
       if (n !== null) return n;
     }
+
     for (const key of Object.keys(row)) {
       if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
         const n = toNum(row[key]);
         if (n !== null) return n;
       }
     }
+
     const idx = toNum(row.idx);
     return idx !== null ? idx : fallback;
   };
 
   // Candidate child tables: the configured one, else any array-of-objects field.
   const tables: Record<string, unknown>[][] = [];
+
   const preferred = ERPNEXT_IMAGE_TABLE_FIELD
     ? doc[ERPNEXT_IMAGE_TABLE_FIELD]
     : null;
@@ -312,7 +355,11 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
     tables.push(preferred as Record<string, unknown>[]);
   } else {
     for (const value of Object.values(doc)) {
-      if (Array.isArray(value) && value.length && typeof value[0] === "object") {
+      if (
+        Array.isArray(value) &&
+        value.length &&
+        typeof value[0] === "object"
+      ) {
         tables.push(value as Record<string, unknown>[]);
       }
     }
@@ -327,11 +374,14 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
 
     for (const { row } of ordered) {
       if (!row || typeof row !== "object") continue;
+
       const direct = row[ERPNEXT_IMAGE_ROW_FIELD];
+
       if (looksLikeImage(direct)) {
         push(direct);
         continue;
       }
+
       for (const v of Object.values(row)) {
         if (looksLikeImage(v)) {
           push(v);
@@ -340,7 +390,8 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
       }
     }
 
-    if (urls.length > before) break; // first table that yielded images wins
+    // First table that yielded images wins.
+    if (urls.length > before) break;
   }
 
   return urls;
@@ -380,6 +431,10 @@ async function buildErpProductList(): Promise<ErpProduct[]> {
         "image",
         "disabled",
         ERPNEXT_WEBSITE_FIELD,
+        ERPNEXT_SUBJECT_FIELD,
+        ERPNEXT_CUSTOMISATION_FIELD,
+        ERPNEXT_MATERIAL_FIELD,
+        ERPNEXT_INCLUDES_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
@@ -393,12 +448,14 @@ async function buildErpProductList(): Promise<ErpProduct[]> {
   );
 
   const visibleItems = itemResponse.data.filter(
-    (item) => item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
+    (item) =>
+      item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
   );
 
   const itemCodes = visibleItems
     .map((item) => item.item_code || item.name)
     .filter(Boolean);
+
   const priceMap = await fetchItemPrices(itemCodes as string[]);
 
   return visibleItems.map((item) => mapErpItemToProduct(item, priceMap));
@@ -413,6 +470,7 @@ export async function fetchErpProductBySlug(
   slug: string,
 ): Promise<ErpProduct | null> {
   const products = await buildErpProductList();
+
   const product = products.find((p) => p.slug === slug) ?? null;
   if (!product) return null;
 
@@ -427,14 +485,14 @@ export async function fetchErpProductsByCategory(
   category: ProductCategory,
 ): Promise<ErpProduct[]> {
   const products = await fetchErpProducts();
-
   return products.filter((product) => product.category === category);
 }
 
 /**
  * Products whose ERPNext "Subject" field matches `subject` (case-insensitive)
- * AND that have "Show on Website" enabled. Used by the Wedding Card sub-pages
- * (Hindu / Muslim / Christian).
+ * AND that have "Show on Website" enabled.
+ *
+ * Used by the Wedding Card sub-pages (Hindu / Muslim / Christian).
  */
 export async function fetchErpProductsBySubject(
   subject: string,
@@ -456,6 +514,9 @@ export async function fetchErpProductsBySubject(
         "disabled",
         ERPNEXT_WEBSITE_FIELD,
         ERPNEXT_SUBJECT_FIELD,
+        ERPNEXT_CUSTOMISATION_FIELD,
+        ERPNEXT_MATERIAL_FIELD,
+        ERPNEXT_INCLUDES_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
@@ -484,6 +545,7 @@ export async function fetchErpProductsBySubject(
   const itemCodes = visibleItems
     .map((item) => item.item_code || item.name)
     .filter(Boolean);
+
   const priceMap = await fetchItemPrices(itemCodes as string[]);
 
   const products = visibleItems.map((item) =>

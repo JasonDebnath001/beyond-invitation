@@ -1,16 +1,19 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+
 import {
   getProductBySlug,
   getAllProductSlugs,
   getRelatedProducts,
 } from "@/lib/products";
+
 import {
   fetchErpProductBySlug,
   fetchErpProductsByCategory,
   type ErpProduct,
 } from "@/lib/erpnext";
+
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
 import { BRAND } from "@/components/siteConfig";
@@ -21,6 +24,8 @@ import ProductBuyBox from "@/components/ProductBuyBox";
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
+
+const NOT_ENTERED = "not yet entered";
 
 /** Resolve a product from local JSON first, then ERPNext (if configured). */
 async function resolveProduct(
@@ -35,6 +40,7 @@ async function resolveProduct(
   } catch {
     // ERPNext not configured / unreachable — fall through to 404.
   }
+
   return null;
 }
 
@@ -50,6 +56,7 @@ async function resolveRelated(
       return [];
     }
   }
+
   return getRelatedProducts(product);
 }
 
@@ -63,8 +70,11 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+
   const product = await resolveProduct(slug);
+
   if (!product) return { title: `Product Not Found – ${BRAND}` };
+
   return {
     title: `${product.name} – ${BRAND}`,
     description:
@@ -74,20 +84,28 @@ export async function generateMetadata({
 
 const hasHtml = (s: string) => /<\/?[a-z][\s\S]*>/i.test(s);
 
+function productDetailValue(value: string | undefined | null) {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : NOT_ENTERED;
+}
+
 const FEATURES = [
   { icon: "✍️", title: "Free personalisation", text: "Names & details printed" },
-  { icon: "🚚", title: "Pan-India delivery", text: "5–7 working days" },
-  { icon: "🎁", title: "Premium finish", text: "Carefully packed" },
+  { icon: "", title: "Pan-India delivery", text: "5–7 working days" },
+  { icon: "", title: "Premium finish", text: "Carefully packed" },
 ];
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
+
   const product = await resolveProduct(slug);
+
   if (!product) notFound();
 
   const related = await resolveRelated(product);
   const discount = discountPercent(product);
   const categoryLabel = product.category.replace(/-/g, " ");
+
   const subject =
     "subject" in product && product.subject ? product.subject : "";
 
@@ -102,14 +120,18 @@ export default async function ProductDetailPage({ params }: PageProps) {
           >
             Home
           </Link>
+
           <span className="shrink-0 text-gold">/</span>
+
           <Link
             href={`/collections/${product.category}`}
             className="shrink-0 whitespace-nowrap capitalize transition-colors hover:text-carbon"
           >
             {categoryLabel}
           </Link>
+
           <span className="shrink-0 text-gold">/</span>
+
           <span className="truncate text-ink">{product.name}</span>
         </nav>
 
@@ -126,6 +148,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="flex flex-col">
             <div className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
               <span>{categoryLabel}</span>
+
               {subject && (
                 <>
                   <span className="text-gold/40">✦</span>
@@ -148,17 +171,20 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <span className="font-display text-[34px] font-bold leading-none text-carbon">
                 ₹{product.price.toLocaleString("en-IN")}
               </span>
+
               {product.mrp > product.price && (
                 <span className="pb-0.5 text-lg text-ink-light line-through">
                   ₹{product.mrp.toLocaleString("en-IN")}
                 </span>
               )}
+
               {discount > 0 && (
                 <span className="mb-0.5 rounded-md bg-[#E8F7EE] px-2.5 py-1 text-[13px] font-semibold text-[#27A060]">
                   {discount}% OFF
                 </span>
               )}
             </div>
+
             <p className="mt-2 text-[12px] text-ink-light">
               Inclusive of all taxes
             </p>
@@ -187,9 +213,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   className="rounded-xl border border-gold/20 bg-paper px-3 py-4 text-center"
                 >
                   <div className="text-xl">{f.icon}</div>
+
                   <p className="mt-2 text-[12px] font-semibold leading-tight text-carbon">
                     {f.title}
                   </p>
+
                   <p className="mt-0.5 text-[11px] leading-tight text-ink-light">
                     {f.text}
                   </p>
@@ -207,15 +235,26 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 label="Category"
                 value={<span className="capitalize">{categoryLabel}</span>}
               />
+
               {subject && <SpecRow label="Tradition" value={subject} />}
+
               <SpecRow
                 label="Customisation"
-                value="Free name & details printing"
+                value={productDetailValue(product.customisation)}
               />
-              <SpecRow label="Material" value="Premium textured board" />
-              <SpecRow label="Includes" value="Matching inserts & envelope" />
+
+              <SpecRow
+                label="Material"
+                value={productDetailValue(product.material)}
+              />
+
+              <SpecRow
+                label="Includes"
+                value={productDetailValue(product.includes)}
+              />
             </ul>
           </Accordion>
+
           <Accordion title="Shipping & Returns">
             <p className="text-[14px] leading-relaxed text-ink-mid">
               Delivered pan-India within 5–7 working days after proof approval.
@@ -234,11 +273,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
                   More to love
                 </p>
+
                 <h2 className="mt-2 font-display text-[28px] font-semibold text-carbon md:text-[34px]">
                   You May Also Like
                 </h2>
+
                 <div className="mt-4 h-px w-14 bg-carbon" />
               </div>
+
               <Link
                 href={`/collections/${product.category}`}
                 className="hidden shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon sm:inline-flex"
@@ -246,6 +288,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 View collection <span>→</span>
               </Link>
             </div>
+
             <ProductGrid products={related} />
           </section>
         )}
@@ -285,10 +328,12 @@ function Accordion({
     >
       <summary className="flex cursor-pointer list-none items-center justify-between py-5 font-display text-[18px] font-semibold text-carbon marker:hidden [&::-webkit-details-marker]:hidden">
         {title}
+
         <span className="ml-4 text-gold transition-transform duration-200 group-open:rotate-45">
           ＋
         </span>
       </summary>
+
       <div className="pb-6 pr-2">{children}</div>
     </details>
   );

@@ -1,4 +1,5 @@
 import type { Product, ProductCategory } from "@/types";
+import DOMPurify from "isomorphic-dompurify";
 
 const ERPNEXT_URL = process.env.ERPNEXT_URL ?? "";
 const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY ?? "";
@@ -237,7 +238,9 @@ function mapErpItemToProduct(
     emoji: "💌",
     category: normalizeCategory(item.item_group),
     badge: undefined,
-    description: item.description || "",
+    // Sanitize HTML coming from ERPNext to prevent stored XSS when
+    // rendered with `dangerouslySetInnerHTML` in Server Components.
+    description: DOMPurify.sanitize(String(item.description || "")),
     onSale: false,
     isPremium: false,
   };

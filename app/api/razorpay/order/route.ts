@@ -1,48 +1,72 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { getRazorpay } from "@/lib/razorpay";
 import { resolveCartProducts } from "@/lib/checkout";
-import { createDraftSalesOrder } from "@/lib/erpnext";
+import { createDraftSalesOrder, type BuyerInfo } from "@/lib/erpnext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function safeTrim(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeCustomer(input: unknown): BuyerInfo {
+  const customer =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
+
+  return {
+    name: safeTrim(customer.name),
+    email: safeTrim(customer.email).toLowerCase(),
+    phone: safeTrim(customer.contact || customer.phone),
+    addressLine1: safeTrim(customer.addressLine1),
+    addressLine2: safeTrim(customer.addressLine2),
+    city: safeTrim(customer.city),
+    state: safeTrim(customer.state),
+    pincode: safeTrim(customer.pincode),
+    country: safeTrim(customer.country) || "India",
+    notes: safeTrim(customer.notes),
+  };
+}
+
+function validateCustomer(customer: BuyerInfo) {
+  if (!customer.name) return "Customer name is required.";
+  if (!customer.phone) return "Mobile number is required.";
+  if (!customer.email) return "Email address is required.";
+  if (!customer.addressLine1) return "Address line 1 is required.";
+  if (!customer.city) return "City is required.";
+  if (!customer.state) return "State is required.";
+  if (!customer.pincode) return "PIN code is required.";
+  if (!customer.country) return "Country is required.";
+
+  if (!/^\S+@\S+\.\S+$/.test(customer.email)) {
+    return "Valid email address is required.";
+  }
+
+  return "";
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Please sign in before placing an order." },
-        { status: 401 },
-      );
-    }
-
-    const user = await currentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unable to read your account details. Please sign in again." },
-        { status: 401 },
-      );
-    }
-
-    const email =
-      user.primaryEmailAddress?.emailAddress ??
-      user.emailAddresses?.[0]?.emailAddress ??
-      undefined;
-
-    const phone =
-      user.primaryPhoneNumber?.phoneNumber ??
-      user.phoneNumbers?.[0]?.phoneNumber ??
-      undefined;
-
-    const customerName =
-      user.fullName ??
-      [user.firstName, user.lastName].filter(Boolean).join(" ") ??
-      "Website Customer";
-
     const body = await request.json().catch(() => ({}));
+
+    const customer = normalizeCustomer(body?.customer);
+    const validationError = validateCustomer(customer);
+
+    if (validationError) {
+      return NextResponse.json(
+        {
+          error: validationError,
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const { userId } = await auth().catch(() => ({ userId: null }));
 
     const { lines, amountPaise, currency } = await resolveCartProducts(
       body?.items ?? [],
@@ -50,22 +74,42 @@ export async function POST(request: NextRequest) {
 
     if (lines.length === 0 || amountPaise < 100) {
       return NextResponse.json(
-        { error: "Cart is empty or below the minimum amount." },
-        { status: 400 },
+        {
+          error: "Cart is empty or below the minimum amount.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
-    // 1) Razorpay order — amount is computed server-side from ERP/cart resolver.
-    const rzpOrder = (await getRazorpay().orders.create({
+    const fullAddress = [
+      customer.addressLine1,
+      customer.addressLine2,
+      customer.city,
+      customer.state,
+      customer.pincode,
+      customer.country,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const razorpayOrder = (await getRazorpay().orders.create({
       amount: amountPaise,
       currency,
       receipt: `rcpt_${Date.now()}`,
       notes: {
         source: "beyond-invitation-web",
-        clerkUserId: userId,
-        customerName,
-        customerEmail: email ?? "",
-        customerPhone: phone ?? "",
+        clerkUserId: userId ?? "",
+        customerName: customer.name ?? "",
+        customerEmail: customer.email ?? "",
+        customerPhone: customer.phone ?? "",
+        customerAddress: fullAddress,
+        customerCity: customer.city ?? "",
+        customerState: customer.state ?? "",
+        customerPincode: customer.pincode ?? "",
+        customerCountry: customer.country ?? "",
+        customerNotes: customer.notes ?? "",
       },
     })) as {
       id: string;
@@ -73,66 +117,50 @@ export async function POST(request: NextRequest) {
       currency: string;
     };
 
-    // 2) Draft ERPNext Sales Order.
-    // Buyer details are taken from Clerk, not from the browser request body.
     try {
       await createDraftSalesOrder({
-        razorpayOrderId: rzpOrder.id,
+        razorpayOrderId: razorpayOrder.id,
         items: lines.map((line) => ({
           item_code: line.itemCode,
           qty: line.quantity,
           rate: line.price,
         })),
-        buyer: {
-          name: customerName,
-          email,
-          phone,
-        },
+        buyer: customer,
       });
     } catch (createError) {
-      try {
-        if (rzpOrder) {
-          await (getRazorpay().api as any).patch({
-            url: `/orders/${rzpOrder.id}/cancel`,
-          });
-        }
-      } catch (cancelError) {
-        console.error(
-          "Failed to cancel orphaned Razorpay order after ERP draft creation failure",
-          {
-            razorpayOrderId: rzpOrder?.id,
-            createError,
-            cancelError,
-          },
-        );
-        throw new Error(
-          "Failed to create order pairing. The Razorpay order could not be cancelled automatically. Please contact support.",
-        );
-      }
+      console.error("Failed to create ERP draft Sales Order", {
+        razorpayOrderId: razorpayOrder.id,
+        createError,
+      });
 
-      console.error(
-        "Failed to create ERP draft sales order for Razorpay order",
+      return NextResponse.json(
         {
-          razorpayOrderId: rzpOrder.id,
-          error: createError,
+          error:
+            "Payment order was created, but ERPNext Sales Order could not be created. Please retry or contact support.",
         },
-      );
-
-      throw new Error(
-        "Failed to create order pairing. The Razorpay order was cancelled. Please retry.",
+        {
+          status: 500,
+        },
       );
     }
 
     return NextResponse.json({
-      orderId: rzpOrder.id,
-      amount: Number(rzpOrder.amount),
-      currency: rzpOrder.currency,
+      orderId: razorpayOrder.id,
+      amount: Number(razorpayOrder.amount),
+      currency: razorpayOrder.currency,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
     });
   } catch (err) {
     const message =
-      err instanceof Error ? err.message : "Failed to create order.";
+      err instanceof Error ? err.message : "Failed to create payment order.";
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: message,
+      },
+      {
+        status: 500,
+      },
+    );
   }
 }

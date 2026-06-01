@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { SignInButton, useUser } from "@clerk/nextjs";
 import { useCart } from "@/components/CartProvider";
-import { useRazorpayCheckout } from "@/components/useRazorpayCheckout";
 
 export default function CartPage() {
   const {
@@ -17,12 +14,7 @@ export default function CartPage() {
     totalPrice,
   } = useCart();
 
-  const { isLoaded, isSignedIn, user } = useUser();
-  const router = useRouter();
-  const { startCheckout, loading } = useRazorpayCheckout();
-
-  const [failed, setFailed] = useState<Record<string, boolean>>({});
-  const [error, setError] = useState("");
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   function formatPrice(value: number) {
     return value.toLocaleString("en-IN", {
@@ -30,33 +22,11 @@ export default function CartPage() {
     });
   }
 
-  function handleCheckout() {
-    setError("");
-
-    if (!isSignedIn) {
-      setError("Please sign in before placing your order.");
-      return;
-    }
-
-    startCheckout({
-      items: items.map((item) => ({
-        itemCode: item.itemCode,
-        slug: item.slug,
-        quantity: item.quantity,
-      })),
-      onSuccess: ({ paymentId }) => {
-        clearCart();
-        router.push(`/checkout/success?payment_id=${paymentId}`);
-      },
-      onError: (message) => setError(message),
-    });
-  }
-
   if (items.length === 0) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-16">
-        <div className="rounded-[2rem] border border-gold/20 bg-cream/70 p-8 text-center shadow-soft">
-          <h1 className="font-serif text-3xl text-maroon">
+        <div className="rounded-3xl border border-gold/20 bg-white p-10 text-center shadow-sm">
+          <h1 className="font-serif text-3xl font-semibold text-maroon">
             Your cart is empty
           </h1>
 
@@ -66,7 +36,7 @@ export default function CartPage() {
 
           <Link
             href="/collections/wedding"
-            className="mt-6 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+            className="mt-8 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
           >
             Explore Wedding Cards →
           </Link>
@@ -78,31 +48,29 @@ export default function CartPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="font-serif text-3xl text-maroon">
+        <h1 className="font-serif text-4xl font-semibold text-maroon">
           Shopping Cart
         </h1>
-
-        <p className="mt-1 text-sm text-ink-light">
+        <p className="mt-2 text-sm text-ink-light">
           {totalItems} {totalItems === 1 ? "item" : "items"} in your cart
         </p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-        {/* Cart items */}
         <section className="space-y-4">
           {items.map((item) => (
-            <article
+            <div
               key={item.slug}
-              className="grid gap-4 rounded-[1.5rem] border border-gold/20 bg-white p-4 shadow-sm sm:grid-cols-[120px_1fr_auto]"
+              className="flex gap-4 rounded-3xl border border-gold/20 bg-white p-4 shadow-sm"
             >
-              <div className="h-28 overflow-hidden rounded-2xl bg-gold-pale">
-                {item.image && !failed[item.slug] ? (
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-pale">
+                {item.image && !failedImages[item.slug] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.image}
                     alt={item.name}
                     onError={() =>
-                      setFailed((prev) => ({
+                      setFailedImages((prev) => ({
                         ...prev,
                         [item.slug]: true,
                       }))
@@ -110,157 +78,103 @@ export default function CartPage() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-4xl">
-                    {item.emoji}
-                  </div>
+                  <span className="text-3xl">{item.emoji || "💌"}</span>
                 )}
               </div>
 
-              <div>
-                <h2 className="font-serif text-xl text-carbon">
-                  {item.name}
-                </h2>
+              <div className="flex flex-1 flex-col justify-between gap-4 sm:flex-row">
+                <div>
+                  <h3 className="font-serif text-xl font-semibold text-maroon">
+                    {item.name}
+                  </h3>
 
-                <p className="mt-1 text-sm text-ink-light">
-                  ₹{formatPrice(item.price)} per piece
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loading) return;
-                    removeItem(item.slug);
-                  }}
-                  disabled={loading}
-                  className="mt-4 text-[12.5px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Remove
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
-                <div className="flex items-center overflow-hidden rounded-xl border border-gold/30">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (loading) return;
-                      setQuantity(item.slug, item.quantity - 1);
-                    }}
-                    aria-label="Decrease quantity"
-                    disabled={loading}
-                    className="flex h-9 w-9 items-center justify-center text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    −
-                  </button>
-
-                  <span className="min-w-12 text-center text-sm font-semibold text-carbon">
-                    {item.quantity}
-                  </span>
+                  <p className="mt-1 text-sm text-ink-light">
+                    ₹{formatPrice(item.price)} / pc
+                  </p>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (loading) return;
-                      setQuantity(item.slug, item.quantity + 1);
-                    }}
-                    aria-label="Increase quantity"
-                    disabled={loading}
-                    className="flex h-9 w-9 items-center justify-center text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => removeItem(item.slug)}
+                    className="mt-4 text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
                   >
-                    +
+                    Remove
                   </button>
                 </div>
 
-                <p className="font-semibold text-maroon">
-                  ₹{formatPrice(item.price * item.quantity)}
-                </p>
+                <div className="flex flex-col items-start gap-4 sm:items-end">
+                  <div className="flex items-center rounded-full border border-gold/30 bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(item.slug, item.quantity - 1)}
+                      aria-label="Decrease quantity"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale"
+                    >
+                      −
+                    </button>
+
+                    <span className="min-w-10 text-center text-sm font-semibold">
+                      {item.quantity}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(item.slug, item.quantity + 1)}
+                      aria-label="Increase quantity"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <p className="text-base font-semibold text-maroon">
+                    ₹{formatPrice(item.price * item.quantity)}
+                  </p>
+                </div>
               </div>
-            </article>
+            </div>
           ))}
 
           <button
             type="button"
-            onClick={() => {
-              if (loading) return;
-              clearCart();
-            }}
-            disabled={loading}
-            className="text-[13px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={clearCart}
+            className="text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
           >
             Clear cart
           </button>
         </section>
 
-        {/* Order summary */}
-        <aside className="h-fit rounded-[1.75rem] border border-gold/25 bg-cream/80 p-6 shadow-soft">
-          <h2 className="font-serif text-2xl text-maroon">
+        <aside className="h-fit rounded-3xl border border-gold/20 bg-white p-6 shadow-sm lg:sticky lg:top-24">
+          <h2 className="font-serif text-2xl font-semibold text-maroon">
             Order Summary
           </h2>
 
-          <div className="mt-5 space-y-3 border-b border-gold/20 pb-5 text-sm">
+          <div className="mt-5 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-ink-light">
-                Subtotal ({totalItems} items)
-              </span>
-              <span className="font-medium text-carbon">
-                ₹{formatPrice(totalPrice)}
-              </span>
+              <span className="text-ink-light">Subtotal ({totalItems} items)</span>
+              <span className="font-medium">₹{formatPrice(totalPrice)}</span>
             </div>
 
             <div className="flex justify-between">
               <span className="text-ink-light">Shipping</span>
-              <span className="font-medium text-carbon">Free</span>
+              <span className="font-medium">Free</span>
+            </div>
+
+            <div className="flex justify-between border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
+              <span>Total</span>
+              <span>₹{formatPrice(totalPrice)}</span>
             </div>
           </div>
 
-          <div className="mt-5 flex justify-between text-lg font-semibold text-maroon">
-            <span>Total</span>
-            <span>₹{formatPrice(totalPrice)}</span>
-          </div>
-
-          {!isLoaded ? (
-            <button
-              type="button"
-              disabled
-              className="mt-6 w-full rounded-full bg-maroon/60 px-5 py-3 text-sm font-semibold text-white"
-            >
-              Checking account…
-            </button>
-          ) : isSignedIn ? (
-            <button
-              type="button"
-              onClick={handleCheckout}
-              disabled={loading}
-              className="mt-6 w-full rounded-full bg-maroon px-5 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Processing…" : "Proceed to Checkout"}
-            </button>
-          ) : (
-            <SignInButton mode="modal">
-              <button
-                type="button"
-                className="mt-6 w-full rounded-full bg-maroon px-5 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
-              >
-                Sign in to Checkout
-              </button>
-            </SignInButton>
-          )}
-
-          {error && (
-            <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          {!isSignedIn && isLoaded && (
-            <p className="mt-3 text-center text-xs text-ink-light">
-              You can browse and add items freely, but sign-in is required before placing an order.
-            </p>
-          )}
+          <Link
+            href="/checkout"
+            className="mt-6 flex w-full items-center justify-center rounded-full bg-maroon px-5 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+          >
+            Proceed to Checkout
+          </Link>
 
           <Link
             href="/collections/wedding"
-            className="mt-4 inline-flex w-full justify-center rounded-full border border-gold/40 px-5 py-3 text-sm font-semibold text-maroon transition hover:bg-gold-pale"
+            className="mt-3 flex w-full items-center justify-center rounded-full border border-gold/30 px-5 py-3 text-sm font-semibold text-maroon transition hover:bg-gold-pale"
           >
             Continue Shopping
           </Link>

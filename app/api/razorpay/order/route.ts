@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1) Razorpay order — amount is computed server-side from ERP/cart resolver.
-    const rzpOrder = await getRazorpay().orders.create({
+    const rzpOrder = (await getRazorpay().orders.create({
       amount: amountPaise,
       currency,
       receipt: `rcpt_${Date.now()}`,
@@ -67,27 +67,65 @@ export async function POST(request: NextRequest) {
         customerEmail: email ?? "",
         customerPhone: phone ?? "",
       },
-    });
+    })) as {
+      id: string;
+      amount: string | number;
+      currency: string;
+    };
 
     // 2) Draft ERPNext Sales Order.
     // Buyer details are taken from Clerk, not from the browser request body.
-    await createDraftSalesOrder({
-      razorpayOrderId: rzpOrder.id,
-      items: lines.map((line) => ({
-        item_code: line.itemCode,
-        qty: line.quantity,
-        rate: line.price,
-      })),
-      buyer: {
-        name: customerName,
-        email,
-        phone,
-      },
-    });
+    try {
+      await createDraftSalesOrder({
+        razorpayOrderId: rzpOrder.id,
+        items: lines.map((line) => ({
+          item_code: line.itemCode,
+          qty: line.quantity,
+          rate: line.price,
+        })),
+        buyer: {
+          name: customerName,
+          email,
+          phone,
+        },
+      });
+    } catch (createError) {
+      try {
+        if (rzpOrder) {
+          await (getRazorpay().api as any).patch({
+            url: `/orders/${rzpOrder.id}/cancel`,
+          });
+        }
+      } catch (cancelError) {
+        console.error(
+          "Failed to cancel orphaned Razorpay order after ERP draft creation failure",
+          {
+            razorpayOrderId: rzpOrder?.id,
+            createError,
+            cancelError,
+          },
+        );
+        throw new Error(
+          "Failed to create order pairing. The Razorpay order could not be cancelled automatically. Please contact support.",
+        );
+      }
+
+      console.error(
+        "Failed to create ERP draft sales order for Razorpay order",
+        {
+          razorpayOrderId: rzpOrder.id,
+          error: createError,
+        },
+      );
+
+      throw new Error(
+        "Failed to create order pairing. The Razorpay order was cancelled. Please retry.",
+      );
+    }
 
     return NextResponse.json({
       orderId: rzpOrder.id,
-      amount: rzpOrder.amount,
+      amount: Number(rzpOrder.amount),
       currency: rzpOrder.currency,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
     });

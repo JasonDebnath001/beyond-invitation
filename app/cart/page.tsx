@@ -44,11 +44,6 @@ export default function CartPage() {
         slug: item.slug,
         quantity: item.quantity,
       })),
-      customer: {
-        name: user?.fullName ?? undefined,
-        email: user?.primaryEmailAddress?.emailAddress ?? undefined,
-        contact: user?.primaryPhoneNumber?.phoneNumber ?? undefined,
-      },
       onSuccess: ({ paymentId }) => {
         clearCart();
         router.push(`/checkout/success?payment_id=${paymentId}`);

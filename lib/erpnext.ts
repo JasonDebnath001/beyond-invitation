@@ -416,7 +416,7 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
 }
 
 /** Build the base product list (no gallery enrichment). */
-async function buildErpProductList(): Promise<ErpProduct[]> {
+export async function buildErpProductList(): Promise<ErpProduct[]> {
   requireErpConfig();
 
   const itemResponse = await erpFetch<ErpNextListResponse<ErpItem>>(
@@ -605,4 +605,302 @@ export async function createErpLead(payload: {
   const json = (await res.json()) as ErpNextSingleResponse<{ name: string }>;
 
   return { leadId: json.data.name };
+}
+// ===========================================================================
+// CHECKOUT / ORDER FULFILMENT  (Razorpay integration)
+// ===========================================================================
+
+const ERPNEXT_DEFAULT_CUSTOMER = process.env.ERPNEXT_DEFAULT_CUSTOMER ?? "";
+
+const ERPNEXT_RZP_ORDER_FIELD =
+  process.env.ERPNEXT_RZP_ORDER_FIELD ?? "custom_razorpay_order_id";
+const ERPNEXT_RZP_PAYMENT_FIELD =
+  process.env.ERPNEXT_RZP_PAYMENT_FIELD ?? "custom_razorpay_payment_id";
+const ERPNEXT_PAYMENT_STATUS_FIELD =
+  process.env.ERPNEXT_PAYMENT_STATUS_FIELD ?? "custom_payment_status";
+
+// Per-buyer customer creation. When enabled and an email is present, the
+// integration finds an existing Customer by email or creates one. Otherwise
+// (or on any failure) it falls back to ERPNEXT_DEFAULT_CUSTOMER.
+const ERPNEXT_AUTO_CREATE_CUSTOMER =
+  (process.env.ERPNEXT_AUTO_CREATE_CUSTOMER ?? "false") === "true";
+const ERPNEXT_CUSTOMER_GROUP = process.env.ERPNEXT_CUSTOMER_GROUP ?? "Individual";
+const ERPNEXT_TERRITORY = process.env.ERPNEXT_TERRITORY ?? "All Territories";
+const ERPNEXT_CUSTOMER_EMAIL_FIELD =
+  process.env.ERPNEXT_CUSTOMER_EMAIL_FIELD ?? "custom_email";
+
+// Optional full accounting: a submitted Payment Entry receiving the amount
+// against the Sales Order. OFF by default; needs company + paid-to account.
+const ERPNEXT_CREATE_PAYMENT_ENTRY =
+  (process.env.ERPNEXT_CREATE_PAYMENT_ENTRY ?? "false") === "true";
+const ERPNEXT_COMPANY = process.env.ERPNEXT_COMPANY ?? "";
+const ERPNEXT_PAID_TO_ACCOUNT = process.env.ERPNEXT_PAID_TO_ACCOUNT ?? "";
+const ERPNEXT_MODE_OF_PAYMENT =
+  process.env.ERPNEXT_MODE_OF_PAYMENT ?? "Wire Transfer";
+
+export interface ErpOrderLine {
+  item_code: string;
+  qty: number;
+  rate: number;
+}
+
+export interface BuyerInfo {
+  name?: string;
+  email?: string;
+  phone?: string;
+}
+
+// --- low-level write/read helpers (no caching — these are transactional) ----
+
+async function erpWrite<T>(
+  method: "POST" | "PUT",
+  path: string,
+  body: unknown,
+): Promise<T> {
+  requireErpConfig();
+  const res = await fetch(buildErpUrl(path), {
+    method,
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`ERPNext ${method} ${path} failed: ${res.status}. ${t}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function erpGetFresh<T>(
+  path: string,
+  params?: Record<string, string>,
+): Promise<T> {
+  requireErpConfig();
+  const res = await fetch(buildErpUrl(path, params), {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`ERPNext GET ${path} failed: ${res.status}. ${t}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Resolve the ERP Customer for an order. With auto-create on and an email
+ * present, finds an existing Customer by email or creates one. Otherwise (or
+ * on any failure) falls back to ERPNEXT_DEFAULT_CUSTOMER so checkout never
+ * breaks over customer setup.
+ */
+export async function resolveCustomer(buyer?: BuyerInfo): Promise<string> {
+  const fallback = ERPNEXT_DEFAULT_CUSTOMER;
+  const email = buyer?.email?.trim().toLowerCase();
+
+  if (!ERPNEXT_AUTO_CREATE_CUSTOMER || !email) {
+    if (!fallback) {
+      throw new Error(
+        "No ERP customer: set ERPNEXT_DEFAULT_CUSTOMER or enable ERPNEXT_AUTO_CREATE_CUSTOMER.",
+      );
+    }
+    return fallback;
+  }
+
+  try {
+    // 1) Existing customer by email.
+    const existing = await erpGetFresh<ErpNextListResponse<{ name: string }>>(
+      "/api/resource/Customer",
+      {
+        filters: JSON.stringify([
+          ["Customer", ERPNEXT_CUSTOMER_EMAIL_FIELD, "=", email],
+        ]),
+        fields: JSON.stringify(["name"]),
+        limit_page_length: "1",
+      },
+    );
+    if (existing.data?.[0]?.name) return existing.data[0].name;
+
+    // 2) Create a new one.
+    const created = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
+      "POST",
+      "/api/resource/Customer",
+      {
+        customer_name: buyer?.name?.trim() || email,
+        customer_type: "Individual",
+        customer_group: ERPNEXT_CUSTOMER_GROUP,
+        territory: ERPNEXT_TERRITORY,
+        [ERPNEXT_CUSTOMER_EMAIL_FIELD]: email,
+      },
+    );
+    return created.data.name;
+  } catch (e) {
+    console.error("Customer resolve/create failed; using default customer:", e);
+    if (!fallback) throw e;
+    return fallback;
+  }
+}
+
+/** Find a Sales Order by its stored Razorpay order id. Null if none. */
+export async function findSalesOrderByRazorpayOrderId(
+  razorpayOrderId: string,
+): Promise<{ name: string; docstatus: number } | null> {
+  const json = await erpGetFresh<ErpNextListResponse<{ name: string; docstatus: number }>>(
+    "/api/resource/Sales Order",
+    {
+      filters: JSON.stringify([
+        ["Sales Order", ERPNEXT_RZP_ORDER_FIELD, "=", razorpayOrderId],
+      ]),
+      fields: JSON.stringify(["name", "docstatus"]),
+      limit_page_length: "1",
+    },
+  );
+  return json.data?.[0] ?? null;
+}
+
+/** Create a DRAFT Sales Order tagged with the Razorpay order id. */
+export async function createDraftSalesOrder(args: {
+  razorpayOrderId: string;
+  items: ErpOrderLine[];
+  buyer?: BuyerInfo;
+}): Promise<{ name: string }> {
+  const customer = await resolveCustomer(args.buyer);
+
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  const delivery_date = d.toISOString().slice(0, 10);
+
+  const payload: Record<string, unknown> = {
+    customer,
+    order_type: "Sales",
+    delivery_date,
+    // Prices are tax-inclusive on the storefront — no auto tax template, so
+    // grand_total matches the amount charged. Remove if you apply taxes.
+    taxes_and_charges: "",
+    items: args.items.map((l) => ({
+      item_code: l.item_code,
+      qty: l.qty,
+      rate: l.rate,
+      delivery_date,
+    })),
+    [ERPNEXT_RZP_ORDER_FIELD]: args.razorpayOrderId,
+    [ERPNEXT_PAYMENT_STATUS_FIELD]: "Pending",
+  };
+
+  const json = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
+    "POST",
+    "/api/resource/Sales Order",
+    payload,
+  );
+  return { name: json.data.name };
+}
+
+/**
+ * Mark a Sales Order paid and submit it. Idempotent — safe to call from both
+ * the inline verify handler and the webhook, and safe to retry.
+ */
+export async function fulfillSalesOrder(args: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+}): Promise<{ name: string; alreadyFulfilled: boolean }> {
+  const existing = await findSalesOrderByRazorpayOrderId(args.razorpayOrderId);
+  if (!existing) {
+    throw new Error(
+      `No draft Sales Order for Razorpay order ${args.razorpayOrderId}.`,
+    );
+  }
+  if (existing.docstatus === 1) {
+    return { name: existing.name, alreadyFulfilled: true };
+  }
+
+  const soPath = `/api/resource/Sales Order/${encodeURIComponent(existing.name)}`;
+
+  // 1) Stamp payment fields while still a draft (editable).
+  await erpWrite("PUT", soPath, {
+    [ERPNEXT_RZP_PAYMENT_FIELD]: args.razorpayPaymentId,
+    [ERPNEXT_PAYMENT_STATUS_FIELD]: "Paid",
+  });
+
+  // 2) Submit (docstatus 0 -> 1).
+  try {
+    const submitted = await erpWrite<ErpNextSingleResponse<{ docstatus: number }>>(
+      "PUT",
+      soPath,
+      { docstatus: 1 },
+    );
+    if (submitted.data?.docstatus !== 1) {
+      throw new Error("Submit did not set docstatus to 1.");
+    }
+  } catch (e) {
+    // Race between webhook and inline handler: if it's now submitted, succeed.
+    const recheck = await findSalesOrderByRazorpayOrderId(args.razorpayOrderId);
+    if (recheck?.docstatus === 1) {
+      return { name: existing.name, alreadyFulfilled: true };
+    }
+    throw e;
+  }
+
+  // 3) Optional full accounting — best-effort, never fails the order.
+  if (ERPNEXT_CREATE_PAYMENT_ENTRY) {
+    try {
+      await createPaymentEntryForSalesOrder({
+        salesOrderName: existing.name,
+        razorpayPaymentId: args.razorpayPaymentId,
+      });
+    } catch (e) {
+      console.error("Payment Entry failed (order still marked paid):", e);
+    }
+  }
+
+  return { name: existing.name, alreadyFulfilled: false };
+}
+
+/** Optional: a submitted Payment Entry receiving the amount against the SO. */
+export async function createPaymentEntryForSalesOrder(args: {
+  salesOrderName: string;
+  razorpayPaymentId: string;
+}): Promise<{ name: string } | null> {
+  if (!ERPNEXT_COMPANY || !ERPNEXT_PAID_TO_ACCOUNT) {
+    console.warn(
+      "Payment Entry skipped: set ERPNEXT_COMPANY and ERPNEXT_PAID_TO_ACCOUNT.",
+    );
+    return null;
+  }
+
+  const so = await erpGetFresh<ErpNextSingleResponse<{ customer: string; grand_total: number }>>(
+    `/api/resource/Sales Order/${encodeURIComponent(args.salesOrderName)}`,
+  );
+
+  const amount = Number(so.data.grand_total || 0);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const pe = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
+    "POST",
+    "/api/resource/Payment Entry",
+    {
+      payment_type: "Receive",
+      party_type: "Customer",
+      party: so.data.customer,
+      company: ERPNEXT_COMPANY,
+      paid_amount: amount,
+      received_amount: amount,
+      paid_to: ERPNEXT_PAID_TO_ACCOUNT,
+      mode_of_payment: ERPNEXT_MODE_OF_PAYMENT,
+      reference_no: args.razorpayPaymentId,
+      reference_date: today,
+      references: [
+        {
+          reference_doctype: "Sales Order",
+          reference_name: args.salesOrderName,
+          allocated_amount: amount,
+        },
+      ],
+    },
+  );
+
+  await erpWrite(
+    "PUT",
+    `/api/resource/Payment Entry/${encodeURIComponent(pe.data.name)}`,
+    { docstatus: 1 },
+  );
+  return { name: pe.data.name };
 }

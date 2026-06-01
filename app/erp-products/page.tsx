@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fetchErpProducts } from "@/lib/erpnext";
+import { ErpProduct, fetchErpProducts } from "@/lib/erpnext";
 import ProductCard from "@/components/ProductCard";
 import { discountPercent } from "@/types";
 
@@ -15,7 +15,7 @@ function formatCurrency(value: number) {
 }
 
 export default async function ErpProductsPage() {
-    let products = [];
+    let products: ErpProduct[] = [];
     let errorMessage = "";
 
     try {

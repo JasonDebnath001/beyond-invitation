@@ -32,8 +32,8 @@ export default async function HomePage() {
       <CelebrationGrid categories={categories} />
 
       <ProductSection
-        label="Limited-time offers"
-        title="The Sale Collection"
+        label=""
+        title="Trendy Collection"
         products={saleProducts}
         viewAllHref="/collections/wedding"
         viewAllText="View All Sale Items"

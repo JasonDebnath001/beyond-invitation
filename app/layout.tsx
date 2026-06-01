@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+
 import "./globals.css";
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
 
 export const metadata: Metadata = {
-  title: "Shahi Cards – Indian Wedding Invitation Cards",
+  title: "Beyond Invitation – Indian Wedding Invitation Cards",
   description:
-    "Get invitation cards tailored to your theme with top-quality wedding card design. Exclusive designs, unparalleled service.",
+    "Discover premium wedding invitation cards, shagun envelopes, boxes, and celebration stationery by Beyond Invitation.",
 };
 
 export default function RootLayout({
@@ -30,6 +32,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
+
       <body>
         <ClerkProvider>
           <CartProvider>

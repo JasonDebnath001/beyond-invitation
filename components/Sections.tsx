@@ -201,7 +201,7 @@ export function WhyUs() {
   return (
     <section className="bg-paper py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-6">
-        <SectionHeading eyebrow="Our promise" title="Why Choose Shahi Cards" />
+        <SectionHeading eyebrow="Our promise" title="Why Choose Beyond Invitation" />
 
         <div className="mt-12 grid gap-px border border-neutral-200 bg-neutral-200 md:grid-cols-3">
           {cards.map((c) => (

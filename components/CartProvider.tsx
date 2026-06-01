@@ -40,7 +40,7 @@ type CartAction =
   | { type: "CLEAR" }
   | { type: "HYDRATE"; items: CartItem[] };
 
-const STORAGE_KEY = "shahi-cards-cart";
+const STORAGE_KEY = "beyond-invitation-cart";
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {

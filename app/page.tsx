@@ -1,42 +1,42 @@
-import {
-  getSaleProducts,
-  getPremiumProducts,
-  getAllCategories,
-} from "@/lib/products";
+import { getAllCategories } from "@/lib/products";
+import { fetchErpProducts } from "@/lib/erpnext";
+
 import {
   BrandStatement,
   CelebrationGrid,
   FeatureStrip,
   WhyUs,
   Testimonials,
-  Milestones,
 } from "@/components/Sections";
+
 import HeroCarousel from "@/components/HeroCarousel";
 import { ProductSection } from "@/components/ProductGrid";
 
 /**
- * Homepage. A server component — data is fetched on the server at build /
- * request time. No client-side data loading, fast first paint.
+ * Homepage.
+ * For now, both Trendy Collection and Premium Invitations show
+ * all products coming from ERPNext.
  */
 export default async function HomePage() {
-  const [saleProducts, premiumProducts, categories] = await Promise.all([
-    getSaleProducts(),
-    getPremiumProducts(),
+  const [erpProducts, categories] = await Promise.all([
+    fetchErpProducts(),
     getAllCategories(),
   ]);
 
   return (
     <>
       <HeroCarousel />
+
       <BrandStatement />
+
       <CelebrationGrid categories={categories} />
 
       <ProductSection
-        label=""
+        label="Fresh from our catalogue"
         title="Trendy Collection"
-        products={saleProducts}
+        products={erpProducts}
         viewAllHref="/collections/wedding"
-        viewAllText="View All Sale Items"
+        viewAllText="View All Products"
       />
 
       <FeatureStrip />
@@ -44,15 +44,16 @@ export default async function HomePage() {
       <ProductSection
         label="Exclusive & elegant"
         title="Premium Invitations"
-        products={premiumProducts}
+        products={erpProducts}
         viewAllHref="/collections/luxe"
         viewAllText="View All Premium Cards"
         shaded
       />
 
       <WhyUs />
+
       <Testimonials />
-      <Milestones />
+
     </>
   );
 }

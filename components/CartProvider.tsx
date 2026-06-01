@@ -21,6 +21,7 @@ import type { Product } from "@/types";
 /** A snapshot of a product plus its quantity, stored in the cart. */
 export interface CartItem {
   slug: string;
+  itemCode: string; // ERP Item code — needed to create the Sales Order
   name: string;
   price: number;
   image: string;
@@ -33,7 +34,7 @@ interface CartState {
 }
 
 type CartAction =
-  | { type: "ADD"; product: Product }
+  | { type: "ADD"; product: Product & { itemCode?: string } }
   | { type: "REMOVE"; slug: string }
   | { type: "SET_QTY"; slug: string; quantity: number }
   | { type: "CLEAR" }
@@ -56,11 +57,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           ),
         };
       }
-      return {
+            return {
         items: [
           ...state.items,
           {
             slug: action.product.slug,
+            itemCode: action.product.itemCode ?? "",
             name: action.product.name,
             price: action.product.price,
             image: action.product.images[0] ?? "",
@@ -92,7 +94,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 interface CartContextValue {
   items: CartItem[];
-  addItem: (product: Product) => void;
+  addItem: (product: Product & { itemCode?: string }) => void;
   removeItem: (slug: string) => void;
   setQuantity: (slug: string, quantity: number) => void;
   clearCart: () => void;

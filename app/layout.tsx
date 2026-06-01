@@ -3,7 +3,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { AnnounceBar } from "@/components/Sections";
 import { CartProvider } from "@/components/CartProvider";
 
 export const metadata: Metadata = {
@@ -34,7 +33,6 @@ export default function RootLayout({
       <body>
         <ClerkProvider>
           <CartProvider>
-            <AnnounceBar />
             <Navbar />
             <main>{children}</main>
             <Footer />

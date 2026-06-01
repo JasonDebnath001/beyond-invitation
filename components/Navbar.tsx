@@ -171,12 +171,6 @@ export default function Navbar() {
           </Show>
 
           <Show when="signed-in">
-            <Link
-              href="/account"
-              className="hidden border border-carbon px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-carbon transition-colors hover:bg-carbon hover:text-white sm:block"
-            >
-              Account
-            </Link>
             <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
           </Show>
 
@@ -306,13 +300,6 @@ export default function Navbar() {
                 </SignUpButton>
               </Show>
               <Show when="signed-in">
-                <Link
-                  href="/account"
-                  onClick={closeMobile}
-                  className="flex-1 border border-carbon px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-carbon transition-colors hover:bg-carbon hover:text-white"
-                >
-                  My Account
-                </Link>
               </Show>
             </div>
           </div>

@@ -44,19 +44,6 @@ function SectionHeading({
 /* Sections                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Top announcement strip. */
-export function AnnounceBar() {
-  return (
-    <div className="bg-carbon px-4 py-2.5 text-center text-[10.5px] font-medium uppercase tracking-[0.2em] text-white/65">
-      <span className="text-white">40,000+</span> happy customers
-      <span className="mx-3 text-white/25">/</span>
-      <span className="text-white">11 stores</span> across 6 cities
-      <span className="mx-3 text-white/25">/</span>
-      Complimentary customisation on every order
-    </div>
-  );
-}
-
 /** Static hero banner (legacy export — kept for compatibility). */
 export function Hero() {
   const stats = [

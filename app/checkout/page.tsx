@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -18,6 +18,16 @@ type CheckoutForm = {
   pincode: string;
   country: string;
   notes: string;
+};
+
+type StatesApiResponse = {
+  states: string[];
+  error?: string;
+};
+
+type CitiesApiResponse = {
+  cities: string[];
+  error?: string;
 };
 
 const initialForm: CheckoutForm = {
@@ -40,7 +50,19 @@ export default function CheckoutPage() {
   const { startCheckout, loading } = useRazorpayCheckout();
 
   const [form, setForm] = useState<CheckoutForm>(initialForm);
+  const [states, setStates] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  const [manualCityMode, setManualCityMode] = useState(false);
   const [error, setError] = useState("");
+  const [locationError, setLocationError] = useState("");
+
+  const selectedStateHasCities = useMemo(() => {
+    return Boolean(form.state && cities.length > 0);
+  }, [form.state, cities.length]);
 
   useEffect(() => {
     setForm((prev) => ({
@@ -50,6 +72,84 @@ export default function CheckoutPage() {
       contact: prev.contact || user?.primaryPhoneNumber?.phoneNumber || "",
     }));
   }, [user]);
+
+  useEffect(() => {
+    async function loadStates() {
+      setStatesLoading(true);
+      setLocationError("");
+
+      try {
+        const response = await fetch("/api/locations/states", {
+          method: "GET",
+        });
+
+        const result = (await response.json()) as StatesApiResponse;
+
+        if (!response.ok || result.error) {
+          throw new Error(result.error || "Unable to load states.");
+        }
+
+        setStates(result.states ?? []);
+      } catch (err) {
+        console.error(err);
+        setStates([]);
+        setLocationError(
+          "State list could not be loaded. Please refresh the page.",
+        );
+      } finally {
+        setStatesLoading(false);
+      }
+    }
+
+    loadStates();
+  }, []);
+
+  useEffect(() => {
+    async function loadCities() {
+      if (!form.state) {
+        setCities([]);
+        return;
+      }
+
+      setCitiesLoading(true);
+      setLocationError("");
+
+      try {
+        const response = await fetch(
+          `/api/locations/cities?state=${encodeURIComponent(form.state)}`,
+          {
+            method: "GET",
+          },
+        );
+
+        const result = (await response.json()) as CitiesApiResponse;
+
+        if (!response.ok || result.error) {
+          throw new Error(result.error || "Unable to load cities.");
+        }
+
+        setCities(result.cities ?? []);
+
+        if (!result.cities?.length) {
+          setManualCityMode(true);
+          setLocationError(
+            "City list is not available for this state. Please enter city manually.",
+          );
+        }
+      } catch (err) {
+        console.error(err);
+        setCities([]);
+        setManualCityMode(true);
+        setLocationError(
+          "City list could not be loaded. Please enter city manually.",
+        );
+      } finally {
+        setCitiesLoading(false);
+      }
+    }
+
+    loadCities();
+  }, [form.state]);
 
   function formatPrice(value: number) {
     return value.toLocaleString("en-IN", {
@@ -67,19 +167,25 @@ export default function CheckoutPage() {
     }));
   }
 
+  function handleStateChange(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      state: value,
+      city: "",
+    }));
+
+    setCities([]);
+    setManualCityMode(false);
+    setLocationError("");
+  }
+
   function validateForm() {
     if (!form.name.trim()) return "Please enter customer name.";
     if (!form.contact.trim()) return "Please enter mobile number.";
-    if (!/^[0-9+\-\s()]{7,20}$/.test(form.contact.trim())) {
-      return "Please enter a valid mobile number.";
-    }
     if (!form.email.trim()) return "Please enter email address.";
-    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      return "Please enter a valid email address.";
-    }
     if (!form.addressLine1.trim()) return "Please enter address line 1.";
-    if (!form.city.trim()) return "Please enter city.";
-    if (!form.state.trim()) return "Please enter state.";
+    if (!form.state.trim()) return "Please select state.";
+    if (!form.city.trim()) return "Please select city.";
     if (!form.pincode.trim()) return "Please enter PIN code.";
     if (!form.country.trim()) return "Please enter country.";
     return "";
@@ -89,7 +195,6 @@ export default function CheckoutPage() {
     setError("");
 
     const validationError = validateForm();
-
     if (validationError) {
       setError(validationError);
       return;
@@ -101,7 +206,6 @@ export default function CheckoutPage() {
         slug: item.slug,
         quantity: item.quantity,
       })),
-
       customer: {
         name: form.name.trim(),
         email: form.email.trim(),
@@ -114,184 +218,218 @@ export default function CheckoutPage() {
         country: form.country.trim(),
         notes: form.notes.trim(),
       },
-
       onSuccess: ({ paymentId }) => {
         clearCart();
-        router.push(`/checkout/success?payment_id=${encodeURIComponent(paymentId)}`);
+        router.push(`/checkout/success?payment_id=${paymentId}`);
       },
-
-      onError: (message) => {
-        setError(message);
-      },
+      onError: (message) => setError(message),
     });
   }
 
   if (items.length === 0) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-16">
-        <div className="rounded-3xl border border-gold/20 bg-white p-10 text-center shadow-sm">
+      <main className="mx-auto max-w-4xl px-4 py-16">
+        <section className="rounded-3xl border border-gold/20 bg-white p-8 text-center shadow-sm">
           <h1 className="font-serif text-3xl font-semibold text-maroon">
             Checkout
           </h1>
 
-          <p className="mt-3 text-sm text-ink-light">
+          <p className="mt-3 text-ink-light">
             Your cart is empty. Please add products before checkout.
           </p>
 
           <Link
             href="/cart"
-            className="mt-8 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+            className="mt-6 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
           >
             Back to Cart
           </Link>
-        </div>
+        </section>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <main className="mx-auto max-w-7xl px-4 py-10">
       <Link
         href="/cart"
-        className="mb-6 inline-flex text-sm font-medium text-maroon underline-offset-2 hover:underline"
+        className="text-sm font-medium text-maroon transition hover:text-maroon-dark"
       >
         ← Back to Cart
       </Link>
 
-      <div className="mb-8">
+      <div className="mt-6">
         <h1 className="font-serif text-4xl font-semibold text-maroon">
           Checkout Details
         </h1>
 
-        <p className="mt-2 text-sm text-ink-light">
+        <p className="mt-2 text-ink-light">
           Fill customer contact and address details before payment.
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-        <section className="rounded-3xl border border-gold/20 bg-white p-6 shadow-sm">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
+        <section className="rounded-3xl border border-gold/20 bg-white p-5 shadow-sm md:p-7">
           <h2 className="font-serif text-2xl font-semibold text-maroon">
             Customer Contact & Address
           </h2>
 
           <p className="mt-2 text-sm text-ink-light">
-            These details will be sent to Razorpay and saved with the ERPNext order.
+            These details will be saved in ERPNext with the order.
           </p>
 
-          <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-ink">
-                Customer Name *
-              </label>
+          {locationError && (
+            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {locationError}
+            </p>
+          )}
+
+          <div className="mt-6 grid gap-5 md:grid-cols-2">
+            <label className="block text-sm font-medium text-ink">
+              Customer Name *
               <input
-                type="text"
                 value={form.name}
                 onChange={(e) => updateField("name", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="Full name"
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-medium text-ink">
-                Mobile Number *
-              </label>
+            <label className="block text-sm font-medium text-ink">
+              Mobile Number *
               <input
-                type="tel"
                 value={form.contact}
                 onChange={(e) => updateField("contact", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="Mobile number"
               />
-            </div>
+            </label>
 
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-ink">
-                Email Address *
-              </label>
+            <label className="block text-sm font-medium text-ink md:col-span-2">
+              Email Address *
               <input
-                type="email"
                 value={form.email}
                 onChange={(e) => updateField("email", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="Email address"
               />
-            </div>
+            </label>
 
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-ink">
-                Address Line 1 *
-              </label>
+            <label className="block text-sm font-medium text-ink md:col-span-2">
+              Address Line 1 *
               <input
-                type="text"
                 value={form.addressLine1}
                 onChange={(e) => updateField("addressLine1", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="House / Flat / Building / Street"
               />
-            </div>
+            </label>
 
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-ink">
-                Address Line 2
-              </label>
+            <label className="block text-sm font-medium text-ink md:col-span-2">
+              Address Line 2
               <input
-                type="text"
                 value={form.addressLine2}
                 onChange={(e) => updateField("addressLine2", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="Area / Landmark"
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-medium text-ink">City *</label>
-              <input
-                type="text"
-                value={form.city}
-                onChange={(e) => updateField("city", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
-                placeholder="City"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-ink">State *</label>
-              <input
-                type="text"
+            <label className="block text-sm font-medium text-ink">
+              State *
+              <select
                 value={form.state}
-                onChange={(e) => updateField("state", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
-                placeholder="State"
-              />
-            </div>
+                onChange={(e) => handleStateChange(e.target.value)}
+                disabled={statesLoading}
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-ink-light"
+              >
+                <option value="">
+                  {statesLoading ? "Loading states..." : "Select state"}
+                </option>
+
+                {states.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <div>
-              <label className="text-sm font-medium text-ink">PIN Code *</label>
+              <label className="block text-sm font-medium text-ink">
+                City *
+
+                {!manualCityMode ? (
+                  <select
+                    value={form.city}
+                    onChange={(e) => updateField("city", e.target.value)}
+                    disabled={!form.state || citiesLoading}
+                    className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-ink-light"
+                  >
+                    <option value="">
+                      {!form.state
+                        ? "Select state first"
+                        : citiesLoading
+                          ? "Loading cities..."
+                          : selectedStateHasCities
+                            ? "Select city"
+                            : "No cities found"}
+                    </option>
+
+                    {cities.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={form.city}
+                    onChange={(e) => updateField("city", e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                    placeholder="Enter city manually"
+                  />
+                )}
+              </label>
+
+              {form.state && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualCityMode((prev) => !prev);
+                    updateField("city", "");
+                  }}
+                  className="mt-2 text-xs font-medium text-maroon hover:text-maroon-dark"
+                >
+                  {manualCityMode
+                    ? "Choose city from dropdown"
+                    : ""}
+                </button>
+              )}
+            </div>
+
+            <label className="block text-sm font-medium text-ink">
+              PIN Code *
               <input
-                type="text"
                 value={form.pincode}
                 onChange={(e) => updateField("pincode", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="PIN code"
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-medium text-ink">Country *</label>
+            <label className="block text-sm font-medium text-ink">
+              Country *
               <input
-                type="text"
                 value={form.country}
                 onChange={(e) => updateField("country", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="Country"
               />
-            </div>
+            </label>
 
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-ink">
-                Order Notes
-              </label>
+            <label className="block text-sm font-medium text-ink md:col-span-2">
+              Order Notes
               <textarea
                 value={form.notes}
                 onChange={(e) => updateField("notes", e.target.value)}
@@ -299,7 +437,7 @@ export default function CheckoutPage() {
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
                 placeholder="Personalization, delivery instruction, or any special note"
               />
-            </div>
+            </label>
           </div>
         </section>
 
@@ -352,7 +490,7 @@ export default function CheckoutPage() {
           <button
             type="button"
             onClick={handlePayment}
-            disabled={loading}
+            disabled={loading || statesLoading || citiesLoading}
             className="mt-6 w-full rounded-full bg-maroon px-5 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Processing…" : "Pay Now"}
@@ -365,7 +503,7 @@ export default function CheckoutPage() {
           )}
 
           <p className="mt-4 text-center text-xs text-ink-light">
-            Razorpay will open only after customer details are filled.
+            Your order will be created in ERPNext before payment verification.
           </p>
         </aside>
       </div>

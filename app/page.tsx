@@ -1,4 +1,4 @@
-import { getAllCategories } from "@/lib/products";
+import { getAllCategories, getAllProducts } from "@/lib/products";
 import { fetchErpProducts } from "@/lib/erpnext";
 
 import {
@@ -12,16 +12,21 @@ import {
 import HeroCarousel from "@/components/HeroCarousel";
 import { ProductSection } from "@/components/ProductGrid";
 
-/**
- * Homepage.
- * For now, both Trendy Collection and Premium Invitations show
- * all products coming from ERPNext.
- */
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
-  const [erpProducts, categories] = await Promise.all([
-    fetchErpProducts(),
-    getAllCategories(),
-  ]);
+  const categories = await getAllCategories();
+
+  let erpProducts = [];
+
+  try {
+    erpProducts = await fetchErpProducts();
+  } catch (error) {
+    console.error("ERPNext product fetch failed on homepage:", error);
+
+    // Important: fallback prevents Vercel build/deploy failure
+    erpProducts = await getAllProducts();
+  }
 
   return (
     <>

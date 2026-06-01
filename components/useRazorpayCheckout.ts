@@ -8,19 +8,47 @@ function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === "undefined") return resolve(false);
     if (window.Razorpay) return resolve(true);
-    const existing = document.querySelector<HTMLScriptElement>(
-      `script[src="${SCRIPT_SRC}"]`,
-    );
+
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${SCRIPT_SRC}"]`);
     if (existing) {
-      existing.addEventListener("load", () => resolve(true));
-      existing.addEventListener("error", () => resolve(false));
-      return;
+      // If script already loaded successfully earlier
+      if (existing.dataset.loaded === "true") return resolve(true);
+      // If previous script errored, remove it and create a fresh one
+      if (existing.dataset.error === "true") {
+        existing.remove();
+      } else {
+        // Attach listeners to settle this promise when the existing script finishes
+        const onLoad = () => {
+          existing.dataset.loaded = "true";
+          cleanup();
+          resolve(true);
+        };
+        const onError = () => {
+          existing.dataset.error = "true";
+          cleanup();
+          resolve(false);
+        };
+        const cleanup = () => {
+          existing.removeEventListener("load", onLoad);
+          existing.removeEventListener("error", onError);
+        };
+        existing.addEventListener("load", onLoad);
+        existing.addEventListener("error", onError);
+        return;
+      }
     }
+
     const script = document.createElement("script");
     script.src = SCRIPT_SRC;
     script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    script.onload = () => {
+      script.dataset.loaded = "true";
+      resolve(true);
+    };
+    script.onerror = () => {
+      script.dataset.error = "true";
+      resolve(false);
+    };
     document.body.appendChild(script);
   });
 }

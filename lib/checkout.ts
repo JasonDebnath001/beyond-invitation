@@ -56,5 +56,11 @@ export async function resolveCartProducts(
   }
 
   const totalInr = lines.reduce((s, l) => s + l.price * l.quantity, 0);
-  return { lines, amountPaise: Math.round(totalInr * 100), currency: "INR" };
+  const amountPaise = Math.round(totalInr * 100);
+
+  if (lines.length === 0 || amountPaise === 0) {
+    throw new Error("Cart is empty or has no valid items");
+  }
+
+  return { lines, amountPaise, currency: "INR" };
 }

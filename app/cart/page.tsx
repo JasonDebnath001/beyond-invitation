@@ -117,9 +117,13 @@ export default function CartPage() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setQuantity(item.slug, item.quantity - 1)}
+                      onClick={() => {
+                        if (loading) return;
+                        setQuantity(item.slug, item.quantity - 1);
+                      }}
                       aria-label="Decrease quantity"
-                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale"
+                      disabled={loading}
+                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       −
                     </button>
@@ -128,9 +132,13 @@ export default function CartPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setQuantity(item.slug, item.quantity + 1)}
+                      onClick={() => {
+                        if (loading) return;
+                        setQuantity(item.slug, item.quantity + 1);
+                      }}
                       aria-label="Increase quantity"
-                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale"
+                      disabled={loading}
+                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       +
                     </button>
@@ -142,8 +150,12 @@ export default function CartPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeItem(item.slug)}
-                      className="text-[12.5px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
+                      onClick={() => {
+                        if (loading) return;
+                        removeItem(item.slug);
+                      }}
+                      disabled={loading}
+                      className="text-[12.5px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Remove
                     </button>
@@ -155,8 +167,12 @@ export default function CartPage() {
 
           <button
             type="button"
-            onClick={clearCart}
-            className="text-[13px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
+            onClick={() => {
+              if (loading) return;
+              clearCart();
+            }}
+            disabled={loading}
+            className="text-[13px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-60"
           >
             Clear cart
           </button>

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { verifyPaymentSignature } from "@/lib/razorpay";
 import { fulfillSalesOrder } from "@/lib/erpnext";
 
@@ -7,12 +8,32 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          verified: false,
+          error: "Please sign in before verifying payment.",
+        },
+        { status: 401 },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
+
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
-        { verified: false, error: "Missing payment parameters." },
+        {
+          verified: false,
+          error: "Missing payment parameters.",
+        },
         { status: 400 },
       );
     }
@@ -22,24 +43,30 @@ export async function POST(request: NextRequest) {
       paymentId: razorpay_payment_id,
       signature: razorpay_signature,
     });
+
     if (!ok) {
       return NextResponse.json(
-        { verified: false, error: "Signature verification failed." },
+        {
+          verified: false,
+          error: "Signature verification failed.",
+        },
         { status: 400 },
       );
     }
 
-    // Authentic. Fulfil now; the webhook is the safety net if this fails.
+    // Authentic payment. Fulfil now; webhook remains the safety net.
     let erpOrder: string | null = null;
     let fulfilmentPending = false;
+
     try {
-      const f = await fulfillSalesOrder({
+      const fulfilled = await fulfillSalesOrder({
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
       });
-      erpOrder = f.name;
-    } catch (e) {
-      console.error("Inline fulfilment failed; webhook will retry:", e);
+
+      erpOrder = fulfilled.name;
+    } catch (error) {
+      console.error("Inline fulfilment failed; webhook will retry:", error);
       fulfilmentPending = true;
     }
 
@@ -50,7 +77,15 @@ export async function POST(request: NextRequest) {
       fulfilmentPending,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Verification error.";
-    return NextResponse.json({ verified: false, error: message }, { status: 500 });
+    const message =
+      err instanceof Error ? err.message : "Verification error.";
+
+    return NextResponse.json(
+      {
+        verified: false,
+        error: message,
+      },
+      { status: 500 },
+    );
   }
 }

@@ -20,10 +20,8 @@ const ERPNEXT_SUBJECT_FIELD =
 // These are fieldnames, not labels. Override in .env.local if your fieldnames differ.
 const ERPNEXT_CUSTOMISATION_FIELD =
   process.env.ERPNEXT_CUSTOMISATION_FIELD ?? "custom_customisation";
-
 const ERPNEXT_MATERIAL_FIELD =
   process.env.ERPNEXT_MATERIAL_FIELD ?? "custom_material";
-
 const ERPNEXT_INCLUDES_FIELD =
   process.env.ERPNEXT_INCLUDES_FIELD ?? "custom_includes";
 
@@ -33,17 +31,12 @@ const ERPNEXT_REVALIDATE = Number(
   process.env.ERPNEXT_REVALIDATE_SECONDS ?? "60",
 );
 
-// --- Multi-image gallery (the "Item Image" child table on Item) -------------
-// All three auto-detect by default; set them only if detection misfires.
-// ERPNEXT_IMAGE_TABLE_FIELD = the table's fieldname on Item (parentfield).
-// ERPNEXT_IMAGE_ROW_FIELD = the image column inside each row (usually "image").
-// ERPNEXT_IMAGE_ORDER_FIELD = the numeric order column inside each row.
+// --- Multi-image gallery: Item Image child table on Item -------------------
+
 const ERPNEXT_IMAGE_TABLE_FIELD =
   process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
-
 const ERPNEXT_IMAGE_ROW_FIELD =
   process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
-
 const ERPNEXT_IMAGE_ORDER_FIELD =
   process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
 
@@ -81,7 +74,9 @@ export type ErpProduct = Product & {
   itemGroup: string;
   erpName: string;
 
-  /** Value of the ERPNext "Subject" field, e.g. "Hindu" / "Muslim". */
+  /**
+   * Value of the ERPNext "Subject" field, e.g. Hindu / Muslim / Christian.
+   */
   subject: string;
 };
 
@@ -197,11 +192,11 @@ async function erpFetch<T>(
 }
 
 async function fetchItemPrices(itemCodes: string[]) {
-  if (itemCodes.length === 0) return new Map<string, number>();
-
   const priceMap = new Map<string, number>();
 
-  // Small chunks prevent nginx 414 Request-URI Too Large error
+  if (itemCodes.length === 0) return priceMap;
+
+  // Small chunks prevent nginx 414 Request-URI Too Large error.
   const chunks = chunkArray(itemCodes, 25);
 
   for (const chunk of chunks) {
@@ -262,8 +257,8 @@ function mapErpItemToProduct(
     category: normalizeCategory(item.item_group),
     badge: undefined,
 
-    // Sanitize HTML coming from ERPNext to prevent stored XSS when
-    // rendered with `dangerouslySetInnerHTML` in Server Components.
+    // Sanitize HTML coming from ERPNext to prevent stored XSS when rendered
+    // with dangerouslySetInnerHTML in Server Components.
     description: DOMPurify.sanitize(String(item.description || "")),
 
     // Product detail fields from ERPNext custom fields.
@@ -276,14 +271,17 @@ function mapErpItemToProduct(
   };
 }
 
-/** Fetch a full Item document (includes all child tables, in row order). */
+/**
+ * Fetch a full Item document.
+ * This includes child tables and full gallery rows.
+ */
 async function fetchErpItemDoc(
   itemName: string,
 ): Promise<Record<string, unknown> | null> {
   try {
-    const json = await erpFetch<ErpNextSingleResponse<Record<string, unknown>>>(
-      `/api/resource/Item/${encodeURIComponent(itemName)}`,
-    );
+    const json = await erpFetch<
+      ErpNextSingleResponse<Record<string, unknown>>
+    >(`/api/resource/Item/${encodeURIComponent(itemName)}`);
 
     return json.data ?? null;
   } catch {
@@ -291,7 +289,9 @@ async function fetchErpItemDoc(
   }
 }
 
-/** Pull ordered image URLs out of the Item Image child table on a doc. */
+/**
+ * Pull ordered image URLs out of the Item Image child table on a doc.
+ */
 function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
   if (!doc) return [];
 
@@ -309,7 +309,9 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
 
     const url = buildImageUrl(v as string)[0];
 
-    if (url && !urls.includes(url)) urls.push(url);
+    if (url && !urls.includes(url)) {
+      urls.push(url);
+    }
   };
 
   const toNum = (v: unknown): number | null => {
@@ -326,7 +328,6 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
     return null;
   };
 
-  // Resolve a row's sort key: configured field → a field named like "order" → idx.
   const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
     if (ERPNEXT_IMAGE_ORDER_FIELD) {
       const n = toNum(row[ERPNEXT_IMAGE_ORDER_FIELD]);
@@ -344,7 +345,6 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
     return idx !== null ? idx : fallback;
   };
 
-  // Candidate child tables: the configured one, else any array-of-objects field.
   const tables: Record<string, unknown>[][] = [];
 
   const preferred = ERPNEXT_IMAGE_TABLE_FIELD
@@ -397,7 +397,9 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
   return urls;
 }
 
-/** Replace each product's images with its full ordered gallery, if present. */
+/**
+ * Replace each product's images with its full ordered gallery, if present.
+ */
 async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
   const CONCURRENCY = 8;
 
@@ -407,7 +409,10 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
     await Promise.all(
       batch.map(async (p) => {
         const gallery = extractGalleryImages(await fetchErpItemDoc(p.erpName));
-        if (gallery.length > 0) p.images = gallery;
+
+        if (gallery.length > 0) {
+          p.images = gallery;
+        }
       }),
     );
   }
@@ -415,7 +420,9 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
   return products;
 }
 
-/** Build the base product list (no gallery enrichment). */
+/**
+ * Build the base product list without gallery enrichment.
+ */
 export async function buildErpProductList(): Promise<ErpProduct[]> {
   requireErpConfig();
 
@@ -470,13 +477,15 @@ export async function fetchErpProductBySlug(
   slug: string,
 ): Promise<ErpProduct | null> {
   const products = await buildErpProductList();
-
   const product = products.find((p) => p.slug === slug) ?? null;
+
   if (!product) return null;
 
-  // Enrich only this product with its ordered gallery (one extra request).
   const gallery = extractGalleryImages(await fetchErpItemDoc(product.erpName));
-  if (gallery.length > 0) product.images = gallery;
+
+  if (gallery.length > 0) {
+    product.images = gallery;
+  }
 
   return product;
 }
@@ -489,10 +498,8 @@ export async function fetchErpProductsByCategory(
 }
 
 /**
- * Products whose ERPNext "Subject" field matches `subject` (case-insensitive)
+ * Products whose ERPNext "Subject" field matches `subject` case-insensitively
  * AND that have "Show on Website" enabled.
- *
- * Used by the Wedding Card sub-pages (Hindu / Muslim / Christian).
  */
 export async function fetchErpProductsBySubject(
   subject: string,
@@ -530,9 +537,6 @@ export async function fetchErpProductsBySubject(
     },
   );
 
-  // Defensive re-filter in JS: guards the flags and matches the subject
-  // case-insensitively (ERPNext "=" can be case-sensitive depending on the
-  // database collation).
   const visibleItems = itemResponse.data.filter(
     (item) =>
       item.disabled !== 1 &&
@@ -606,12 +610,12 @@ export async function createErpLead(payload: {
 
   return { leadId: json.data.name };
 }
+
 // ===========================================================================
-// CHECKOUT / ORDER FULFILMENT  (Razorpay integration)
+// CHECKOUT / ORDER FULFILMENT - Razorpay integration
 // ===========================================================================
 
 const ERPNEXT_DEFAULT_CUSTOMER = process.env.ERPNEXT_DEFAULT_CUSTOMER ?? "";
-
 const ERPNEXT_RZP_ORDER_FIELD =
   process.env.ERPNEXT_RZP_ORDER_FIELD ?? "custom_razorpay_order_id";
 const ERPNEXT_RZP_PAYMENT_FIELD =
@@ -619,18 +623,20 @@ const ERPNEXT_RZP_PAYMENT_FIELD =
 const ERPNEXT_PAYMENT_STATUS_FIELD =
   process.env.ERPNEXT_PAYMENT_STATUS_FIELD ?? "custom_payment_status";
 
-// Per-buyer customer creation. When enabled and an email is present, the
-// integration finds an existing Customer by email or creates one. Otherwise
-// (or on any failure) it falls back to ERPNEXT_DEFAULT_CUSTOMER.
+// Per-buyer customer creation.
+// When enabled and an email is present, the integration finds an existing
+// Customer by email or creates one. Otherwise it falls back to default customer.
 const ERPNEXT_AUTO_CREATE_CUSTOMER =
   (process.env.ERPNEXT_AUTO_CREATE_CUSTOMER ?? "false") === "true";
-const ERPNEXT_CUSTOMER_GROUP = process.env.ERPNEXT_CUSTOMER_GROUP ?? "Individual";
-const ERPNEXT_TERRITORY = process.env.ERPNEXT_TERRITORY ?? "All Territories";
+const ERPNEXT_CUSTOMER_GROUP =
+  process.env.ERPNEXT_CUSTOMER_GROUP ?? "Individual";
+const ERPNEXT_TERRITORY =
+  process.env.ERPNEXT_TERRITORY ?? "All Territories";
 const ERPNEXT_CUSTOMER_EMAIL_FIELD =
   process.env.ERPNEXT_CUSTOMER_EMAIL_FIELD ?? "custom_email";
 
 // Optional full accounting: a submitted Payment Entry receiving the amount
-// against the Sales Order. OFF by default; needs company + paid-to account.
+// against the Sales Order.
 const ERPNEXT_CREATE_PAYMENT_ENTRY =
   (process.env.ERPNEXT_CREATE_PAYMENT_ENTRY ?? "false") === "true";
 const ERPNEXT_COMPANY = process.env.ERPNEXT_COMPANY ?? "";
@@ -648,9 +654,64 @@ export interface BuyerInfo {
   name?: string;
   email?: string;
   phone?: string;
+
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+
+  notes?: string;
 }
 
-// --- low-level write/read helpers (no caching — these are transactional) ----
+interface ResolvedBuyer {
+  customer: string;
+  addressName: string | null;
+  contactName: string | null;
+  addressDisplay: string;
+}
+
+function safeTrim(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function splitName(fullName: string) {
+  const clean = fullName.trim();
+
+  if (!clean) {
+    return {
+      firstName: "Customer",
+      lastName: "",
+    };
+  }
+
+  const parts = clean.split(/\s+/);
+  const firstName = parts.shift() || clean;
+  const lastName = parts.join(" ");
+
+  return {
+    firstName,
+    lastName,
+  };
+}
+
+function buildAddressDisplay(buyer?: BuyerInfo) {
+  const parts = [
+    buyer?.addressLine1,
+    buyer?.addressLine2,
+    buyer?.city,
+    buyer?.state,
+    buyer?.pincode,
+    buyer?.country,
+  ]
+    .map((v) => safeTrim(v))
+    .filter(Boolean);
+
+  return parts.join(", ");
+}
+
+// --- low-level write/read helpers: no caching for transactional calls --------
 
 async function erpWrite<T>(
   method: "POST" | "PUT",
@@ -658,16 +719,20 @@ async function erpWrite<T>(
   body: unknown,
 ): Promise<T> {
   requireErpConfig();
+
   const res = await fetch(buildErpUrl(path), {
     method,
     headers: authHeaders(),
     body: JSON.stringify(body),
     cache: "no-store",
   });
+
   if (!res.ok) {
     const t = await res.text();
+
     throw new Error(`ERPNext ${method} ${path} failed: ${res.status}. ${t}`);
   }
+
   return res.json() as Promise<T>;
 }
 
@@ -676,166 +741,370 @@ async function erpGetFresh<T>(
   params?: Record<string, string>,
 ): Promise<T> {
   requireErpConfig();
+
   const res = await fetch(buildErpUrl(path, params), {
     headers: authHeaders(),
     cache: "no-store",
   });
+
   if (!res.ok) {
     const t = await res.text();
+
     throw new Error(`ERPNext GET ${path} failed: ${res.status}. ${t}`);
   }
+
   return res.json() as Promise<T>;
 }
 
-/**
- * Resolve the ERP Customer for an order. With auto-create on and an email
- * present, finds an existing Customer by email or creates one. Otherwise (or
- * on any failure) falls back to ERPNEXT_DEFAULT_CUSTOMER so checkout never
- * breaks over customer setup.
- */
-export async function resolveCustomer(buyer?: BuyerInfo): Promise<string> {
-  const fallback = ERPNEXT_DEFAULT_CUSTOMER;
-  const email = buyer?.email?.trim().toLowerCase();
+async function findExistingCustomerByEmail(email: string) {
+  const existing = await erpGetFresh<
+    ErpNextListResponse<{ name: string }>
+  >("/api/resource/Customer", {
+    filters: JSON.stringify([
+      ["Customer", ERPNEXT_CUSTOMER_EMAIL_FIELD, "=", email],
+    ]),
+    fields: JSON.stringify(["name"]),
+    limit_page_length: "1",
+  });
 
-  if (!ERPNEXT_AUTO_CREATE_CUSTOMER || !email) {
-    if (!fallback) {
-      throw new Error(
-        "No ERP customer: set ERPNEXT_DEFAULT_CUSTOMER or enable ERPNEXT_AUTO_CREATE_CUSTOMER.",
-      );
+  return existing.data?.[0]?.name ?? null;
+}
+
+async function createCustomerForBuyer(buyer: BuyerInfo) {
+  const name = safeTrim(buyer.name);
+  const email = safeTrim(buyer.email).toLowerCase();
+  const phone = safeTrim(buyer.phone);
+
+  const payload: Record<string, unknown> = {
+    customer_name: name || email || phone || "Website Customer",
+    customer_type: "Individual",
+    customer_group: ERPNEXT_CUSTOMER_GROUP,
+    territory: ERPNEXT_TERRITORY,
+  };
+
+  if (email) {
+    payload[ERPNEXT_CUSTOMER_EMAIL_FIELD] = email;
+    payload.email_id = email;
+  }
+
+  if (phone) {
+    payload.mobile_no = phone;
+  }
+
+  const created = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
+    "POST",
+    "/api/resource/Customer",
+    payload,
+  );
+
+  return created.data.name;
+}
+
+async function createAddressForCustomer(customer: string, buyer?: BuyerInfo) {
+  const addressLine1 = safeTrim(buyer?.addressLine1);
+  const city = safeTrim(buyer?.city);
+  const country = safeTrim(buyer?.country) || "India";
+
+  if (!addressLine1 || !city || !country) return null;
+
+  const payload = {
+    address_title: safeTrim(buyer?.name) || customer,
+    address_type: "Billing",
+    address_line1: addressLine1,
+    address_line2: safeTrim(buyer?.addressLine2),
+    city,
+    state: safeTrim(buyer?.state),
+    pincode: safeTrim(buyer?.pincode),
+    country,
+    email_id: safeTrim(buyer?.email),
+    phone: safeTrim(buyer?.phone),
+    is_primary_address: 1,
+    is_shipping_address: 1,
+    links: [
+      {
+        link_doctype: "Customer",
+        link_name: customer,
+      },
+    ],
+  };
+
+  const created = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
+    "POST",
+    "/api/resource/Address",
+    payload,
+  );
+
+  return created.data.name;
+}
+
+async function createContactForCustomer(customer: string, buyer?: BuyerInfo) {
+  const name = safeTrim(buyer?.name);
+  const email = safeTrim(buyer?.email);
+  const phone = safeTrim(buyer?.phone);
+
+  if (!name && !email && !phone) return null;
+
+  const { firstName, lastName } = splitName(name);
+
+  const payload = {
+    first_name: firstName,
+    last_name: lastName,
+    is_primary_contact: 1,
+    is_billing_contact: 1,
+    email_ids: email
+      ? [
+          {
+            email_id: email,
+            is_primary: 1,
+          },
+        ]
+      : [],
+    phone_nos: phone
+      ? [
+          {
+            phone,
+            is_primary_mobile_no: 1,
+          },
+        ]
+      : [],
+    links: [
+      {
+        link_doctype: "Customer",
+        link_name: customer,
+      },
+    ],
+  };
+
+  const created = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
+    "POST",
+    "/api/resource/Contact",
+    payload,
+  );
+
+  return created.data.name;
+}
+
+/**
+ * Resolve/create ERP Customer and save Address + Contact.
+ *
+ * Important:
+ * - Set ERPNEXT_AUTO_CREATE_CUSTOMER=true for real customer-wise orders.
+ * - If false, it falls back to ERPNEXT_DEFAULT_CUSTOMER, but still attaches
+ *   Address/Contact to that fallback customer.
+ */
+export async function resolveCustomerWithDetails(
+  buyer?: BuyerInfo,
+): Promise<ResolvedBuyer> {
+  const fallback = ERPNEXT_DEFAULT_CUSTOMER;
+  const email = safeTrim(buyer?.email).toLowerCase();
+
+  let customer = fallback;
+
+  if (ERPNEXT_AUTO_CREATE_CUSTOMER && email) {
+    try {
+      customer =
+        (await findExistingCustomerByEmail(email)) ||
+        (await createCustomerForBuyer(buyer || {}));
+    } catch (e) {
+      console.error("Customer resolve/create failed:", e);
+
+      if (!fallback) {
+        throw e;
+      }
+
+      customer = fallback;
     }
-    return fallback;
+  }
+
+  if (!customer) {
+    throw new Error(
+      "No ERP customer: set ERPNEXT_DEFAULT_CUSTOMER or enable ERPNEXT_AUTO_CREATE_CUSTOMER.",
+    );
+  }
+
+  let addressName: string | null = null;
+  let contactName: string | null = null;
+
+  try {
+    addressName = await createAddressForCustomer(customer, buyer);
+  } catch (e) {
+    console.error("ERPNext Address create failed:", e);
   }
 
   try {
-    // 1) Existing customer by email.
-    const existing = await erpGetFresh<ErpNextListResponse<{ name: string }>>(
-      "/api/resource/Customer",
-      {
-        filters: JSON.stringify([
-          ["Customer", ERPNEXT_CUSTOMER_EMAIL_FIELD, "=", email],
-        ]),
-        fields: JSON.stringify(["name"]),
-        limit_page_length: "1",
-      },
-    );
-    if (existing.data?.[0]?.name) return existing.data[0].name;
-
-    // 2) Create a new one.
-    const created = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
-      "POST",
-      "/api/resource/Customer",
-      {
-        customer_name: buyer?.name?.trim() || email,
-        customer_type: "Individual",
-        customer_group: ERPNEXT_CUSTOMER_GROUP,
-        territory: ERPNEXT_TERRITORY,
-        [ERPNEXT_CUSTOMER_EMAIL_FIELD]: email,
-      },
-    );
-    return created.data.name;
+    contactName = await createContactForCustomer(customer, buyer);
   } catch (e) {
-    console.error("Customer resolve/create failed; using default customer:", e);
-    if (!fallback) throw e;
-    return fallback;
+    console.error("ERPNext Contact create failed:", e);
   }
+
+  return {
+    customer,
+    addressName,
+    contactName,
+    addressDisplay: buildAddressDisplay(buyer),
+  };
 }
 
-/** Find a Sales Order by its stored Razorpay order id. Null if none. */
+/**
+ * Backward-compatible helper.
+ */
+export async function resolveCustomer(buyer?: BuyerInfo): Promise<string> {
+  const resolved = await resolveCustomerWithDetails(buyer);
+  return resolved.customer;
+}
+
+/**
+ * Find a Sales Order by its stored Razorpay order id.
+ * Returns null if none exists.
+ */
 export async function findSalesOrderByRazorpayOrderId(
   razorpayOrderId: string,
 ): Promise<{ name: string; docstatus: number } | null> {
-  const json = await erpGetFresh<ErpNextListResponse<{ name: string; docstatus: number }>>(
-    "/api/resource/Sales Order",
-    {
-      filters: JSON.stringify([
-        ["Sales Order", ERPNEXT_RZP_ORDER_FIELD, "=", razorpayOrderId],
-      ]),
-      fields: JSON.stringify(["name", "docstatus"]),
-      limit_page_length: "1",
-    },
-  );
+  const json = await erpGetFresh<
+    ErpNextListResponse<{ name: string; docstatus: number }>
+  >("/api/resource/Sales Order", {
+    filters: JSON.stringify([
+      ["Sales Order", ERPNEXT_RZP_ORDER_FIELD, "=", razorpayOrderId],
+    ]),
+    fields: JSON.stringify(["name", "docstatus"]),
+    limit_page_length: "1",
+  });
+
   return json.data?.[0] ?? null;
 }
 
-/** Create a DRAFT Sales Order tagged with the Razorpay order id. */
+/**
+ * Create a DRAFT Sales Order tagged with the Razorpay order id.
+ */
 export async function createDraftSalesOrder(args: {
   razorpayOrderId: string;
   items: ErpOrderLine[];
   buyer?: BuyerInfo;
 }): Promise<{ name: string }> {
-  const customer = await resolveCustomer(args.buyer);
+  const resolved = await resolveCustomerWithDetails(args.buyer);
 
   const d = new Date();
   d.setDate(d.getDate() + 7);
   const delivery_date = d.toISOString().slice(0, 10);
 
+  const buyerNotes = [
+    safeTrim(args.buyer?.notes)
+      ? `Customer Notes: ${safeTrim(args.buyer?.notes)}`
+      : "",
+    resolved.addressDisplay
+      ? `Customer Address: ${resolved.addressDisplay}`
+      : "",
+    safeTrim(args.buyer?.phone)
+      ? `Customer Mobile: ${safeTrim(args.buyer?.phone)}`
+      : "",
+    safeTrim(args.buyer?.email)
+      ? `Customer Email: ${safeTrim(args.buyer?.email)}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   const payload: Record<string, unknown> = {
-    customer,
+    customer: resolved.customer,
+    customer_name: safeTrim(args.buyer?.name) || undefined,
     order_type: "Sales",
     delivery_date,
+
     // Prices are tax-inclusive on the storefront — no auto tax template, so
     // grand_total matches the amount charged. Remove if you apply taxes.
     taxes_and_charges: "",
+
+    customer_address: resolved.addressName || undefined,
+    address_display: resolved.addressDisplay || undefined,
+    contact_person: resolved.contactName || undefined,
+    contact_email: safeTrim(args.buyer?.email) || undefined,
+    contact_mobile: safeTrim(args.buyer?.phone) || undefined,
+
+    notes: buyerNotes || undefined,
+
     items: args.items.map((l) => ({
       item_code: l.item_code,
       qty: l.qty,
       rate: l.rate,
       delivery_date,
     })),
+
     [ERPNEXT_RZP_ORDER_FIELD]: args.razorpayOrderId,
     [ERPNEXT_PAYMENT_STATUS_FIELD]: "Pending",
   };
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined || payload[key] === "") {
+      delete payload[key];
+    }
+  });
 
   const json = await erpWrite<ErpNextSingleResponse<{ name: string }>>(
     "POST",
     "/api/resource/Sales Order",
     payload,
   );
+
   return { name: json.data.name };
 }
 
 /**
- * Mark a Sales Order paid and submit it. Idempotent — safe to call from both
- * the inline verify handler and the webhook, and safe to retry.
+ * Mark a Sales Order paid and submit it.
+ * Idempotent — safe to call from both inline verify handler and webhook.
  */
 export async function fulfillSalesOrder(args: {
   razorpayOrderId: string;
   razorpayPaymentId: string;
 }): Promise<{ name: string; alreadyFulfilled: boolean }> {
   const existing = await findSalesOrderByRazorpayOrderId(args.razorpayOrderId);
+
   if (!existing) {
     throw new Error(
       `No draft Sales Order for Razorpay order ${args.razorpayOrderId}.`,
     );
   }
+
   if (existing.docstatus === 1) {
-    return { name: existing.name, alreadyFulfilled: true };
+    return {
+      name: existing.name,
+      alreadyFulfilled: true,
+    };
   }
 
-  const soPath = `/api/resource/Sales Order/${encodeURIComponent(existing.name)}`;
+  const soPath = `/api/resource/Sales Order/${encodeURIComponent(
+    existing.name,
+  )}`;
 
-  // 1) Stamp payment fields while still a draft (editable).
+  // 1) Stamp payment fields while still a draft.
   await erpWrite("PUT", soPath, {
     [ERPNEXT_RZP_PAYMENT_FIELD]: args.razorpayPaymentId,
     [ERPNEXT_PAYMENT_STATUS_FIELD]: "Paid",
   });
 
-  // 2) Submit (docstatus 0 -> 1).
+  // 2) Submit Sales Order: docstatus 0 -> 1.
   try {
-    const submitted = await erpWrite<ErpNextSingleResponse<{ docstatus: number }>>(
-      "PUT",
-      soPath,
-      { docstatus: 1 },
-    );
+    const submitted = await erpWrite<
+      ErpNextSingleResponse<{ docstatus: number }>
+    >("PUT", soPath, {
+      docstatus: 1,
+    });
+
     if (submitted.data?.docstatus !== 1) {
       throw new Error("Submit did not set docstatus to 1.");
     }
   } catch (e) {
-    // Race between webhook and inline handler: if it's now submitted, succeed.
-    const recheck = await findSalesOrderByRazorpayOrderId(args.razorpayOrderId);
+    // Race between webhook and inline handler: if now submitted, succeed.
+    const recheck = await findSalesOrderByRazorpayOrderId(
+      args.razorpayOrderId,
+    );
+
     if (recheck?.docstatus === 1) {
-      return { name: existing.name, alreadyFulfilled: true };
+      return {
+        name: existing.name,
+        alreadyFulfilled: true,
+      };
     }
+
     throw e;
   }
 
@@ -847,14 +1116,19 @@ export async function fulfillSalesOrder(args: {
         razorpayPaymentId: args.razorpayPaymentId,
       });
     } catch (e) {
-      console.error("Payment Entry failed (order still marked paid):", e);
+      console.error("Payment Entry failed; order still marked paid:", e);
     }
   }
 
-  return { name: existing.name, alreadyFulfilled: false };
+  return {
+    name: existing.name,
+    alreadyFulfilled: false,
+  };
 }
 
-/** Optional: a submitted Payment Entry receiving the amount against the SO. */
+/**
+ * Optional: a submitted Payment Entry receiving the amount against Sales Order.
+ */
 export async function createPaymentEntryForSalesOrder(args: {
   salesOrderName: string;
   razorpayPaymentId: string;
@@ -863,12 +1137,17 @@ export async function createPaymentEntryForSalesOrder(args: {
     console.warn(
       "Payment Entry skipped: set ERPNEXT_COMPANY and ERPNEXT_PAID_TO_ACCOUNT.",
     );
+
     return null;
   }
 
-  const so = await erpGetFresh<ErpNextSingleResponse<{ customer: string; grand_total: number }>>(
-    `/api/resource/Sales Order/${encodeURIComponent(args.salesOrderName)}`,
-  );
+  const so = await erpGetFresh<
+    ErpNextSingleResponse<{
+      name: string;
+      customer: string;
+      grand_total: number;
+    }>
+  >(`/api/resource/Sales Order/${encodeURIComponent(args.salesOrderName)}`);
 
   const amount = Number(so.data.grand_total || 0);
   const today = new Date().toISOString().slice(0, 10);
@@ -900,7 +1179,10 @@ export async function createPaymentEntryForSalesOrder(args: {
   await erpWrite(
     "PUT",
     `/api/resource/Payment Entry/${encodeURIComponent(pe.data.name)}`,
-    { docstatus: 1 },
+    {
+      docstatus: 1,
+    },
   );
+
   return { name: pe.data.name };
 }

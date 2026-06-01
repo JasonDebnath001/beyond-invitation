@@ -1,10 +1,17 @@
 import type { Product, ProductCategory } from "@/types";
 import DOMPurify from "isomorphic-dompurify";
 
-const ERPNEXT_URL = process.env.ERPNEXT_URL ?? "";
-const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY ?? "";
-const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET ?? "";
-const ERPNEXT_PRICE_LIST = process.env.ERPNEXT_PRICE_LIST ?? "Standard Selling";
+function cleanEnv(value?: string) {
+  return (value ?? "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
+}
+
+const ERPNEXT_URL = cleanEnv(process.env.ERPNEXT_URL);
+const ERPNEXT_API_KEY = cleanEnv(process.env.ERPNEXT_API_KEY);
+const ERPNEXT_API_SECRET = cleanEnv(process.env.ERPNEXT_API_SECRET);
+const ERPNEXT_PRICE_LIST =
+  cleanEnv(process.env.ERPNEXT_PRICE_LIST) || "Standard Selling";
 
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
 // Override with ERPNEXT_WEBSITE_FIELD in .env.local if yours differs.
@@ -91,6 +98,7 @@ function requireErpConfig() {
 function authHeaders(): HeadersInit {
   return {
     Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`,
+    Accept: "application/json",
     "Content-Type": "application/json",
   };
 }

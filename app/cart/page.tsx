@@ -2,231 +2,191 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useCart } from "@/components/CartProvider";
-import { useRazorpayCheckout } from "@/components/useRazorpayCheckout";
 
 export default function CartPage() {
-  const { items, removeItem, setQuantity, clearCart, totalItems, totalPrice } =
-    useCart();
-  const { user } = useUser();
-  const router = useRouter();
-  const { startCheckout, loading } = useRazorpayCheckout();
+  const {
+    items,
+    removeItem,
+    setQuantity,
+    clearCart,
+    totalItems,
+    totalPrice,
+  } = useCart();
 
   const [failed, setFailed] = useState<Record<string, boolean>>({});
-  const [error, setError] = useState("");
 
   function formatPrice(value: number) {
-    return value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
-  }
-
- function handleCheckout() {
-    setError("");
-    startCheckout({
-      items: items.map((i) => ({
-        itemCode: i.itemCode,
-        slug: i.slug,
-        quantity: i.quantity,
-      })),
-      customer: {
-        name: user?.fullName ?? undefined,
-        email: user?.primaryEmailAddress?.emailAddress ?? undefined,
-        contact: user?.primaryPhoneNumber?.phoneNumber ?? undefined,
-      },
-      onSuccess: ({ paymentId }) => {
-        clearCart();
-        router.push(`/checkout/success?payment_id=${paymentId}`);
-      },
-      onError: (message) => setError(message),
+    return value.toLocaleString("en-IN", {
+      maximumFractionDigits: 2,
     });
   }
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <div className="text-6xl">🛒</div>
-        <h1 className="mt-4 font-display text-3xl font-semibold text-maroon-dark">
+      <main className="mx-auto max-w-5xl px-4 py-16 text-center">
+        <h1 className="font-serif text-3xl font-semibold text-maroon">
           Your cart is empty
         </h1>
-        <p className="mt-2 text-ink-mid">
+
+        <p className="mt-3 text-ink-light">
           Browse our collection and add some beautiful invitation cards.
         </p>
+
         <Link
           href="/collections/wedding"
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-maroon px-7 py-3 text-sm font-semibold text-gold-light transition hover:bg-maroon-dark"
+          className="mt-8 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
         >
           Explore Wedding Cards →
         </Link>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-14">
-      <h1 className="mb-8 font-display text-3xl font-semibold text-maroon-dark">
+    <main className="mx-auto max-w-6xl px-4 py-10">
+      <h1 className="font-serif text-3xl font-semibold text-maroon">
         Shopping Cart
-        <span className="ml-3 text-base font-normal text-ink-light">
-          ({totalItems} {totalItems === 1 ? "item" : "items"})
-        </span>
       </h1>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-        {/* Item list */}
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div
-              key={item.slug}
-              className="flex gap-4 rounded-xl border border-gold/25 bg-white p-4"
-            >
-              <Link
-                href={`/products/${item.slug}`}
-                className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gold-pale text-3xl"
+      <p className="mt-1 text-sm text-ink-light">
+        {totalItems} {totalItems === 1 ? "item" : "items"} in your cart
+      </p>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+        <section className="rounded-3xl border border-gold/20 bg-white p-4 shadow-sm">
+          <div className="space-y-4">
+            {items.map((item) => (
+              <div
+                key={item.slug}
+                className="grid grid-cols-[88px_1fr] gap-4 rounded-2xl border border-gold/15 bg-cream/30 p-3 sm:grid-cols-[104px_1fr_auto]"
               >
-                {item.image && !failed[item.slug] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={
-                      item.image.startsWith("http")
-                        ? item.image
-                        : `/products/${item.image}`
-                    }
-                    alt={item.name}
-                    onError={() =>
-                      setFailed((f) => ({ ...f, [item.slug]: true }))
-                    }
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span aria-hidden>{item.emoji}</span>
-                )}
-              </Link>
+                <div className="h-24 w-22 overflow-hidden rounded-xl bg-gold-pale sm:h-28 sm:w-26">
+                  {item.image && !failed[item.slug] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      onError={() =>
+                        setFailed((f) => ({
+                          ...f,
+                          [item.slug]: true,
+                        }))
+                      }
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-3xl">
+                      {item.emoji || "💌"}
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex flex-1 flex-col">
-                <Link
-                  href={`/products/${item.slug}`}
-                  className="text-[14px] font-medium leading-snug text-ink hover:text-maroon"
-                >
-                  {item.name}
-                </Link>
-                <span className="mt-1 font-display text-[16px] font-semibold text-maroon">
-                  ₹{formatPrice(item.price)}
-                </span>
+                <div>
+                  <h3 className="font-medium text-ink">{item.name}</h3>
 
-                <div className="mt-auto flex items-center justify-between pt-3">
-                  <div className="flex items-center gap-2">
+                  <p className="mt-1 text-sm text-ink-light">
+                    ₹{formatPrice(item.price)} / pc
+                  </p>
+
+                  <div className="mt-4 flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (loading) return;
-                        setQuantity(item.slug, item.quantity - 1);
-                      }}
+                      onClick={() =>
+                        setQuantity(item.slug, item.quantity - 1)
+                      }
                       aria-label="Decrease quantity"
-                      disabled={loading}
-                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale"
                     >
                       −
                     </button>
-                    <span className="w-8 text-center text-[14px] font-medium text-ink">
+
+                    <span className="min-w-10 text-center text-sm font-semibold">
                       {item.quantity}
                     </span>
+
                     <button
                       type="button"
-                      onClick={() => {
-                        if (loading) return;
-                        setQuantity(item.slug, item.quantity + 1);
-                      }}
+                      onClick={() =>
+                        setQuantity(item.slug, item.quantity + 1)
+                      }
                       aria-label="Increase quantity"
-                      disabled={loading}
-                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-7 w-7 items-center justify-center rounded-md border border-gold/30 text-maroon transition hover:bg-gold-pale"
                     >
                       +
                     </button>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-4">
-                    <span className="text-[14px] font-semibold text-ink">
-                      ₹{formatPrice(item.price * item.quantity)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (loading) return;
-                        removeItem(item.slug);
-                      }}
-                      disabled={loading}
-                      className="text-[12.5px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Remove
-                    </button>
-                  </div>
+                <div className="col-span-2 flex items-center justify-between border-t border-gold/10 pt-3 sm:col-span-1 sm:block sm:border-t-0 sm:pt-0 sm:text-right">
+                  <p className="font-semibold text-maroon">
+                    ₹{formatPrice(item.price * item.quantity)}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.slug)}
+                    className="mt-0 text-[12.5px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline sm:mt-4"
+                  >
+                    Remove
+                  </button>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           <button
             type="button"
-            onClick={() => {
-              if (loading) return;
-              clearCart();
-            }}
-            disabled={loading}
-            className="text-[13px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={clearCart}
+            className="mt-5 text-[13px] font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
           >
             Clear cart
           </button>
-        </div>
+        </section>
 
-        {/* Order summary */}
-        <div className="h-fit rounded-xl border border-gold/25 bg-white p-5">
-          <h2 className="mb-4 font-display text-xl font-semibold text-maroon-dark">
+        <aside className="h-fit rounded-3xl border border-gold/20 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+          <h2 className="font-serif text-2xl font-semibold text-maroon">
             Order Summary
           </h2>
 
-          <div className="space-y-2 text-[14px]">
-            <div className="flex justify-between text-ink-mid">
-              <span>Subtotal ({totalItems} items)</span>
-              <span>₹{formatPrice(totalPrice)}</span>
+          <div className="mt-5 space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-ink-light">
+                Subtotal ({totalItems} items)
+              </span>
+              <span className="font-medium">
+                ₹{formatPrice(totalPrice)}
+              </span>
             </div>
-            <div className="flex justify-between text-ink-mid">
-              <span>Shipping</span>
-              <span className="text-[#27A060]">Free</span>
+
+            <div className="flex justify-between">
+              <span className="text-ink-light">Shipping</span>
+              <span className="font-medium">Free</span>
+            </div>
+
+            <div className="border-t border-gold/20 pt-3">
+              <div className="flex justify-between text-lg font-semibold text-maroon">
+                <span>Total</span>
+                <span>₹{formatPrice(totalPrice)}</span>
+              </div>
             </div>
           </div>
-
-          <div className="my-4 h-px bg-gold/20" />
-
-          <div className="flex justify-between text-[16px] font-semibold text-ink">
-            <span>Total</span>
-            <span className="font-display text-maroon">
-              ₹{formatPrice(totalPrice)}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleCheckout}
-            disabled={loading}
-            className="mt-5 w-full rounded-lg bg-maroon py-3 text-sm font-semibold text-gold-light transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Processing…" : "Proceed to Checkout"}
-          </button>
-
-          {error && (
-            <p className="mt-3 text-center text-[12.5px] text-red-600">
-              {error}
-            </p>
-          )}
 
           <Link
-            href="/collections/wedding"
-            className="mt-3 block text-center text-[13px] font-medium text-maroon underline-offset-2 hover:underline"
+            href="/checkout"
+            className="mt-6 block w-full rounded-full bg-maroon px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-maroon-dark"
+          >
+            Proceed to Checkout
+          </Link>
+
+          <Link
+            href="/"
+            className="mt-5 block text-center text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
           >
             Continue Shopping
           </Link>
-        </div>
+        </aside>
       </div>
-    </div>
+    </main>
   );
 }

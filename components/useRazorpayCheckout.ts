@@ -4,34 +4,45 @@ import { useCallback, useRef, useState } from "react";
 
 const SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === "undefined") return resolve(false);
+
     if (window.Razorpay) return resolve(true);
 
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${SCRIPT_SRC}"]`);
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[src="${SCRIPT_SRC}"]`,
+    );
+
     if (existing) {
-      // If script already loaded successfully earlier
       if (existing.dataset.loaded === "true") return resolve(true);
-      // If previous script errored, remove it and create a fresh one
+
       if (existing.dataset.error === "true") {
         existing.remove();
       } else {
-        // Attach listeners to settle this promise when the existing script finishes
         const onLoad = () => {
           existing.dataset.loaded = "true";
           cleanup();
           resolve(true);
         };
+
         const onError = () => {
           existing.dataset.error = "true";
           cleanup();
           resolve(false);
         };
+
         const cleanup = () => {
           existing.removeEventListener("load", onLoad);
           existing.removeEventListener("error", onError);
         };
+
         existing.addEventListener("load", onLoad);
         existing.addEventListener("error", onError);
         return;
@@ -41,14 +52,17 @@ function loadRazorpayScript(): Promise<boolean> {
     const script = document.createElement("script");
     script.src = SCRIPT_SRC;
     script.async = true;
+
     script.onload = () => {
       script.dataset.loaded = "true";
       resolve(true);
     };
+
     script.onerror = () => {
       script.dataset.error = "true";
       resolve(false);
     };
+
     document.body.appendChild(script);
   });
 }
@@ -63,6 +77,15 @@ export interface CheckoutCustomer {
   name?: string;
   email?: string;
   contact?: string;
+
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+
+  notes?: string;
 }
 
 interface StartArgs {
@@ -89,29 +112,36 @@ export function useRazorpayCheckout() {
   const startCheckout = useCallback(
     async (args: StartArgs) => {
       if (busy.current) return;
+
       busy.current = true;
       setLoading(true);
 
       try {
         const ok = await loadRazorpayScript();
+
         if (!ok || !window.Razorpay) {
           throw new Error(
             "Couldn't load the Razorpay checkout. Check your connection and retry.",
           );
         }
 
-        // 1) Server creates the Razorpay order + the draft ERP Sales Order.
         const orderRes = await fetch("/api/razorpay/order", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: args.items, customer: args.customer }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            items: args.items,
+            customer: args.customer,
+          }),
         });
+
         const orderData = await orderRes.json();
+
         if (!orderRes.ok) {
           throw new Error(orderData?.error || "Couldn't start checkout.");
         }
 
-        // 2) Open Razorpay Checkout.
         const rzp = new window.Razorpay({
           key: orderData.keyId,
           amount: orderData.amount,
@@ -125,27 +155,41 @@ export function useRazorpayCheckout() {
             email: args.customer?.email,
             contact: args.customer?.contact,
           },
-          theme: { color: "#7B1C2E" },
+          notes: {
+            customer_name: args.customer?.name || "",
+            customer_email: args.customer?.email || "",
+            customer_contact: args.customer?.contact || "",
+            city: args.customer?.city || "",
+            state: args.customer?.state || "",
+            pincode: args.customer?.pincode || "",
+          },
+          theme: {
+            color: "#7B1C2E",
+          },
           modal: {
             ondismiss: () => {
               reset();
               args.onDismiss?.();
             },
           },
-          handler: async (response) => {
-            // 3) Verify signature server-side, which also fulfils the order.
+          handler: async (response: any) => {
             try {
               const verifyRes = await fetch("/api/razorpay/verify", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                },
                 body: JSON.stringify(response),
               });
+
               const verifyData = await verifyRes.json();
+
               if (!verifyRes.ok || !verifyData.verified) {
                 throw new Error(
                   verifyData?.error || "Payment could not be verified.",
                 );
               }
+
               args.onSuccess?.({
                 paymentId: verifyData.paymentId,
                 erpOrder: verifyData.erpOrder ?? null,
@@ -153,7 +197,9 @@ export function useRazorpayCheckout() {
               });
             } catch (e) {
               args.onError?.(
-                e instanceof Error ? e.message : "Payment verification failed.",
+                e instanceof Error
+                  ? e.message
+                  : "Payment verification failed.",
               );
             } finally {
               reset();
@@ -164,7 +210,8 @@ export function useRazorpayCheckout() {
         rzp.on("payment.failed", (resp: any) => {
           reset();
           args.onError?.(
-            resp?.error?.description || "Payment failed. Please try again.",
+            resp?.error?.description ||
+              "Payment failed. Please try again.",
           );
         });
 
@@ -181,5 +228,8 @@ export function useRazorpayCheckout() {
     [reset],
   );
 
-  return { startCheckout, loading };
+  return {
+    startCheckout,
+    loading,
+  };
 }

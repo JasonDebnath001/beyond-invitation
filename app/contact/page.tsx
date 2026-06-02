@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ContactLeadForm from "@/components/ContactLeadForm";
 
-const phoneNumber = "7048815487";
-const displayPhone = "+91 70488 15487";
-const placeholderEmail = "hello@example.com";
+const phoneNumber = "7044815488";
+const displayPhone = "+91 70448 15488";
+const placeholderEmail = "contact@khushionline.net";
 
 export const metadata: Metadata = {
   title: "Contact Us | Shahi Cards",

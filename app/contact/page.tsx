@@ -1,0 +1,115 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import ContactLeadForm from "@/components/ContactLeadForm";
+
+const phoneNumber = "7048815487";
+const displayPhone = "+91 70488 15487";
+const placeholderEmail = "hello@example.com";
+
+export const metadata: Metadata = {
+  title: "Contact Us | Shahi Cards",
+  description:
+    "Get in touch with Shahi Cards for wedding invitations, shagun envelopes, rakhi packaging, and custom stationery.",
+};
+
+export default function ContactPage() {
+  return (
+    <main className="bg-white">
+      <section className="relative overflow-hidden bg-paper">
+        <div className="mx-auto max-w-7xl px-6 py-20 sm:py-24 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-carbon">
+              Contact Us
+            </p>
+
+            <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
+              Let&apos;s create something beautiful for your celebration.
+            </h1>
+
+            <p className="mt-6 text-base leading-8 text-ink-mid sm:text-lg">
+              Whether you&apos;re looking for wedding invitations, shagun
+              envelopes, rakhi packaging, or a custom design, our team is here
+              to help you choose the right product.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
+            Reach Us
+          </p>
+
+          <h2 className="mt-4 font-display text-3xl font-semibold text-ink">
+            Speak with our team
+          </h2>
+
+          <p className="mt-4 text-sm leading-7 text-ink-mid">
+            For quick product queries, catalogue assistance, custom card
+            requirements, or order support, call or message us directly.
+          </p>
+
+          <div className="mt-8 space-y-4">
+            <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
+                Phone
+              </p>
+
+              <Link
+                href={`tel:+91${phoneNumber}`}
+                className="mt-2 block text-xl font-semibold text-carbon transition hover:text-carbon-dark"
+              >
+                {displayPhone}
+              </Link>
+            </div>
+
+            <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
+                WhatsApp
+              </p>
+
+              <Link
+                href={`https://wa.me/91${phoneNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
+              >
+                Chat on WhatsApp
+              </Link>
+            </div>
+
+            <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
+                Email
+              </p>
+
+              <Link
+                href={`mailto:${placeholderEmail}`}
+                className="mt-2 block text-lg font-semibold text-carbon transition hover:text-carbon-dark"
+              >
+                {placeholderEmail}
+              </Link>
+
+              <p className="mt-2 text-xs text-ink-light">
+                Placeholder email — replace this when final email is ready.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-carbon/10 bg-paper p-6 shadow-sm sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
+            Enquiry Form
+          </p>
+
+          <h2 className="mt-4 font-display text-3xl font-semibold text-ink">
+            Send us your requirement
+          </h2>
+
+          <ContactLeadForm />
+        </div>
+      </section>
+    </main>
+  );
+}

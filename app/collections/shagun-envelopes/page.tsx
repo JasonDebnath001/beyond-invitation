@@ -40,7 +40,7 @@ export default async function ShagunEnvelopesPage() {
 
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-ink-mid sm:text-base">
             Premium envelopes for weddings, gifting, festive celebrations, and
-            special occasions — fetched live from ERPNext.
+            special occasions.
           </p>
 
           <div className="mt-6 flex justify-center">

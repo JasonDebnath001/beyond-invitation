@@ -3,30 +3,18 @@ import { BRAND, TAGLINE } from "./siteConfig";
 
 const footerColumns = [
   {
-    heading: "Shop",
-    links: [
-      { label: "All Invitations", href: "/collections/wedding" },
-      { label: "Return Gifts", href: "/collections/return-gifts" },
-      { label: "Luxe", href: "/collections/luxe" },
-      { label: "Sale", href: "/collections/sale" },
-      { label: "Custom Cards", href: "/collections/custom" },
-    ],
-  },
-  {
     heading: "Explore",
     links: [
       { label: "Our Story", href: "/about" },
       { label: "Contact Us", href: "/contact" },
-      { label: "Visit Us", href: "/stores" },
+      { label: "Visit Us", href: "/visit-us" },
       { label: "Blogs", href: "/blog" },
       { label: "FAQs", href: "/faq" },
-      { label: "Careers", href: "/careers" },
     ],
   },
   {
     heading: "More",
     links: [
-      { label: "Printing Templates", href: "/printing-templates" },
       { label: "Privacy Policy", href: "/privacy-policy" },
       { label: "Refund Policy", href: "/refund-policy" },
       { label: "Shipping Policy", href: "/shipping-policy" },

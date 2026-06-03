@@ -17,17 +17,11 @@ const erpUrl = process.env.ERPNEXT_URL;
 const erpApiKey = process.env.ERPNEXT_API_KEY;
 const erpApiSecret = process.env.ERPNEXT_API_SECRET;
 
-// First try classic ERPNext Lead unless you are 100% sure your CRM app DocType is CRM Lead.
+// Keep this as "Lead" for your ERPNext Lead DocType
 const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE || "Lead";
 
 function cleanText(value?: string) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function toNumber(value: string) {
-  if (!value) return undefined;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
 }
 
 function removeUndefined<T extends Record<string, unknown>>(object: T) {
@@ -36,7 +30,7 @@ function removeUndefined<T extends Record<string, unknown>>(object: T) {
   );
 }
 
-function buildNotes(data: Required<ContactLeadPayload>) {
+function buildEnquiryDetails(data: Required<ContactLeadPayload>) {
   return [
     "Website Enquiry",
     "",
@@ -93,22 +87,50 @@ export async function POST(request: Request) {
       );
     }
 
-    const notes = buildNotes(data);
+    const today = new Date().toISOString().slice(0, 10);
+    const details = buildEnquiryDetails(data);
 
     /**
-     * Safer payload:
-     * Start with standard ERPNext Lead fields.
-     * Do NOT send custom fields until you confirm they exist.
+     * Your ERPNext Lead field options for custom_requirement are only:
+     * A
+     * B
+     *
+     * Website sends values like:
+     * Wedding Cards, Shagun Envelopes, Rakhi Cards, etc.
+     *
+     * So we only send custom_requirement if it matches allowed ERPNext options.
+     * Otherwise full requirement still goes into custom_details__price_quoted.
      */
+    const allowedRequirements = ["A", "B"];
+
     const leadPayload = removeUndefined({
+      naming_series: "CRM-LEAD-.YYYY.-",
+
+      // Main Lead fields
       lead_name: data.name,
       first_name: data.name,
+      custom_lead_date: today,
+
+      // Contact fields
       email_id: data.email || undefined,
-      email: data.email || undefined,
       mobile_no: data.mobile,
       phone: data.mobile,
+      whatsapp_no: data.mobile,
+
+      // Lead classification
+      status: "Lead",
+      type: "Client",
+      request_type: "Product Enquiry",
+
+      // Custom fields
+      custom_requirement: allowedRequirements.includes(data.requirement)
+        ? data.requirement
+        : undefined,
+
+      custom_details__price_quoted: details,
+
+      // Link field: make sure Lead Source "Website" exists in ERPNext
       source: "Website",
-      notes,
     });
 
     const url = `${erpUrl.replace(/\/$/, "")}/api/resource/${encodeURIComponent(
@@ -148,7 +170,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Could not create lead in ERPNext/Frappe CRM.",
+          message: "Could not create lead in ERPNext.",
           status: response.status,
           statusText: response.statusText,
           doctype: leadDoctype,

@@ -1,21 +1,24 @@
 # Beyond Invitation
 
-Professional wedding invitation card storefront built with **Next.js 15**, **TypeScript**, **Tailwind CSS**, and **Clerk** authentication.
+Professional wedding invitation storefront built with **Next.js 15**, **React 19**, **TypeScript**, **Tailwind CSS**, **Clerk**, **Razorpay**, and **ERPNext**.
 
-This repository is a production-ready e-commerce shell for Indian wedding cards and invitation stationery. It integrates with **ERPNext** as the live product catalog backend, with `lib/erpnext.ts` fetching product and pricing data from ERPNext Item and Item Price APIs. Local JSON fixtures remain available for optional development and fallback.
+This repository is a production-ready e-commerce shell for Indian wedding invitations, shagun envelopes, celebration stationery, and related gift accessories. It supports live product catalog integration with ERPNext while preserving local JSON fixtures for development fallback.
 
 ---
 
 ## Key features
 
 - Server-rendered, SEO-friendly storefront using **Next.js App Router**
-- Responsive homepage with hero carousel, product sections, category browsing, testimonials, and milestones
+- Live ERPNext product catalog integration with item and pricing mapping
+- Responsive homepage with hero carousel, category/promotional sections, testimonials, and trust blocks
 - Product detail pages with image gallery, related items, and cart actions
-- Category pages generated from `data/categories.json`
-- Search endpoint and search results page
-- Clerk-powered authentication for `/account` routes
-- Cart state managed with a shared provider
-- Clean separation between UI components and data access
+- Category browsing under `app/collections/[category]`
+- Search page and live navbar search powered by the same data layer
+- Cart state persisted to `localStorage`
+- Checkout flow with Razorpay order creation, payment verification, and ERPNext sales order fulfilment
+- Contact enquiry form integrated with ERPNext lead creation
+- Clerk authentication protecting account, checkout, and payment verification routes
+- Clean separation between UI components and data access logic
 
 ---
 
@@ -25,9 +28,10 @@ This repository is a production-ready e-commerce shell for Indian wedding cards 
 - **React 19**
 - **TypeScript**
 - **Tailwind CSS**
-- **Clerk** for customer authentication
-- **ERPNext** for for product related data
-- **isomorphic-dompurify** for safe HTML sanitization
+- **@clerk/nextjs**
+- **Razorpay** payment integration
+- **ERPNext** product/catalog/order backend integration
+- **isomorphic-dompurify** for sanitized HTML
 
 ---
 
@@ -36,18 +40,28 @@ This repository is a production-ready e-commerce shell for Indian wedding cards 
 ```text
 shahi-cards/
 ├── app/
-│   ├── account/page.tsx             Account page protected by Clerk
-│   ├── api/search/route.ts          Search API route
-│   ├── cart/page.tsx                Cart page
+│   ├── account/page.tsx                 Account page protected by Clerk
+│   ├── api/
+│   │   ├── contact-lead/route.ts        ERPNext lead/contact enquiry endpoint
+│   │   ├── erp-debug/route.ts           ERP debug endpoint
+│   │   ├── razorpay/
+│   │   │   ├── order/route.ts           Razorpay order creation
+│   │   │   ├── verify/route.ts          Razorpay payment verification
+│   │   │   └── webhook/route.ts         Razorpay webhook fulfilment
+│   │   └── search/route.ts              Live search API route
+│   ├── cart/page.tsx                    Cart page
+│   ├── checkout/page.tsx                Checkout page
 │   ├── collections/[category]/page.tsx  Category listing pages
-│   ├── erp-products/page.tsx        ERP product showcase page
-│   ├── products/[slug]/page.tsx     Product detail pages
-│   ├── search/page.tsx              Search results page
-│   ├── layout.tsx                   Root layout with ClerkProvider, CartProvider, navbar, footer
-│   └── page.tsx                     Homepage
-├── components/                      Reusable UI components
+│   ├── erp-products/page.tsx            ERP product showcase page
+│   ├── products/[slug]/page.tsx         Product detail pages
+│   ├── search/page.tsx                  Search results page
+│   ├── layout.tsx                       Root layout with ClerkProvider, CartProvider, navbar, footer
+│   └── page.tsx                         Homepage with dynamic ERPNext product sections
+├── components/                          Reusable UI components
+│   ├── AddToCartButton.tsx
 │   ├── CartButton.tsx
 │   ├── CartProvider.tsx
+│   ├── ContactLeadForm.tsx
 │   ├── FilterableProductGrid.tsx
 │   ├── Footer.tsx
 │   ├── HeroCarousel.tsx
@@ -59,19 +73,23 @@ shahi-cards/
 │   ├── ProductGrid.tsx
 │   ├── SearchBar.tsx
 │   └── Sections.tsx
-├── data/                            Local product and category fixtures
+├── data/                                Local product and category fixtures
 │   ├── categories.json
 │   └── products.json
-├── lib/                             Data access and integration helpers
+├── lib/                                 Data access and integration helpers
+│   ├── checkout.ts
 │   ├── erpnext.ts
-│   └── products.ts
-├── public/products/                 Product image assets
-├── types/                           Shared TypeScript definitions
+│   ├── products.ts
+│   └── razorpay.ts
+├── public/products/                     Product image assets
+├── types/                               Shared TypeScript definitions
 │   └── index.ts
-├── middleware.ts                    Clerk route protection
+├── middleware.ts                        Clerk route protection
 ├── next.config.js
+├── postcss.config.js
 ├── tailwind.config.ts
-└── tsconfig.json
+├── tsconfig.json
+└── README.md
 ```
 
 ---
@@ -79,7 +97,19 @@ shahi-cards/
 ## Prerequisites
 
 - Node.js **18.17+**
-- npm (or your preferred package manager)
+- npm
+
+---
+
+## Scripts
+
+```bash
+npm install
+npm run dev
+npm run build
+npm run start
+npm run lint
+```
 
 ---
 
@@ -90,7 +120,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open `http://localhost:3000`.
 
 ---
 
@@ -101,41 +131,83 @@ npm run build
 npm run start
 ```
 
-For a production build and preview:
+---
 
-```bash
-npm run build
-npm run start
-```
+## Environment variables
+
+### Required for ERPNext
+
+- `ERPNEXT_URL`
+- `ERPNEXT_API_KEY`
+- `ERPNEXT_API_SECRET`
+
+### Required for Razorpay
+
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
+
+### Optional ERPNext customization
+
+- `ERPNEXT_PRICE_LIST` (default: `Standard Selling`)
+- `ERPNEXT_WEBSITE_FIELD` (default: `custom_show_on_website`)
+- `ERPNEXT_SUBJECT_FIELD` (default: `custom_subject`)
+- `ERPNEXT_CUSTOMISATION_FIELD` (default: `custom_customisation`)
+- `ERPNEXT_MATERIAL_FIELD` (default: `custom_material`)
+- `ERPNEXT_INCLUDES_FIELD` (default: `custom_includes`)
+- `ERPNEXT_REVALIDATE_SECONDS` (default: `60`)
+- `ERPNEXT_IMAGE_TABLE_FIELD`
+- `ERPNEXT_IMAGE_ROW_FIELD` (default: `image`)
+- `ERPNEXT_IMAGE_ORDER_FIELD`
+- `ERPNEXT_LEAD_DOCTYPE` (default: `Lead`)
+
+### Optional ERPNext order fulfilment
+
+- `ERPNEXT_DEFAULT_CUSTOMER`
+- `ERPNEXT_RZP_ORDER_FIELD` (default: `custom_razorpay_order_id`)
+- `ERPNEXT_RZP_PAYMENT_FIELD` (default: `custom_razorpay_payment_id`)
+- `ERPNEXT_PAYMENT_STATUS_FIELD` (default: `custom_payment_status`)
+- `ERPNEXT_AUTO_CREATE_CUSTOMER` (default: `false`)
+- `ERPNEXT_CUSTOMER_GROUP` (default: `Individual`)
+- `ERPNEXT_TERRITORY` (default: `All Territories`)
+- `ERPNEXT_CUSTOMER_EMAIL_FIELD` (default: `custom_email`)
+- `ERPNEXT_CREATE_PAYMENT_ENTRY` (default: `false`)
+- `ERPNEXT_COMPANY`
+- `ERPNEXT_PAID_TO_ACCOUNT`
+- `ERPNEXT_MODE_OF_PAYMENT` (default: `Wire Transfer`)
+
+### Clerk
+
+Clerk is integrated through `@clerk/nextjs`. Configure your Clerk project with the standard Clerk environment variables for Next.js.
 
 ---
 
-## Product data model
+## Product data behavior
 
-Products are sourced from **ERPNext Item** and **Item Price** records. The live storefront maps ERPNext fields into the app's product model and renders them on the homepage, collection pages, and product detail pages.
+- `app/page.tsx` loads storefront categories from `data/categories.json` and ERPNext products from `lib/erpnext.ts`.
+- `lib/products.ts` contains the local fixture-based product data layer and search logic.
+- `lib/erpnext.ts` maps ERPNext Item and Item Price records into the storefront product shape.
+- If ERPNext data is unavailable or the fetch fails, the homepage renders an error block with the failure details.
 
-The ERPNext product mapping includes:
+---
 
-- `slug`: normalized URL slug derived from Item code or name
-- `name`: Item name
-- `price`: price list rate from ERPNext Item Price
-- `mrp`: same price value by default
-- `images`: image URLs from the Item image field and gallery child tables
-- `emoji`: not used for ERPNext-sourced products
-- `category`: derived from Item group and normalized to storefront categories
-- `description`: sanitized ERPNext Item description
-- `onSale` / `isPremium`: available as storefront flags if configured
-- `customisation`, `material`, `includes`: mapped from ERPNext custom fields
+## Checkout & order flow
 
-### Managing products in ERPNext
+- `components/CartProvider.tsx` manages shared cart state across the site and persists it to `localStorage`.
+- Checkout creates a Razorpay order via `app/api/razorpay/order/route.ts` and writes a draft sales order to ERPNext.
+- Payment verification happens via `app/api/razorpay/verify/route.ts`.
+- Razorpay webhook events are handled by `app/api/razorpay/webhook/route.ts` as a fallback fulfilment path.
+- Protected routes include `/account`, `/checkout`, `/api/razorpay/order`, and `/api/razorpay/verify`.
 
-1. Create or update an Item record in ERPNext.
-2. Enable website visibility (the configured `Show on Website` checkbox).
-3. Add one or more Item Price records for the configured price list.
-4. Add the primary Item image and optional Item Image gallery rows.
-5. Refresh the storefront or let the configured cache revalidate.
+---
 
-Local JSON files under `data/` are kept as optional fixtures and fallback data, but ERPNext is the active catalog source.
+## API routes
+
+- `GET /api/search?q=...` — live product search
+- `POST /api/contact-lead` — submit contact enquiries to ERPNext
+- `POST /api/razorpay/order` — create payment order
+- `POST /api/razorpay/verify` — verify payment signature and fulfil ERPNext order
+- `POST /api/razorpay/webhook` — Razorpay webhook fulfilment
 
 ---
 
@@ -143,53 +215,19 @@ Local JSON files under `data/` are kept as optional fixtures and fallback data, 
 
 ### Changing branding and styles
 
-- Update Tailwind tokens in `tailwind.config.ts`
-- Change global styles in `app/globals.css`
-- Adjust fonts and layout in `app/layout.tsx`
-
-### Updating navigation
-
-- Modify the nav menu inside `components/Navbar.tsx`
-- Add or remove links for new sections and pages
+- Update design tokens in `tailwind.config.ts`
+- Edit global styles in `app/globals.css`
+- Adjust root layout and fonts in `app/layout.tsx`
 
 ### Homepage content
 
-- Edit `app/page.tsx` to change hero sections, featured collections, and layout order
-- Use the shared components in `components/Sections.tsx` for page content blocks
+- Modify `app/page.tsx` to update hero content, product sections, and layout order
+- Reuse components from `components/Sections.tsx` for page blocks
 
-### Component updates
+### Data access
 
-- `components/ProductCard.tsx` controls product listing cards
-- `components/ProductGallery.tsx` and `components/ImageSlider.tsx` control product media
-- `components/CartProvider.tsx` manages cart state across the app
-
----
-
-## Authentication and account pages
-
-- Clerk is integrated via `@clerk/nextjs`
-- `app/account/page.tsx` is protected by middleware in `middleware.ts`
-- Public browsing is available for storefront and search
-
-If you want to disable authentication for local testing, remove or modify the `middleware.ts` route matcher.
-
----
-
-## ERPNext integration
-
-ERPNext is already integrated and is the live product catalog source for the storefront. The `lib/erpnext.ts` module fetches Item and Item Price records directly from ERPNext and converts them into the app's product model.
-
-### Current behavior
-
-- The storefront can fetch live products from ERPNext via `lib/erpnext.ts`
-- `lib/products.ts` remains available as a legacy local fixture helper and fallback layer
-- Components are designed to support a data-access abstraction so backends can be swapped with minimal change
-
-### ERPNext data source
-
-1. `lib/erpnext.ts` calls ERPNext REST APIs with `ERPNEXT_URL`, `ERPNEXT_API_KEY`, and `ERPNEXT_API_SECRET`
-2. Product catalog pages use ERPNext data directly
-3. Local JSON fixtures in `data/` are only for optional local/testing use
+- Swap `lib/products.ts` to source from another backend if ERPNext is not used
+- `lib/erpnext.ts` is the live integration layer; components do not import ERPNext directly
 
 ---
 
@@ -197,14 +235,14 @@ ERPNext is already integrated and is the live product catalog source for the sto
 
 Recommended host:
 
-- **Vercel**: connect the Git repository and deploy directly
+- **Vercel**: connect the repository and deploy directly
 
 Other options:
 
 - Netlify
-- Any Node.js hosting provider supporting `next start`
+- Any Node.js host that supports `next start`
 
-For Vercel, the standard build command is:
+For Vercel, the standard command is:
 
 ```bash
 npm run build
@@ -214,6 +252,7 @@ npm run build
 
 ## Notes
 
-- The app uses `next dev`, `next build`, and `next start` from Next.js.
-- Product images should live in `public/products/` or be served from ERPNext image URLs.
-- ERPNext is configured as the live backend when valid environment variables are present; `data/` fixtures remain available for offline or fallback development.
+- `next.config.js` allows remote image domains via `https://**`.
+- The app disables build-time ESLint and TypeScript error blocking; use `npm run lint` and local type checks before deployment.
+- Product images may be served from `public/products/` or ERPNext-hosted URLs.
+- ERPNext is the intended live backend when valid environment variables are set.

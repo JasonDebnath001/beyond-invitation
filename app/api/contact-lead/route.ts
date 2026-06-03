@@ -16,8 +16,6 @@ type ContactLeadPayload = {
 const erpUrl = process.env.ERPNEXT_URL;
 const erpApiKey = process.env.ERPNEXT_API_KEY;
 const erpApiSecret = process.env.ERPNEXT_API_SECRET;
-
-// Keep this as "Lead" for your ERPNext Lead DocType
 const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE || "Lead";
 
 function cleanText(value?: string) {
@@ -82,6 +80,10 @@ export async function POST(request: Request) {
         {
           success: false,
           message: "Name and mobile number are required.",
+          received: {
+            name: data.name,
+            mobile: data.mobile,
+          },
         },
         { status: 400 }
       );
@@ -90,25 +92,19 @@ export async function POST(request: Request) {
     const today = new Date().toISOString().slice(0, 10);
     const details = buildEnquiryDetails(data);
 
-    /**
-     * Your ERPNext Lead field options for custom_requirement are only:
-     * A
-     * B
-     *
-     * Website sends values like:
-     * Wedding Cards, Shagun Envelopes, Rakhi Cards, etc.
-     *
-     * So we only send custom_requirement if it matches allowed ERPNext options.
-     * Otherwise full requirement still goes into custom_details__price_quoted.
-     */
     const allowedRequirements = ["A", "B"];
+
+    const fullName = data.name;
 
     const leadPayload = removeUndefined({
       naming_series: "CRM-LEAD-.YYYY.-",
 
-      // Main Lead fields
-      lead_name: data.name,
-      first_name: data.name,
+      // Full Name fields
+      lead_name: fullName,
+      title: fullName,
+      first_name: fullName,
+
+      // Custom lead date
       custom_lead_date: today,
 
       // Contact fields
@@ -129,9 +125,11 @@ export async function POST(request: Request) {
 
       custom_details__price_quoted: details,
 
-      // Link field: make sure Lead Source "Website" exists in ERPNext
+      // Link field: Lead Source named "Website" must exist
       source: "Website",
     });
+
+    console.log("ERPNext Lead Payload:", leadPayload);
 
     const url = `${erpUrl.replace(/\/$/, "")}/api/resource/${encodeURIComponent(
       leadDoctype
@@ -174,6 +172,7 @@ export async function POST(request: Request) {
           status: response.status,
           statusText: response.statusText,
           doctype: leadDoctype,
+          sentPayload: leadPayload,
           erpError: result,
         },
         { status: response.status }

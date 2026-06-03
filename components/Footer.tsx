@@ -121,8 +121,7 @@ export default function Footer() {
           <div className="flex gap-6 text-[11.5px] text-white/35">
             {[
               { label: "Privacy", href: "/privacy-policy" },
-              { label: "Terms", href: "/terms-and-conditions" },
-              { label: "Refunds", href: "/refund-policy" },
+              { label: "Terms", href: "/terms-and-conditions" }
             ].map((link) => (
               <Link
                 key={link.label}

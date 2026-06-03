@@ -106,14 +106,10 @@ export function BrandStatement() {
   return (
     <section className="border-y border-neutral-200 bg-white">
       <div className="mx-auto max-w-3xl px-6 py-20 text-center md:py-24">
-        <Eyebrow>The Shahi Promise</Eyebrow>
         <p className="mt-7 text-balance font-display text-[26px] font-medium leading-[1.45] tracking-[-0.01em] text-carbon md:text-[34px]">
           An invitation is the first impression of a celebration. We make it one
           worth keeping — printed on the finest paper, finished entirely by
           hand.
-        </p>
-        <p className="mt-8 text-[11px] uppercase tracking-[0.28em] text-neutral-400">
-          Shahi Cards — crafted for every milestone
         </p>
       </div>
     </section>

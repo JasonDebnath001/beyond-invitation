@@ -2,8 +2,17 @@ import { NextResponse } from "next/server";
 
 type ContactLeadPayload = {
   name?: string;
+  fullName?: string;
+  lead_name?: string;
+  first_name?: string;
+
   mobile?: string;
+  phone?: string;
+  whatsapp?: string;
+
   email?: string;
+  email_id?: string;
+
   requirement?: string;
   subRequirement?: string;
   quantity?: string;
@@ -16,7 +25,6 @@ type ContactLeadPayload = {
 const erpUrl = process.env.ERPNEXT_URL;
 const erpApiKey = process.env.ERPNEXT_API_KEY;
 const erpApiSecret = process.env.ERPNEXT_API_SECRET;
-const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE || "Lead";
 
 function cleanText(value?: string) {
   return typeof value === "string" ? value.trim() : "";
@@ -24,15 +32,28 @@ function cleanText(value?: string) {
 
 function removeUndefined<T extends Record<string, unknown>>(object: T) {
   return Object.fromEntries(
-    Object.entries(object).filter(([, value]) => value !== undefined)
+    Object.entries(object).filter(
+      ([, value]) => value !== undefined && value !== ""
+    )
   );
 }
 
-function buildEnquiryDetails(data: Required<ContactLeadPayload>) {
+function buildEnquiryDetails(data: {
+  fullName: string;
+  mobile: string;
+  email: string;
+  requirement: string;
+  subRequirement: string;
+  quantity: string;
+  eventDate: string;
+  budgetPerUnit: string;
+  totalBudget: string;
+  message: string;
+}) {
   return [
     "Website Enquiry",
     "",
-    `Name: ${data.name}`,
+    `Name: ${data.fullName}`,
     `Mobile: ${data.mobile}`,
     `Email: ${data.email || "-"}`,
     `Requirement: ${data.requirement || "-"}`,
@@ -62,10 +83,28 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as ContactLeadPayload;
 
-    const data: Required<ContactLeadPayload> = {
-      name: cleanText(body.name),
-      mobile: cleanText(body.mobile),
-      email: cleanText(body.email),
+    /**
+     * This is important.
+     * Your frontend may send name, fullName, lead_name, or first_name.
+     * We accept all, then send ERPNext lead_name explicitly.
+     */
+    const fullName =
+      cleanText(body.name) ||
+      cleanText(body.fullName) ||
+      cleanText(body.lead_name) ||
+      cleanText(body.first_name);
+
+    const mobile =
+      cleanText(body.mobile) ||
+      cleanText(body.phone) ||
+      cleanText(body.whatsapp);
+
+    const email = cleanText(body.email) || cleanText(body.email_id);
+
+    const data = {
+      fullName,
+      mobile,
+      email,
       requirement: cleanText(body.requirement),
       subRequirement: cleanText(body.subRequirement),
       quantity: cleanText(body.quantity),
@@ -75,15 +114,13 @@ export async function POST(request: Request) {
       message: cleanText(body.message),
     };
 
-    if (!data.name || !data.mobile) {
+    if (!data.fullName || !data.mobile) {
       return NextResponse.json(
         {
           success: false,
-          message: "Name and mobile number are required.",
-          received: {
-            name: data.name,
-            mobile: data.mobile,
-          },
+          message: "Full Name and Mobile Number are required.",
+          receivedBody: body,
+          parsedData: data,
         },
         { status: 400 }
       );
@@ -92,19 +129,26 @@ export async function POST(request: Request) {
     const today = new Date().toISOString().slice(0, 10);
     const details = buildEnquiryDetails(data);
 
+    /**
+     * ERPNext custom_requirement options are currently only:
+     * A
+     * B
+     *
+     * So do not send website values like "Wedding Cards" into this Select field
+     * unless ERPNext options are updated.
+     */
     const allowedRequirements = ["A", "B"];
 
-    const fullName = data.name;
+    const leadDoc = removeUndefined({
+      doctype: "Lead",
 
-    const leadPayload = removeUndefined({
       naming_series: "CRM-LEAD-.YYYY.-",
 
       // Full Name fields
-      lead_name: fullName,
-      title: fullName,
-      first_name: fullName,
+      lead_name: data.fullName,
+      first_name: data.fullName,
 
-      // Custom lead date
+      // Your custom date field
       custom_lead_date: today,
 
       // Contact fields
@@ -125,15 +169,14 @@ export async function POST(request: Request) {
 
       custom_details__price_quoted: details,
 
-      // Link field: Lead Source named "Website" must exist
+      // Link field: Lead Source named "Website" must exist in ERPNext
       source: "Website",
     });
 
-    console.log("ERPNext Lead Payload:", leadPayload);
-
-    const url = `${erpUrl.replace(/\/$/, "")}/api/resource/${encodeURIComponent(
-      leadDoctype
-    )}`;
+    const url = `${erpUrl.replace(
+      /\/$/,
+      ""
+    )}/api/method/frappe.client.insert`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -142,7 +185,9 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(leadPayload),
+      body: JSON.stringify({
+        doc: leadDoc,
+      }),
     });
 
     const rawText = await response.text();
@@ -156,12 +201,13 @@ export async function POST(request: Request) {
     }
 
     if (!response.ok) {
-      console.error("Lead creation failed:", {
+      console.error("ERPNext Lead creation failed:", {
         status: response.status,
         statusText: response.statusText,
-        doctype: leadDoctype,
         url,
-        payload: leadPayload,
+        receivedBody: body,
+        parsedData: data,
+        sentDoc: leadDoc,
         result,
       });
 
@@ -171,8 +217,9 @@ export async function POST(request: Request) {
           message: "Could not create lead in ERPNext.",
           status: response.status,
           statusText: response.statusText,
-          doctype: leadDoctype,
-          sentPayload: leadPayload,
+          receivedBody: body,
+          parsedData: data,
+          sentDoc: leadDoc,
           erpError: result,
         },
         { status: response.status }
@@ -182,6 +229,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Lead created successfully.",
+      sentDoc: leadDoc,
       lead: result,
     });
   } catch (error) {

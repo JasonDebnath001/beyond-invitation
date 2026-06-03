@@ -1,265 +1,172 @@
+// app/visit-us/page.tsx
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-
-const store = {
-  name: "Bharat Agency Wedding Cards PVT. LTD.",
-  address:
-    "Shop No. 8, Indra Kumar Karnani St, China Bazar, B.B.D. Bagh, Kolkata, West Bengal 700001",
-  phone: "7044815488",
-  whatsapp: "917044815488",
-  hours: "Monday to Saturday, 10:00 AM – 7:00 PM",
-};
-
-const mapQuery = `${store.name}, ${store.address}`;
-
-const googleMapEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(
-  mapQuery
-)}&output=embed`;
-
-const googleDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-  mapQuery
-)}`;
-
-const whatsappUrl = `https://wa.me/${store.whatsapp}?text=${encodeURIComponent(
-  "Hi Beyond Invitation, I want to visit your store. Please share details."
-)}`;
+import { BRAND } from "@/components/siteConfig";
 
 export const metadata: Metadata = {
-  title: "Visit Us | Beyond Invitation",
+  title: `Visit Us | ${BRAND}`,
   description:
-    "Visit Beyond Invitation at Bharat Agency Wedding Cards PVT. LTD., Kolkata. Explore premium wedding cards, shagun envelopes, rakhi packaging, and invitation stationery.",
+    "Visit Beyond Invitation / Bharat Agency Wedding Cards Pvt. Ltd. at 8, Jackson Lane, Canning Street, Kolkata - 700001.",
 };
 
 export default function VisitUsPage() {
   return (
-    <main className="bg-white text-ink">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-paper">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(123,28,46,0.12),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(201,168,76,0.18),transparent_32%)]" />
-
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-24">
-          <div className="flex flex-col justify-center">
-            <p className="mb-4 inline-flex w-fit rounded-full border border-carbon/15 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-carbon">
-              Visit Our Kolkata Store
+    <main className="min-h-screen bg-[#fffaf5]">
+      <section className="border-b border-amber-100 bg-gradient-to-br from-[#fff7ed] via-white to-[#fef3c7]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_430px] lg:px-8 lg:py-20">
+          {/* Text */}
+          <div>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
+              Visit Us
             </p>
 
-            <h1 className="font-display text-4xl font-semibold tracking-tight text-carbon sm:text-5xl lg:text-6xl">
-              See the cards, feel the paper, choose with confidence.
+            <h1 className="max-w-3xl font-serif text-4xl font-semibold tracking-tight text-neutral-950 sm:text-5xl">
+              Experience our wedding card collection in person.
             </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-8 text-ink-mid sm:text-lg">
-              Visit Beyond Invitation at Bharat Agency Wedding Cards PVT. LTD.
-              in Kolkata to explore wedding cards, shagun envelopes, rakhi
-              packaging, premium stationery, samples, finishes, and custom
-              options in person.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-700 sm:text-lg">
+              Visit our Kolkata showroom to explore wedding cards, rakhi cards,
+              tags, boxes and fancy money envelopes. Our team will help you
+              choose designs, understand finishes and plan the right invitation
+              for your celebration.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={googleDirectionsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-carbon-dark"
-              >
-                Get Directions
-              </a>
-
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-full border border-carbon/25 bg-white px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-carbon transition hover:bg-carbon hover:text-white"
-              >
-                WhatsApp Us
-              </a>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-carbon/10 bg-white p-4 shadow-xl shadow-carbon/10">
-            <div className="aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-paper">
-              <iframe
-                title="Beyond Invitation Store Location"
-                src={googleMapEmbedUrl}
-                width="100%"
-                height="100%"
-                loading="lazy"
-                allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-                className="h-full w-full border-0"
-              />
-            </div>
-
-            <div className="mt-4 rounded-[1.25rem] bg-paper p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-carbon">
-                Store Location
-              </p>
-              <h2 className="mt-2 font-display text-2xl font-semibold text-carbon">
-                {store.name}
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-ink-mid">
-                {store.address}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Info Cards */}
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid gap-5 md:grid-cols-3">
-          <InfoCard
-            eyebrow="Call / WhatsApp"
-            title={store.phone}
-            body="Connect with us before visiting for availability, product categories, bulk enquiries, and custom card requirements."
-            href={whatsappUrl}
-            cta="Message Now"
-            external
-          />
-
-          <InfoCard
-            eyebrow="Store Hours"
-            title={store.hours}
-            body="Best time to visit is during business hours, especially if you want to compare samples and discuss customization."
-          />
-
-          <InfoCard
-            eyebrow="Landmark Area"
-            title="China Bazar, B.B.D. Bagh"
-            body="Located in central Kolkata, close to the wedding card and stationery market area."
-            href={googleDirectionsUrl}
-            cta="Open Map"
-            external
-          />
-        </div>
-      </section>
-
-      {/* Visit Experience */}
-      <section className="bg-paper">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-carbon">
-              What you can explore
-            </p>
-            <h2 className="mt-3 font-display text-3xl font-semibold text-carbon sm:text-4xl">
-              A better way to select invitation stationery.
-            </h2>
-            <p className="mt-5 text-base leading-8 text-ink-mid">
-              Online photos help, but wedding cards are best selected by seeing
-              the paper, texture, size, color, finish, and print quality in
-              person. At the store, customers can compare options side by side
-              and discuss custom requirements.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              "Wedding card samples",
-              "Shagun envelopes",
-              "Rakhi packaging",
-              "Budget and premium ranges",
-              "Paper and color selection",
-              "Bulk order discussion",
-              "Custom design guidance",
-              "Printing and finishing options",
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-carbon/10 bg-white p-5 shadow-sm"
-              >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-carbon/10 text-carbon">
-                  ✓
-                </div>
-                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-carbon">
-                  {item}
-                </h3>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Address
+                </p>
+                <p className="mt-3 text-base leading-7 text-neutral-800">
+                  8, Jackson Lane,
+                  <br />
+                  Canning Street,
+                  <br />
+                  Kolkata - 700001
+                </p>
               </div>
-            ))}
+
+              <div className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Contact
+                </p>
+                <p className="mt-3 text-base leading-7 text-neutral-800">
+                  WhatsApp: +91 7044815488
+                  <br />
+                  Phone: 033-22428918
+                  <br />
+                  contact@khushionline.net
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="https://wa.me/917044815488"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-neutral-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+              >
+                Chat on WhatsApp
+              </Link>
+
+              <Link
+                href="https://www.google.com/maps/search/?api=1&query=8%20Jackson%20Lane%20Canning%20Street%20Kolkata%20700001"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-amber-100"
+              >
+                Open in Google Maps
+              </Link>
+            </div>
+          </div>
+
+          {/* Storefront Image */}
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-[2rem] bg-amber-200/30 blur-2xl" />
+
+            <div className="relative overflow-hidden rounded-[2rem] border border-amber-100 bg-white p-3 shadow-xl">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-[1.5rem]">
+                <Image
+                  src="/visit-us/bharat-agency-storefront.jpg"
+                  alt="Bharat Agency Wedding Cards Pvt. Ltd. storefront in Kolkata"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, 430px"
+                  className="object-cover"
+                />
+              </div>
+            </div>
+
+            <div className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/60 bg-white/90 p-4 shadow-lg backdrop-blur">
+              <p className="text-sm font-semibold text-neutral-950">
+                Bharat Agency Wedding Cards Pvt. Ltd.
+              </p>
+              <p className="mt-1 text-xs leading-5 text-neutral-600">
+                Distributor of Khushi Wedding Cards, Rakhi Cards, Tags, Boxes &
+                Fancy Money Envelopes.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-[2rem] bg-carbon px-6 py-10 text-white sm:px-10 lg:flex lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
-              Planning a visit?
-            </p>
-            <h2 className="mt-3 font-display text-3xl font-semibold">
-              Come with your theme, budget, and quantity.
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75">
-              Our team can help you shortlist the right invitation cards and
-              packaging options based on your event style, timeline, and budget.
-            </p>
-          </div>
+      {/* Map Section */}
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="rounded-3xl border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
+                Find Us
+              </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <a
-              href={googleDirectionsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-white px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-carbon transition hover:bg-paper"
-            >
-              Navigate
-            </a>
+              <h2 className="mt-3 font-serif text-3xl font-semibold text-neutral-950">
+                Easy to reach from Canning Street, Kolkata.
+              </h2>
 
-            <Link
-              href="/collections/wedding-card"
-              className="inline-flex items-center justify-center rounded-full border border-white/30 px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-carbon"
-            >
-              Browse Cards
-            </Link>
+              <p className="mt-4 text-base leading-8 text-neutral-700">
+                You can visit our showroom for catalog viewing, product
+                selection, bulk order discussion and custom wedding card
+                requirements.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-amber-50 p-5">
+              <p className="text-sm font-semibold text-neutral-950">
+                Showroom Details
+              </p>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-neutral-700">
+                <p>
+                  <span className="font-semibold text-neutral-950">
+                    Business:
+                  </span>{" "}
+                  Bharat Agency Wedding Cards Pvt. Ltd.
+                </p>
+                <p>
+                  <span className="font-semibold text-neutral-950">
+                    Location:
+                  </span>{" "}
+                  8, Jackson Lane, Kolkata - 700001
+                </p>
+                <p>
+                  <span className="font-semibold text-neutral-950">
+                    Contact:
+                  </span>{" "}
+                  +91 7044815488
+                </p>
+              </div>
+
+              <Link
+                href="/contact"
+                className="mt-6 inline-flex rounded-full bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+              >
+                Send Enquiry
+              </Link>
+            </div>
           </div>
         </div>
       </section>
     </main>
-  );
-}
-
-function InfoCard({
-  eyebrow,
-  title,
-  body,
-  href,
-  cta,
-  external = false,
-}: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  href?: string;
-  cta?: string;
-  external?: boolean;
-}) {
-  const content = (
-    <div className="h-full rounded-[1.5rem] border border-carbon/10 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-carbon/10">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-carbon">
-        {eyebrow}
-      </p>
-      <h3 className="mt-3 font-display text-2xl font-semibold text-carbon">
-        {title}
-      </h3>
-      <p className="mt-4 text-sm leading-7 text-ink-mid">{body}</p>
-
-      {href && cta && (
-        <p className="mt-5 text-sm font-semibold uppercase tracking-[0.14em] text-carbon">
-          {cta} →
-        </p>
-      )}
-    </div>
-  );
-
-  if (!href) return content;
-
-  return (
-    <a
-      href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noreferrer" : undefined}
-      className="block h-full"
-    >
-      {content}
-    </a>
   );
 }

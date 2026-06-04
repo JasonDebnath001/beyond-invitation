@@ -7,9 +7,9 @@ const displayPhone = "+91 70448 15488";
 const placeholderEmail = "contact@khushionline.net";
 
 export const metadata: Metadata = {
-  title: "Contact Us | Shahi Cards",
+  title: "Contact Us | Beyond Invitation",
   description:
-    "Get in touch with Shahi Cards for wedding invitations, shagun envelopes, rakhi packaging, and custom stationery.",
+    "Get in touch with Beyond Invitation for wedding invitations, shagun envelopes, rakhi packaging, and custom stationery.",
 };
 
 export default function ContactPage() {

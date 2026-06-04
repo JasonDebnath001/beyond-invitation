@@ -1,5 +1,5 @@
 import { getAllCategories } from "@/lib/products";
-import { fetchErpProducts } from "@/lib/erpnext";
+import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 
 import {
   BrandStatement,
@@ -18,7 +18,7 @@ export const revalidate = 0;
 export default async function HomePage() {
   const categories = await getAllCategories();
 
-  let erpProducts = [];
+  let erpProducts: ErpProduct[] = [];
   let erpError = "";
 
   try {

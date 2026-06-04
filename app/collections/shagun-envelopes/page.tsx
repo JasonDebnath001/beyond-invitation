@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-import { fetchErpProductsBySubject } from "@/lib/erpnext";
+import { fetchErpProductsBySubject, type ErpProduct } from "@/lib/erpnext";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ShagunEnvelopesPage() {
-  let products = [];
+  let products: ErpProduct[] = [];
   let errorMessage = "";
 
   try {

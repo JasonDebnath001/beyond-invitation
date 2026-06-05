@@ -4,7 +4,7 @@ type ContactLeadPayload = {
   name?: string;
   mobile?: string;
   email?: string;
-
+  source?: string;
   requirement?: string;
   subRequirement?: string;
   quantity?: string;
@@ -19,18 +19,13 @@ const erpApiKey = process.env.ERPNEXT_API_KEY;
 const erpApiSecret = process.env.ERPNEXT_API_SECRET;
 
 /**
- * IMPORTANT:
  * Use "Lead" for standard ERPNext Lead.
  * Use "CRM Lead" if you are using the separate Frappe CRM app.
- *
- * Do NOT use "Contact".
  */
 const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE?.trim() || "Lead";
 
 /**
- * Custom fieldnames from your Lead / CRM Lead doctype.
- * If any field does not save, copy the exact fieldname from:
- * Customize Form -> Lead / CRM Lead -> click field -> Fieldname
+ * These must match your Frappe CRM Lead fieldnames exactly.
  */
 const FIELD_REQUIREMENT =
   process.env.ERPNEXT_LEAD_REQUIREMENT_FIELD || "custom_requirement";
@@ -43,7 +38,8 @@ const FIELD_QUANTITY_REQUIRED =
   "custom_quantity_required";
 
 const FIELD_BUDGET_PER_UNIT =
-  process.env.ERPNEXT_LEAD_BUDGET_PER_UNIT_FIELD || "custom_budget_per_unit";
+  process.env.ERPNEXT_LEAD_BUDGET_PER_UNIT_FIELD ||
+  "custom_budget_per_unit";
 
 const FIELD_BUDGET_TOTAL =
   process.env.ERPNEXT_LEAD_BUDGET_TOTAL_FIELD || "custom_budget_total";
@@ -55,13 +51,18 @@ const FIELD_SPECIAL_REMARK =
   process.env.ERPNEXT_LEAD_SPECIAL_REMARK_FIELD ||
   "custom_special_requirement_and_remark";
 
-/**
- * These must exactly match the options inside your Frappe Requirement field.
- */
 const ALLOWED_REQUIREMENTS = [
   "Wedding Cards",
   "Rakhi Packaging Item",
   "Sagun Envelopes",
+];
+
+const WEDDING_CARD_SUB_REQUIREMENTS = [
+  "None Of The Above",
+  "Hindu Wedding Cards",
+  "Muslim Wedding Cards",
+  "Christian Wedding Cards",
+  "General Wedding Cards",
 ];
 
 function cleanText(value?: string) {
@@ -78,16 +79,13 @@ function toNumber(value: string) {
 
 function removeUndefined<T extends Record<string, unknown>>(object: T) {
   return Object.fromEntries(
-    Object.entries(object).filter(([, value]) => value !== undefined)
+    Object.entries(object).filter(([, value]) => value !== undefined),
   );
 }
 
 function normaliseRequirement(requirement: string) {
   const value = requirement.trim();
 
-  /**
-   * Converts old/frontend spelling to exact Frappe option values.
-   */
   if (value === "Shagun Envelopes") {
     return "Sagun Envelopes";
   }
@@ -104,16 +102,29 @@ function normaliseRequirement(requirement: string) {
   return value;
 }
 
+function normaliseSubRequirement(subRequirement: string) {
+  const value = subRequirement.trim();
+
+  const aliases: Record<string, string> = {
+    "None of the Above": "None Of The Above",
+    "None of The Above": "None Of The Above",
+    "Hindu Wedding Card": "Hindu Wedding Cards",
+    "Muslim Wedding Card": "Muslim Wedding Cards",
+    "Christian Wedding Card": "Christian Wedding Cards",
+    "General Wedding Card": "General Wedding Cards",
+  };
+
+  return aliases[value] || value;
+}
+
 function buildLeadPayload(data: Required<ContactLeadPayload>) {
   const quantity = toNumber(data.quantity);
   const budgetPerUnit = toNumber(data.budgetPerUnit);
   const totalBudget = toNumber(data.totalBudget);
 
-  return removeUndefined({
+  const payload: Record<string, unknown> = {
     /**
      * Standard Lead fields.
-     * Frappe will ignore unsupported fields only if the doctype allows it,
-     * so keep these common fields simple.
      */
     lead_name: data.name,
     first_name: data.name,
@@ -123,23 +134,29 @@ function buildLeadPayload(data: Required<ContactLeadPayload>) {
     phone: data.mobile,
 
     /**
-     * Do NOT send source for now.
-     * Your Frappe Source field is a Link field and was rejecting values like WhatsApp.
-     * If you want to use source later, create Source records first, then add:
-     * source: "Website",
-     */
-
-    /**
-     * Custom fields shown in your CRM Lead screenshot.
+     * Requirement always goes to Frappe CRM.
      */
     [FIELD_REQUIREMENT]: data.requirement || undefined,
-    [FIELD_SUB_REQUIREMENT]: data.subRequirement || undefined,
+
+    /**
+     * Other custom fields.
+     */
     [FIELD_QUANTITY_REQUIRED]: quantity,
     [FIELD_BUDGET_PER_UNIT]: budgetPerUnit,
     [FIELD_BUDGET_TOTAL]: totalBudget,
     [FIELD_FUNCTION_DATE]: data.eventDate || undefined,
     [FIELD_SPECIAL_REMARK]: data.message || undefined,
-  });
+  };
+
+  /**
+   * Sub-requirement only goes to Frappe CRM for Wedding Cards.
+   * For Rakhi Packaging Item / Sagun Envelopes, do not send this field.
+   */
+  if (data.requirement === "Wedding Cards" && data.subRequirement) {
+    payload[FIELD_SUB_REQUIREMENT] = data.subRequirement;
+  }
+
+  return removeUndefined(payload);
 }
 
 export async function POST(request: Request) {
@@ -151,7 +168,7 @@ export async function POST(request: Request) {
           message:
             "ERPNext credentials missing. Check ERPNEXT_URL, ERPNEXT_API_KEY, and ERPNEXT_API_SECRET.",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -163,23 +180,27 @@ export async function POST(request: Request) {
             "Wrong configuration: ERPNEXT_LEAD_DOCTYPE is set to Contact. It must be Lead or CRM Lead.",
           leadDoctype,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const body = (await request.json()) as ContactLeadPayload;
 
     const normalisedRequirement = normaliseRequirement(
-      cleanText(body.requirement)
+      cleanText(body.requirement),
+    );
+
+    const normalisedSubRequirement = normaliseSubRequirement(
+      cleanText(body.subRequirement),
     );
 
     const data: Required<ContactLeadPayload> = {
       name: cleanText(body.name),
       mobile: cleanText(body.mobile),
       email: cleanText(body.email),
-
+      source: cleanText(body.source),
       requirement: normalisedRequirement,
-      subRequirement: cleanText(body.subRequirement),
+      subRequirement: normalisedSubRequirement,
       quantity: cleanText(body.quantity),
       eventDate: cleanText(body.eventDate),
       budgetPerUnit: cleanText(body.budgetPerUnit),
@@ -193,7 +214,7 @@ export async function POST(request: Request) {
           success: false,
           message: "Name and mobile number are required.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -203,7 +224,7 @@ export async function POST(request: Request) {
           success: false,
           message: "Requirement is required.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -212,23 +233,62 @@ export async function POST(request: Request) {
         {
           success: false,
           message: `Invalid requirement. Please select one of: ${ALLOWED_REQUIREMENTS.join(
-            ", "
+            ", ",
           )}.`,
           receivedRequirement: data.requirement,
         },
-        { status: 400 }
+        { status: 400 },
       );
+    }
+
+    /**
+     * Sub-requirement is required only for Wedding Cards.
+     */
+    if (data.requirement === "Wedding Cards") {
+      if (!data.subRequirement) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Sub requirement is required for Wedding Cards.",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (!WEDDING_CARD_SUB_REQUIREMENTS.includes(data.subRequirement)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Invalid wedding card sub requirement. Please select one of: ${WEDDING_CARD_SUB_REQUIREMENTS.join(
+              ", ",
+            )}.`,
+            receivedSubRequirement: data.subRequirement,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    /**
+     * For non-wedding requirements, clear sub-requirement completely.
+     */
+    if (data.requirement !== "Wedding Cards") {
+      data.subRequirement = "";
     }
 
     const leadPayload = buildLeadPayload(data);
 
     const url = `${erpUrl.replace(/\/$/, "")}/api/resource/${encodeURIComponent(
-      leadDoctype
+      leadDoctype,
     )}`;
 
     console.log("Creating CRM enquiry:", {
       leadDoctype,
       url,
+      requirement: data.requirement,
+      subRequirement: data.subRequirement,
+      requirementField: FIELD_REQUIREMENT,
+      subRequirementField: FIELD_SUB_REQUIREMENT,
       payload: leadPayload,
     });
 
@@ -274,7 +334,7 @@ export async function POST(request: Request) {
           sentPayload: leadPayload,
           erpError: result,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -296,7 +356,7 @@ export async function POST(request: Request) {
         doctype: leadDoctype,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

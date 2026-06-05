@@ -4,11 +4,31 @@ import { FormEvent, useMemo, useState } from "react";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
+const REQUIREMENTS = [
+  "Wedding Cards",
+  "Rakhi Packaging Item",
+  "Sagun Envelopes",
+] as const;
+
+const WEDDING_CARD_SUB_REQUIREMENTS = [
+  "None Of The Above",
+  "Hindu Wedding Cards",
+  "Muslim Wedding Cards",
+  "Christian Wedding Cards",
+  "General Wedding Cards",
+] as const;
+
 export default function ContactLeadForm() {
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [message, setMessage] = useState("");
+
+  const [requirement, setRequirement] = useState("");
+  const [subRequirement, setSubRequirement] = useState("");
+
   const [quantity, setQuantity] = useState("");
   const [budgetPerUnit, setBudgetPerUnit] = useState("");
+
+  const shouldShowSubRequirement = requirement === "Wedding Cards";
 
   const totalBudget = useMemo(() => {
     const qty = Number(quantity);
@@ -36,12 +56,18 @@ export default function ContactLeadForm() {
       email: String(formData.get("email") || ""),
       source: String(formData.get("source") || "Website"),
 
-      requirement: String(formData.get("requirement") || ""),
-      subRequirement: String(formData.get("subRequirement") || ""),
+      requirement,
+
+      /**
+       * Only send sub-requirement when user selected Wedding Cards.
+       * For Rakhi/Sagun this remains blank and backend will not send it to Frappe.
+       */
+      subRequirement: shouldShowSubRequirement ? subRequirement : "",
+
       quantity: String(formData.get("quantity") || ""),
       eventDate: String(formData.get("eventDate") || ""),
       budgetPerUnit: String(formData.get("budgetPerUnit") || ""),
-      totalBudget: String(formData.get("totalBudget") || ""),
+      totalBudget,
       message: String(formData.get("message") || ""),
     };
 
@@ -69,7 +95,7 @@ export default function ContactLeadForm() {
         throw new Error(
           typeof serverMessage === "string"
             ? serverMessage
-            : JSON.stringify(serverMessage)
+            : JSON.stringify(serverMessage),
         );
       }
 
@@ -77,6 +103,8 @@ export default function ContactLeadForm() {
       setMessage("Thank you. Your enquiry has been submitted successfully.");
 
       form.reset();
+      setRequirement("");
+      setSubRequirement("");
       setQuantity("");
       setBudgetPerUnit("");
     } catch (error) {
@@ -84,151 +112,153 @@ export default function ContactLeadForm() {
       setMessage(
         error instanceof Error
           ? error.message
-          : "Unable to submit enquiry right now."
+          : "Unable to submit enquiry right now.",
       );
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Name
-          </label>
-          <input
-            name="name"
-            required
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Mobile Number
-          </label>
-          <input
-            name="mobile"
-            required
-            inputMode="tel"
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          />
-        </div>
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-5 rounded-[2rem] border border-gold/20 bg-white p-6 shadow-sm"
+    >
+      <div>
+        <label className="text-sm font-medium text-carbon">Name</label>
+        <input
+          name="name"
+          type="text"
+          required
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Email
-          </label>
-          <input
-            name="email"
-            type="email"
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Source
-          </label>
-          <select
-            name="source"
-            defaultValue="Website"
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          >
-            <option value="Website">Website</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="Phone Call">Phone Call</option>
-            <option value="Instagram">Instagram</option>
-            <option value="Facebook">Facebook</option>
-            <option value="Referral">Referral</option>
-          </select>
-        </div>
+      <div>
+        <label className="text-sm font-medium text-carbon">Mobile Number</label>
+        <input
+          name="mobile"
+          type="tel"
+          required
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Requirement
-          </label>
-          <select
-            name="requirement"
-            required
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          >
-            <option value="">Select requirement</option>
-            <option value="Wedding Cards">Wedding Cards</option>
-            <option value="Rakhi Packaging Item">Rakhi Packaging Item</option>
-            <option value="Sagun Envelopes">Sagun Envelopes</option>
-          </select>
-        </div>
+      <div>
+        <label className="text-sm font-medium text-carbon">Email</label>
+        <input
+          name="email"
+          type="email"
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        />
+      </div>
 
+      <div>
+        <label className="text-sm font-medium text-carbon">Source</label>
+        <select
+          name="source"
+          defaultValue="Website"
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        >
+          <option value="Website">Website</option>
+          <option value="WhatsApp">WhatsApp</option>
+          <option value="Phone Call">Phone Call</option>
+          <option value="Instagram">Instagram</option>
+          <option value="Facebook">Facebook</option>
+          <option value="Referral">Referral</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium text-carbon">Requirement</label>
+        <select
+          name="requirement"
+          value={requirement}
+          required
+          onChange={(event) => {
+            const nextRequirement = event.target.value;
+            setRequirement(nextRequirement);
+
+            /**
+             * Reset sub-requirement when requirement changes.
+             * This prevents old Wedding Card sub-requirement from being sent
+             * when user switches to Rakhi or Sagun.
+             */
+            setSubRequirement("");
+          }}
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        >
+          <option value="">Select requirement</option>
+          {REQUIREMENTS.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {shouldShowSubRequirement ? (
         <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
+          <label className="text-sm font-medium text-carbon">
             Sub Requirement
           </label>
           <select
             name="subRequirement"
+            value={subRequirement}
+            required
+            onChange={(event) => setSubRequirement(event.target.value)}
             className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
           >
             <option value="">Select sub requirement</option>
-            <option value="">None Of The Above</option>
-            <option value="Hindu Wedding Cards">Hindu Wedding Cards</option>
-            <option value="Muslim Wedding Cards">Muslim Wedding Cards</option>
-            <option value="Christian Wedding Cards">
-              Christian Wedding Cards
-            </option>
+
+            {WEDDING_CARD_SUB_REQUIREMENTS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
           </select>
         </div>
-      </div>
+      ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-3">
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Quantity Required
-          </label>
-          <input
-            name="quantity"
-            type="number"
-            min="1"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Budget Per Unit
-          </label>
-          <input
-            name="budgetPerUnit"
-            type="number"
-            min="0"
-            value={budgetPerUnit}
-            onChange={(event) => setBudgetPerUnit(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-            Budget Total
-          </label>
-          <input
-            name="totalBudget"
-            value={totalBudget}
-            readOnly
-            className="mt-2 w-full rounded-2xl border border-carbon/10 bg-paper px-4 py-3 text-sm text-ink outline-none"
-          />
-        </div>
+      <div>
+        <label className="text-sm font-medium text-carbon">
+          Quantity Required
+        </label>
+        <input
+          name="quantity"
+          type="number"
+          min="1"
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        />
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
-          Function Date
+        <label className="text-sm font-medium text-carbon">
+          Budget Per Unit
         </label>
+        <input
+          name="budgetPerUnit"
+          type="number"
+          min="0"
+          value={budgetPerUnit}
+          onChange={(event) => setBudgetPerUnit(event.target.value)}
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
+        />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium text-carbon">Budget Total</label>
+        <input
+          name="totalBudget"
+          type="number"
+          value={totalBudget}
+          readOnly
+          className="mt-2 w-full rounded-2xl border border-carbon/10 bg-carbon/5 px-4 py-3 text-sm text-ink outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium text-carbon">Function Date</label>
         <input
           name="eventDate"
           type="date"
@@ -237,7 +267,7 @@ export default function ContactLeadForm() {
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-light">
+        <label className="text-sm font-medium text-carbon">
           Special Requirement and Remark
         </label>
         <textarea

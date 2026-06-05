@@ -4,7 +4,6 @@ type ContactLeadPayload = {
   name?: string;
   mobile?: string;
   email?: string;
-  source?: string;
 
   requirement?: string;
   subRequirement?: string;
@@ -13,20 +12,25 @@ type ContactLeadPayload = {
   budgetPerUnit?: string;
   totalBudget?: string;
   message?: string;
-
-  product?: string;
-  rate?: string;
 };
 
 const erpUrl = process.env.ERPNEXT_URL;
 const erpApiKey = process.env.ERPNEXT_API_KEY;
 const erpApiSecret = process.env.ERPNEXT_API_SECRET;
 
-const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE || "Lead";
+/**
+ * IMPORTANT:
+ * Use "Lead" for standard ERPNext Lead.
+ * Use "CRM Lead" if you are using the separate Frappe CRM app.
+ *
+ * Do NOT use "Contact".
+ */
+const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE?.trim() || "Lead";
 
 /**
- * These defaults are based on normal Frappe custom field naming.
- * If your actual fieldnames are different, set them in .env.local.
+ * Custom fieldnames from your Lead / CRM Lead doctype.
+ * If any field does not save, copy the exact fieldname from:
+ * Customize Form -> Lead / CRM Lead -> click field -> Fieldname
  */
 const FIELD_REQUIREMENT =
   process.env.ERPNEXT_LEAD_REQUIREMENT_FIELD || "custom_requirement";
@@ -51,13 +55,14 @@ const FIELD_SPECIAL_REMARK =
   process.env.ERPNEXT_LEAD_SPECIAL_REMARK_FIELD ||
   "custom_special_requirement_and_remark";
 
-const FIELD_PRODUCTS_TABLE =
-  process.env.ERPNEXT_LEAD_PRODUCTS_TABLE_FIELD || "custom_products";
-
-const CHILD_FIELD_PRODUCT =
-  process.env.ERPNEXT_LEAD_CHILD_PRODUCT_FIELD || "product";
-
-const CHILD_FIELD_RATE = process.env.ERPNEXT_LEAD_CHILD_RATE_FIELD || "rate";
+/**
+ * These must exactly match the options inside your Frappe Requirement field.
+ */
+const ALLOWED_REQUIREMENTS = [
+  "Wedding Cards",
+  "Rakhi Packaging Item",
+  "Sagun Envelopes",
+];
 
 function cleanText(value?: string) {
   return typeof value === "string" ? value.trim() : "";
@@ -77,25 +82,38 @@ function removeUndefined<T extends Record<string, unknown>>(object: T) {
   );
 }
 
+function normaliseRequirement(requirement: string) {
+  const value = requirement.trim();
+
+  /**
+   * Converts old/frontend spelling to exact Frappe option values.
+   */
+  if (value === "Shagun Envelopes") {
+    return "Sagun Envelopes";
+  }
+
+  if (
+    value === "Rakhi Cards" ||
+    value === "Rakhi Boxes" ||
+    value === "Rakhi Packaging" ||
+    value === "Rakhi Packaging Items"
+  ) {
+    return "Rakhi Packaging Item";
+  }
+
+  return value;
+}
+
 function buildLeadPayload(data: Required<ContactLeadPayload>) {
   const quantity = toNumber(data.quantity);
   const budgetPerUnit = toNumber(data.budgetPerUnit);
   const totalBudget = toNumber(data.totalBudget);
-  const rate = toNumber(data.rate);
-
-  const products =
-    data.product || rate !== undefined
-      ? [
-          removeUndefined({
-            [CHILD_FIELD_PRODUCT]: data.product || undefined,
-            [CHILD_FIELD_RATE]: rate,
-          }),
-        ]
-      : undefined;
 
   return removeUndefined({
     /**
-     * Standard Lead fields
+     * Standard Lead fields.
+     * Frappe will ignore unsupported fields only if the doctype allows it,
+     * so keep these common fields simple.
      */
     lead_name: data.name,
     first_name: data.name,
@@ -103,10 +121,16 @@ function buildLeadPayload(data: Required<ContactLeadPayload>) {
     email: data.email || undefined,
     mobile_no: data.mobile,
     phone: data.mobile,
-    source: data.source || "Website",
 
     /**
-     * Custom CRM fields shown in your screenshot
+     * Do NOT send source for now.
+     * Your Frappe Source field is a Link field and was rejecting values like WhatsApp.
+     * If you want to use source later, create Source records first, then add:
+     * source: "Website",
+     */
+
+    /**
+     * Custom fields shown in your CRM Lead screenshot.
      */
     [FIELD_REQUIREMENT]: data.requirement || undefined,
     [FIELD_SUB_REQUIREMENT]: data.subRequirement || undefined,
@@ -115,11 +139,6 @@ function buildLeadPayload(data: Required<ContactLeadPayload>) {
     [FIELD_BUDGET_TOTAL]: totalBudget,
     [FIELD_FUNCTION_DATE]: data.eventDate || undefined,
     [FIELD_SPECIAL_REMARK]: data.message || undefined,
-
-    /**
-     * Products child table
-     */
-    [FIELD_PRODUCTS_TABLE]: products,
   });
 }
 
@@ -136,24 +155,36 @@ export async function POST(request: Request) {
       );
     }
 
+    if (leadDoctype.toLowerCase() === "contact") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Wrong configuration: ERPNEXT_LEAD_DOCTYPE is set to Contact. It must be Lead or CRM Lead.",
+          leadDoctype,
+        },
+        { status: 500 }
+      );
+    }
+
     const body = (await request.json()) as ContactLeadPayload;
+
+    const normalisedRequirement = normaliseRequirement(
+      cleanText(body.requirement)
+    );
 
     const data: Required<ContactLeadPayload> = {
       name: cleanText(body.name),
       mobile: cleanText(body.mobile),
       email: cleanText(body.email),
-      source: cleanText(body.source) || "Website",
 
-      requirement: cleanText(body.requirement),
+      requirement: normalisedRequirement,
       subRequirement: cleanText(body.subRequirement),
       quantity: cleanText(body.quantity),
       eventDate: cleanText(body.eventDate),
       budgetPerUnit: cleanText(body.budgetPerUnit),
       totalBudget: cleanText(body.totalBudget),
       message: cleanText(body.message),
-
-      product: cleanText(body.product),
-      rate: cleanText(body.rate),
     };
 
     if (!data.name || !data.mobile) {
@@ -166,11 +197,40 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!data.requirement) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Requirement is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_REQUIREMENTS.includes(data.requirement)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Invalid requirement. Please select one of: ${ALLOWED_REQUIREMENTS.join(
+            ", "
+          )}.`,
+          receivedRequirement: data.requirement,
+        },
+        { status: 400 }
+      );
+    }
+
     const leadPayload = buildLeadPayload(data);
 
     const url = `${erpUrl.replace(/\/$/, "")}/api/resource/${encodeURIComponent(
       leadDoctype
     )}`;
+
+    console.log("Creating CRM enquiry:", {
+      leadDoctype,
+      url,
+      payload: leadPayload,
+    });
 
     const response = await fetch(url, {
       method: "POST",
@@ -210,6 +270,7 @@ export async function POST(request: Request) {
           status: response.status,
           statusText: response.statusText,
           doctype: leadDoctype,
+          url,
           sentPayload: leadPayload,
           erpError: result,
         },
@@ -220,6 +281,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Lead created successfully.",
+      doctype: leadDoctype,
+      url,
+      sentPayload: leadPayload,
       lead: result,
     });
   } catch (error) {
@@ -229,6 +293,7 @@ export async function POST(request: Request) {
       {
         success: false,
         message: "Something went wrong while submitting the enquiry.",
+        doctype: leadDoctype,
         error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

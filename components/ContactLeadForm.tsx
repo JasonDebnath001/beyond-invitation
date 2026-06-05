@@ -173,18 +173,12 @@ export default function ContactLeadForm() {
             className="mt-2 w-full rounded-2xl border border-carbon/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-carbon"
           >
             <option value="">Select sub requirement</option>
+            <option value="">None Of The Above</option>
             <option value="Hindu Wedding Cards">Hindu Wedding Cards</option>
             <option value="Muslim Wedding Cards">Muslim Wedding Cards</option>
             <option value="Christian Wedding Cards">
               Christian Wedding Cards
             </option>
-            <option value="General Wedding Cards">General Wedding Cards</option>
-            <option value="Premium Sagun Envelope">
-              Premium Sagun Envelope
-            </option>
-            <option value="Rakhi Box">Rakhi Box</option>
-            <option value="Rakhi Tray">Rakhi Tray</option>
-            <option value="Custom Design">Custom Design</option>
           </select>
         </div>
       </div>

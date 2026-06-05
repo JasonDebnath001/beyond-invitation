@@ -14,6 +14,9 @@ export interface Product {
   /** Image file names located in /public/products/ or absolute ERPNext image URLs */
   images: string[];
 
+  /** Video URLs from ERPNext Item or child table */
+  videos?: string[];
+
   /** Short emoji fallback shown when an image is missing */
   emoji: string;
 
@@ -55,7 +58,10 @@ export interface Category {
 }
 
 /** Helper: discount percentage derived from price + mrp */
-export function discountPercent(product: Pick<Product, "price" | "mrp">): number {
+export function discountPercent(
+  product: Pick<Product, "price" | "mrp">,
+): number {
   if (product.mrp <= 0 || product.mrp <= product.price) return 0;
+
   return Math.round(((product.mrp - product.price) / product.mrp) * 100);
 }

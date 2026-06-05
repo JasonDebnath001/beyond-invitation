@@ -90,7 +90,11 @@ function productDetailValue(value: string | undefined | null) {
 }
 
 const FEATURES = [
-  { icon: "✍️", title: "Free personalisation", text: "Names & details printed" },
+  {
+    icon: "✍️",
+    title: "Free personalisation",
+    text: "Names & details printed",
+  },
   { icon: "", title: "Pan-India delivery", text: "5–7 working days" },
   { icon: "", title: "Premium finish", text: "Carefully packed" },
 ];
@@ -139,6 +143,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           {/* Gallery */}
           <ProductGallery
             images={product.images}
+            videos={product.videos}
             emoji={product.emoji}
             alt={product.name}
             badge={product.badge}
@@ -258,9 +263,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <Accordion title="Shipping & Returns">
             <p className="text-[14px] leading-relaxed text-ink-mid">
               Delivered pan-India within 5–7 working days after proof approval.
-              Because every card is personalised and printed to order, we&apos;re
-              unable to accept returns — but we&apos;ll gladly reprint if there&apos;s
-              a printing error on our side.
+              Because every card is personalised and printed to order,
+              we&apos;re unable to accept returns — but we&apos;ll gladly
+              reprint if there&apos;s a printing error on our side.
             </p>
           </Accordion>
         </div>
@@ -297,13 +302,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
   );
 }
 
-function SpecRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function SpecRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <li className="flex gap-4 border-b border-gold/10 pb-2.5">
       <span className="w-32 shrink-0 text-ink-light">{label}</span>

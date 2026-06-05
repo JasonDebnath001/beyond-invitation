@@ -2,50 +2,64 @@ import type { Product, ProductCategory } from "@/types";
 import DOMPurify from "isomorphic-dompurify";
 
 function cleanEnv(value?: string) {
-  return (value ?? "")
-    .trim()
-    .replace(/^["']|["']$/g, "");
+  return (value ?? "").trim().replace(/^["']|["']$/g, "");
 }
 
 const ERPNEXT_URL = cleanEnv(process.env.ERPNEXT_URL);
 const ERPNEXT_API_KEY = cleanEnv(process.env.ERPNEXT_API_KEY);
 const ERPNEXT_API_SECRET = cleanEnv(process.env.ERPNEXT_API_SECRET);
+
 const ERPNEXT_PRICE_LIST =
   cleanEnv(process.env.ERPNEXT_PRICE_LIST) || "Standard Selling";
 
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
-// Override with ERPNEXT_WEBSITE_FIELD in .env.local if yours differs.
 const ERPNEXT_WEBSITE_FIELD =
   process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
 
-// Fieldname of the "Subject" field on Item — used to split Wedding Cards into
-// Hindu / Muslim / Christian. Override with ERPNEXT_SUBJECT_FIELD if needed.
+// Fieldname of the "Subject" field on Item.
 const ERPNEXT_SUBJECT_FIELD =
   process.env.ERPNEXT_SUBJECT_FIELD ?? "custom_subject";
 
 // Product detail custom fields from ERPNext Item.
-// These are fieldnames, not labels. Override in .env.local if your fieldnames differ.
 const ERPNEXT_CUSTOMISATION_FIELD =
   process.env.ERPNEXT_CUSTOMISATION_FIELD ?? "custom_customisation";
+
 const ERPNEXT_MATERIAL_FIELD =
   process.env.ERPNEXT_MATERIAL_FIELD ?? "custom_material";
+
 const ERPNEXT_INCLUDES_FIELD =
   process.env.ERPNEXT_INCLUDES_FIELD ?? "custom_includes";
 
-// Caching for ERPNext responses (seconds). Set to 0 in .env.local for
-// always-fresh data while testing; 60 is a good production default.
+// Caching for ERPNext responses.
 const ERPNEXT_REVALIDATE = Number(
   process.env.ERPNEXT_REVALIDATE_SECONDS ?? "60",
 );
 
 // --- Multi-image gallery: Item Image child table on Item -------------------
-
 const ERPNEXT_IMAGE_TABLE_FIELD =
   process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
+
 const ERPNEXT_IMAGE_ROW_FIELD =
   process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
+
 const ERPNEXT_IMAGE_ORDER_FIELD =
   process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
+
+// --- Multi-video gallery: direct Item field or child table on Item ----------
+// IMPORTANT:
+// Do NOT put this field in the Item get_list fields array.
+// Some Frappe/ERPNext setups reject custom fields in list queries.
+const ERPNEXT_VIDEO_FIELD =
+  process.env.ERPNEXT_VIDEO_FIELD ?? "custom_video_link";
+
+const ERPNEXT_VIDEO_TABLE_FIELD =
+  process.env.ERPNEXT_VIDEO_TABLE_FIELD ?? "";
+
+const ERPNEXT_VIDEO_ROW_FIELD =
+  process.env.ERPNEXT_VIDEO_ROW_FIELD ?? "video";
+
+const ERPNEXT_VIDEO_ORDER_FIELD =
+  process.env.ERPNEXT_VIDEO_ORDER_FIELD ?? "";
 
 type ErpNextListResponse<T> = {
   data: T[];
@@ -145,6 +159,7 @@ function buildImageUrl(image?: string): string[] {
   if (!image) return [];
 
   const cleanImage = image.trim();
+
   if (!cleanImage) return [];
 
   if (cleanImage.startsWith("http://") || cleanImage.startsWith("https://")) {
@@ -158,10 +173,111 @@ function buildImageUrl(image?: string): string[] {
   return [encodeURI(`${cleanBaseUrl()}/${cleanImage}`)];
 }
 
+function normalizeVideoUrl(value?: string): string[] {
+  if (!value) return [];
+
+  const clean = value.trim();
+
+  if (!clean) return [];
+
+  return clean
+    .split(/[\n,]+/)
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .filter((url) => {
+      return (
+        url.startsWith("https://") ||
+        url.startsWith("http://") ||
+        url.startsWith("/files/") ||
+        url.startsWith("/private/files/")
+      );
+    });
+}
+
+function buildVideoUrl(video?: string): string[] {
+  const urls = normalizeVideoUrl(video);
+
+  return urls.map((url) => {
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return encodeURI(url);
+    }
+
+    if (url.startsWith("/")) {
+      return encodeURI(`${cleanBaseUrl()}${url}`);
+    }
+
+    return encodeURI(url);
+  });
+}
+
+function isDirectVideoFile(value: string) {
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(value.split("?")[0]);
+}
+
+function isVideoPlatformUrl(value: string) {
+  return (
+    value.includes("youtube.com/watch") ||
+    value.includes("youtube.com/embed") ||
+    value.includes("youtube.com/shorts/") ||
+    value.includes("youtu.be/") ||
+    value.includes("vimeo.com/")
+  );
+}
+
+function looksLikeVideoUrl(value: unknown) {
+  if (typeof value !== "string") return false;
+
+  const v = value.trim();
+
+  if (!v) return false;
+
+  /**
+   * Important:
+   * Do NOT treat every /files/... URL as a video.
+   * ERPNext images also live under /files/.
+   */
+  return isDirectVideoFile(v) || isVideoPlatformUrl(v);
+}
+
+function toYoutubeEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.hostname.includes("youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        const id = parsed.searchParams.get("v");
+
+        return id ? `https://www.youtube.com/embed/${id}` : url;
+      }
+
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const id = parsed.pathname.split("/")[2];
+
+        return id ? `https://www.youtube.com/embed/${id}` : url;
+      }
+
+      if (parsed.pathname.startsWith("/embed/")) {
+        return url;
+      }
+    }
+
+    if (parsed.hostname === "youtu.be") {
+      const id = parsed.pathname.replace("/", "");
+
+      return id ? `https://www.youtube.com/embed/${id}` : url;
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 function cleanTextValue(value: unknown): string {
   if (value === null || value === undefined) return "";
 
   const text = String(value).trim();
+
   if (!text) return "";
 
   return DOMPurify.sanitize(text);
@@ -204,7 +320,6 @@ async function fetchItemPrices(itemCodes: string[]) {
 
   if (itemCodes.length === 0) return priceMap;
 
-  // Small chunks prevent nginx 414 Request-URI Too Large error.
   const chunks = chunkArray(itemCodes, 25);
 
   for (const chunk of chunks) {
@@ -265,11 +380,8 @@ function mapErpItemToProduct(
     category: normalizeCategory(item.item_group),
     badge: undefined,
 
-    // Sanitize HTML coming from ERPNext to prevent stored XSS when rendered
-    // with dangerouslySetInnerHTML in Server Components.
     description: DOMPurify.sanitize(String(item.description || "")),
 
-    // Product detail fields from ERPNext custom fields.
     customisation: cleanTextValue(item[ERPNEXT_CUSTOMISATION_FIELD]),
     material: cleanTextValue(item[ERPNEXT_MATERIAL_FIELD]),
     includes: cleanTextValue(item[ERPNEXT_INCLUDES_FIELD]),
@@ -287,9 +399,9 @@ async function fetchErpItemDoc(
   itemName: string,
 ): Promise<Record<string, unknown> | null> {
   try {
-    const json = await erpFetch<
-      ErpNextSingleResponse<Record<string, unknown>>
-    >(`/api/resource/Item/${encodeURIComponent(itemName)}`);
+    const json = await erpFetch<ErpNextSingleResponse<Record<string, unknown>>>(
+      `/api/resource/Item/${encodeURIComponent(itemName)}`,
+    );
 
     return json.data ?? null;
   } catch {
@@ -339,17 +451,20 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
   const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
     if (ERPNEXT_IMAGE_ORDER_FIELD) {
       const n = toNum(row[ERPNEXT_IMAGE_ORDER_FIELD]);
+
       if (n !== null) return n;
     }
 
     for (const key of Object.keys(row)) {
       if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
         const n = toNum(row[key]);
+
         if (n !== null) return n;
       }
     }
 
     const idx = toNum(row.idx);
+
     return idx !== null ? idx : fallback;
   };
 
@@ -398,7 +513,6 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
       }
     }
 
-    // First table that yielded images wins.
     if (urls.length > before) break;
   }
 
@@ -406,7 +520,118 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
 }
 
 /**
- * Replace each product's images with its full ordered gallery, if present.
+ * Pull video URLs from:
+ * 1. direct Item field, e.g. custom_video_link
+ * 2. child table rows, e.g. custom_product_videos -> video
+ * 3. any child row value that looks like a video URL
+ */
+function extractGalleryVideos(doc: Record<string, unknown> | null): string[] {
+  if (!doc) return [];
+
+  const urls: string[] = [];
+
+  const push = (v: unknown) => {
+    if (!looksLikeVideoUrl(v)) return;
+
+    const built = buildVideoUrl(v as string).map(toYoutubeEmbedUrl);
+
+    for (const url of built) {
+      if (url && !urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+  };
+
+  const toNum = (v: unknown): number | null => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+
+    if (
+      typeof v === "string" &&
+      v.trim() !== "" &&
+      Number.isFinite(Number(v))
+    ) {
+      return Number(v);
+    }
+
+    return null;
+  };
+
+  const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
+    if (ERPNEXT_VIDEO_ORDER_FIELD) {
+      const n = toNum(row[ERPNEXT_VIDEO_ORDER_FIELD]);
+
+      if (n !== null) return n;
+    }
+
+    for (const key of Object.keys(row)) {
+      if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
+        const n = toNum(row[key]);
+
+        if (n !== null) return n;
+      }
+    }
+
+    const idx = toNum(row.idx);
+
+    return idx !== null ? idx : fallback;
+  };
+
+  // Direct video field on Item.
+  push(doc[ERPNEXT_VIDEO_FIELD]);
+
+  const tables: Record<string, unknown>[][] = [];
+
+  const preferred = ERPNEXT_VIDEO_TABLE_FIELD
+    ? doc[ERPNEXT_VIDEO_TABLE_FIELD]
+    : null;
+
+  if (Array.isArray(preferred)) {
+    tables.push(preferred as Record<string, unknown>[]);
+  } else {
+    for (const value of Object.values(doc)) {
+      if (
+        Array.isArray(value) &&
+        value.length &&
+        typeof value[0] === "object"
+      ) {
+        tables.push(value as Record<string, unknown>[]);
+      }
+    }
+  }
+
+  for (const rows of tables) {
+    const before = urls.length;
+
+    const ordered = rows
+      .map((row, i) => ({ row, i, order: rowOrder(row, i) }))
+      .sort((a, b) => a.order - b.order || a.i - b.i);
+
+    for (const { row } of ordered) {
+      if (!row || typeof row !== "object") continue;
+
+      const direct = row[ERPNEXT_VIDEO_ROW_FIELD];
+
+      if (looksLikeVideoUrl(direct)) {
+        push(direct);
+        continue;
+      }
+
+      for (const v of Object.values(row)) {
+        if (looksLikeVideoUrl(v)) {
+          push(v);
+          break;
+        }
+      }
+    }
+
+    if (urls.length > before) break;
+  }
+
+  return urls;
+}
+
+/**
+ * Replace each product's images/videos with its full ordered gallery, if present.
  */
 async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
   const CONCURRENCY = 8;
@@ -416,10 +641,18 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
 
     await Promise.all(
       batch.map(async (p) => {
-        const gallery = extractGalleryImages(await fetchErpItemDoc(p.erpName));
+        const doc = await fetchErpItemDoc(p.erpName);
+
+        const gallery = extractGalleryImages(doc);
 
         if (gallery.length > 0) {
           p.images = gallery;
+        }
+
+        const videos = extractGalleryVideos(doc);
+
+        if (videos.length > 0) {
+          p.videos = videos;
         }
       }),
     );
@@ -463,8 +696,7 @@ export async function buildErpProductList(): Promise<ErpProduct[]> {
   );
 
   const visibleItems = itemResponse.data.filter(
-    (item) =>
-      item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
+    (item) => item.disabled !== 1 && Number(item[ERPNEXT_WEBSITE_FIELD]) === 1,
   );
 
   const itemCodes = visibleItems
@@ -478,6 +710,7 @@ export async function buildErpProductList(): Promise<ErpProduct[]> {
 
 export async function fetchErpProducts(): Promise<ErpProduct[]> {
   const products = await buildErpProductList();
+
   return enrichGalleries(products);
 }
 
@@ -489,10 +722,18 @@ export async function fetchErpProductBySlug(
 
   if (!product) return null;
 
-  const gallery = extractGalleryImages(await fetchErpItemDoc(product.erpName));
+  const doc = await fetchErpItemDoc(product.erpName);
+
+  const gallery = extractGalleryImages(doc);
 
   if (gallery.length > 0) {
     product.images = gallery;
+  }
+
+  const videos = extractGalleryVideos(doc);
+
+  if (videos.length > 0) {
+    product.videos = videos;
   }
 
   return product;
@@ -502,6 +743,7 @@ export async function fetchErpProductsByCategory(
   category: ProductCategory,
 ): Promise<ErpProduct[]> {
   const products = await fetchErpProducts();
+
   return products.filter((product) => product.category === category);
 }
 
@@ -549,9 +791,8 @@ export async function fetchErpProductsBySubject(
     (item) =>
       item.disabled !== 1 &&
       Number(item[ERPNEXT_WEBSITE_FIELD]) === 1 &&
-      String(item[ERPNEXT_SUBJECT_FIELD] ?? "")
-        .trim()
-        .toLowerCase() === target.toLowerCase(),
+      String(item[ERPNEXT_SUBJECT_FIELD] ?? "").trim().toLowerCase() ===
+        target.toLowerCase(),
   );
 
   const itemCodes = visibleItems
@@ -638,8 +879,7 @@ const ERPNEXT_AUTO_CREATE_CUSTOMER =
   (process.env.ERPNEXT_AUTO_CREATE_CUSTOMER ?? "false") === "true";
 const ERPNEXT_CUSTOMER_GROUP =
   process.env.ERPNEXT_CUSTOMER_GROUP ?? "Individual";
-const ERPNEXT_TERRITORY =
-  process.env.ERPNEXT_TERRITORY ?? "All Territories";
+const ERPNEXT_TERRITORY = process.env.ERPNEXT_TERRITORY ?? "All Territories";
 const ERPNEXT_CUSTOMER_EMAIL_FIELD =
   process.env.ERPNEXT_CUSTOMER_EMAIL_FIELD ?? "custom_email";
 
@@ -765,15 +1005,16 @@ async function erpGetFresh<T>(
 }
 
 async function findExistingCustomerByEmail(email: string) {
-  const existing = await erpGetFresh<
-    ErpNextListResponse<{ name: string }>
-  >("/api/resource/Customer", {
-    filters: JSON.stringify([
-      ["Customer", ERPNEXT_CUSTOMER_EMAIL_FIELD, "=", email],
-    ]),
-    fields: JSON.stringify(["name"]),
-    limit_page_length: "1",
-  });
+  const existing = await erpGetFresh<ErpNextListResponse<{ name: string }>>(
+    "/api/resource/Customer",
+    {
+      filters: JSON.stringify([
+        ["Customer", ERPNEXT_CUSTOMER_EMAIL_FIELD, "=", email],
+      ]),
+      fields: JSON.stringify(["name"]),
+      limit_page_length: "1",
+    },
+  );
 
   return existing.data?.[0]?.name ?? null;
 }
@@ -1102,9 +1343,7 @@ export async function fulfillSalesOrder(args: {
     }
   } catch (e) {
     // Race between webhook and inline handler: if now submitted, succeed.
-    const recheck = await findSalesOrderByRazorpayOrderId(
-      args.razorpayOrderId,
-    );
+    const recheck = await findSalesOrderByRazorpayOrderId(args.razorpayOrderId);
 
     if (recheck?.docstatus === 1) {
       return {

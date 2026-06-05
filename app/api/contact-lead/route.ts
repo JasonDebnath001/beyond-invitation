@@ -4,6 +4,8 @@ type ContactLeadPayload = {
   name?: string;
   mobile?: string;
   email?: string;
+  source?: string;
+
   requirement?: string;
   subRequirement?: string;
   quantity?: string;
@@ -11,175 +13,113 @@ type ContactLeadPayload = {
   budgetPerUnit?: string;
   totalBudget?: string;
   message?: string;
+
+  product?: string;
+  rate?: string;
 };
 
 const erpUrl = process.env.ERPNEXT_URL;
 const erpApiKey = process.env.ERPNEXT_API_KEY;
 const erpApiSecret = process.env.ERPNEXT_API_SECRET;
 
-const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE || "CRM Lead";
-const leadStatus = process.env.ERPNEXT_CRM_LEAD_STATUS || "New";
-const leadSource = process.env.ERPNEXT_CRM_LEAD_SOURCE || "";
-const enquiryDetailsField =
-  process.env.ERPNEXT_CRM_LEAD_ENQUIRY_FIELD || "custom_enquiry_details";
+const leadDoctype = process.env.ERPNEXT_LEAD_DOCTYPE || "Lead";
+
+/**
+ * These defaults are based on normal Frappe custom field naming.
+ * If your actual fieldnames are different, set them in .env.local.
+ */
+const FIELD_REQUIREMENT =
+  process.env.ERPNEXT_LEAD_REQUIREMENT_FIELD || "custom_requirement";
+
+const FIELD_SUB_REQUIREMENT =
+  process.env.ERPNEXT_LEAD_SUB_REQUIREMENT_FIELD || "custom_sub_requirement";
+
+const FIELD_QUANTITY_REQUIRED =
+  process.env.ERPNEXT_LEAD_QUANTITY_REQUIRED_FIELD ||
+  "custom_quantity_required";
+
+const FIELD_BUDGET_PER_UNIT =
+  process.env.ERPNEXT_LEAD_BUDGET_PER_UNIT_FIELD || "custom_budget_per_unit";
+
+const FIELD_BUDGET_TOTAL =
+  process.env.ERPNEXT_LEAD_BUDGET_TOTAL_FIELD || "custom_budget_total";
+
+const FIELD_FUNCTION_DATE =
+  process.env.ERPNEXT_LEAD_FUNCTION_DATE_FIELD || "custom_function_date";
+
+const FIELD_SPECIAL_REMARK =
+  process.env.ERPNEXT_LEAD_SPECIAL_REMARK_FIELD ||
+  "custom_special_requirement_and_remark";
+
+const FIELD_PRODUCTS_TABLE =
+  process.env.ERPNEXT_LEAD_PRODUCTS_TABLE_FIELD || "custom_products";
+
+const CHILD_FIELD_PRODUCT =
+  process.env.ERPNEXT_LEAD_CHILD_PRODUCT_FIELD || "product";
+
+const CHILD_FIELD_RATE = process.env.ERPNEXT_LEAD_CHILD_RATE_FIELD || "rate";
 
 function cleanText(value?: string) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function removeEmpty<T extends Record<string, unknown>>(object: T) {
-  return Object.fromEntries(
-    Object.entries(object).filter(([, value]) => {
-      if (value === undefined || value === null) return false;
-      if (typeof value === "string" && value.trim() === "") return false;
-      return true;
-    })
-  );
 }
 
 function toNumber(value: string) {
   if (!value) return undefined;
 
   const number = Number(value);
+
   return Number.isFinite(number) ? number : undefined;
 }
 
-function splitName(fullName: string) {
-  const cleanName = fullName.trim();
-  const parts = cleanName.split(/\s+/);
-
-  const firstName = parts.shift() || cleanName;
-  const lastName = parts.join(" ");
-
-  return {
-    firstName,
-    lastName,
-  };
+function removeUndefined<T extends Record<string, unknown>>(object: T) {
+  return Object.fromEntries(
+    Object.entries(object).filter(([, value]) => value !== undefined)
+  );
 }
 
-/**
- * Frappe CRM custom_requirement is a Select field.
- * Current allowed values:
- * - Wedding Cards
- * - Rakhi Packaging Item
- * - Sagun Envelopes
- */
-function normalizeRequirement(requirement: string) {
-  const value = requirement.trim();
+function buildLeadPayload(data: Required<ContactLeadPayload>) {
+  const quantity = toNumber(data.quantity);
+  const budgetPerUnit = toNumber(data.budgetPerUnit);
+  const totalBudget = toNumber(data.totalBudget);
+  const rate = toNumber(data.rate);
 
-  const map: Record<string, string> = {
-    "Wedding Cards": "Wedding Cards",
-    "Wedding Card": "Wedding Cards",
-    Wedding: "Wedding Cards",
+  const products =
+    data.product || rate !== undefined
+      ? [
+          removeUndefined({
+            [CHILD_FIELD_PRODUCT]: data.product || undefined,
+            [CHILD_FIELD_RATE]: rate,
+          }),
+        ]
+      : undefined;
 
-    "Hindu Wedding Cards": "Wedding Cards",
-    "Bengali Wedding Cards": "Wedding Cards",
-    "Muslim Wedding Cards": "Wedding Cards",
-    "mushlim Wedding cards": "Wedding Cards",
+  return removeUndefined({
+    /**
+     * Standard Lead fields
+     */
+    lead_name: data.name,
+    first_name: data.name,
+    email_id: data.email || undefined,
+    email: data.email || undefined,
+    mobile_no: data.mobile,
+    phone: data.mobile,
+    source: data.source || "Website",
 
-    Rakhi: "Rakhi Packaging Item",
-    "Rakhi Cards": "Rakhi Packaging Item",
-    "Rakhi Card": "Rakhi Packaging Item",
-    "Rakhi Boxes": "Rakhi Packaging Item",
-    "Rakhi Box": "Rakhi Packaging Item",
-    "Rakhi Tags": "Rakhi Packaging Item",
-    "Rakhi Tag": "Rakhi Packaging Item",
-    "Rakhi Packaging": "Rakhi Packaging Item",
-    "Rakhi Packaging Item": "Rakhi Packaging Item",
+    /**
+     * Custom CRM fields shown in your screenshot
+     */
+    [FIELD_REQUIREMENT]: data.requirement || undefined,
+    [FIELD_SUB_REQUIREMENT]: data.subRequirement || undefined,
+    [FIELD_QUANTITY_REQUIRED]: quantity,
+    [FIELD_BUDGET_PER_UNIT]: budgetPerUnit,
+    [FIELD_BUDGET_TOTAL]: totalBudget,
+    [FIELD_FUNCTION_DATE]: data.eventDate || undefined,
+    [FIELD_SPECIAL_REMARK]: data.message || undefined,
 
-    "Shagun Envelopes": "Sagun Envelopes",
-    "Shagun Envelope": "Sagun Envelopes",
-    "Premium Shagun Envelope": "Sagun Envelopes",
-    "Premium Shagun Envelopes": "Sagun Envelopes",
-    "Sagun Envelopes": "Sagun Envelopes",
-    "Sagun Envelope": "Sagun Envelopes",
-    Shagun: "Sagun Envelopes",
-    Sagun: "Sagun Envelopes",
-  };
-
-  return map[value] || value;
-}
-
-/**
- * Only send custom_sub_requirement when it matches the current Frappe CRM
- * Select field options. Otherwise do not send it, because Frappe rejects
- * invalid Select values.
- *
- * Actual selected sub requirement is still saved in enquiry details.
- */
-function normalizeSubRequirement(subRequirement: string) {
-  const value = subRequirement.trim();
-
-  const map: Record<string, string> = {
-    "Hindu Wedding Cards": "Hindu Wedding Cards",
-    "Hindu Wedding Card": "Hindu Wedding Cards",
-
-    "Bengali Wedding Cards": "Bengali Wedding Cards",
-    "Bengali Wedding Card": "Bengali Wedding Cards",
-
-    "Muslim Wedding Cards": "mushlim Wedding cards",
-    "Muslim Wedding Card": "mushlim Wedding cards",
-    "Mushlim Wedding Cards": "mushlim Wedding cards",
-    "Mushlim Wedding Card": "mushlim Wedding cards",
-    "mushlim Wedding cards": "mushlim Wedding cards",
-  };
-
-  return map[value] || "";
-}
-
-function buildEnquiryDetails(args: {
-  name: string;
-  mobile: string;
-  email: string;
-  requirement: string;
-  originalRequirement: string;
-  subRequirement: string;
-  quantity: string;
-  eventDate: string;
-  budgetPerUnit: string;
-  totalBudget: string;
-  message: string;
-}) {
-  return [
-    "Website Enquiry",
-    "",
-    `Name: ${args.name}`,
-    `Mobile: ${args.mobile}`,
-    `Email: ${args.email || "-"}`,
-    `Requirement: ${args.requirement || "-"}`,
-    `Original Requirement Selected: ${args.originalRequirement || "-"}`,
-    `Sub Requirement Selected: ${args.subRequirement || "-"}`,
-    `Quantity: ${args.quantity || "-"}`,
-    `Event Date: ${args.eventDate || "-"}`,
-    `Budget Per Unit: ${args.budgetPerUnit || "-"}`,
-    `Total Budget: ${args.totalBudget || "-"}`,
-    "",
-    "Message:",
-    args.message || "-",
-  ].join("\n");
-}
-
-async function createFrappeComment(args: {
-  leadName: string;
-  content: string;
-}) {
-  if (!erpUrl || !erpApiKey || !erpApiSecret) return;
-
-  const url = `${erpUrl.replace(/\/$/, "")}/api/resource/Comment`;
-
-  await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `token ${erpApiKey}:${erpApiSecret}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      comment_type: "Comment",
-      reference_doctype: leadDoctype,
-      reference_name: args.leadName,
-      content: args.content.replace(/\n/g, "<br />"),
-    }),
+    /**
+     * Products child table
+     */
+    [FIELD_PRODUCTS_TABLE]: products,
   });
 }
 
@@ -198,26 +138,22 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as ContactLeadPayload;
 
-    const originalRequirement = cleanText(body.requirement);
-    const originalSubRequirement = cleanText(body.subRequirement);
-
-    const normalizedRequirement = normalizeRequirement(originalRequirement);
-    const normalizedSubRequirement =
-      normalizeSubRequirement(originalSubRequirement);
-
-    const data = {
+    const data: Required<ContactLeadPayload> = {
       name: cleanText(body.name),
       mobile: cleanText(body.mobile),
       email: cleanText(body.email),
-      requirement: normalizedRequirement,
-      originalRequirement,
-      subRequirement: originalSubRequirement,
-      normalizedSubRequirement,
+      source: cleanText(body.source) || "Website",
+
+      requirement: cleanText(body.requirement),
+      subRequirement: cleanText(body.subRequirement),
       quantity: cleanText(body.quantity),
       eventDate: cleanText(body.eventDate),
       budgetPerUnit: cleanText(body.budgetPerUnit),
       totalBudget: cleanText(body.totalBudget),
       message: cleanText(body.message),
+
+      product: cleanText(body.product),
+      rate: cleanText(body.rate),
     };
 
     if (!data.name || !data.mobile) {
@@ -230,45 +166,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { firstName, lastName } = splitName(data.name);
-    const enquiryDetails = buildEnquiryDetails(data);
-
-    const leadPayload: Record<string, unknown> = removeEmpty({
-      first_name: firstName,
-      last_name: lastName,
-      lead_name: data.name,
-      email: data.email,
-      mobile_no: data.mobile,
-      phone: data.mobile,
-      status: leadStatus,
-
-      source: leadSource || undefined,
-      organization: "Website Enquiry",
-
-      [enquiryDetailsField]: enquiryDetails,
-
-      custom_requirement: data.requirement,
-
-      /**
-       * IMPORTANT:
-       * Send custom_sub_requirement only when it is one of the allowed
-       * Frappe CRM Select options.
-       *
-       * Do NOT send values like:
-       * - Premium Shagun Envelope
-       * - Rakhi Boxes
-       * - Rakhi Cards
-       *
-       * Those values are saved in custom_enquiry_details and Comment.
-       */
-      custom_sub_requirement: data.normalizedSubRequirement || undefined,
-
-      custom_quantity: toNumber(data.quantity),
-      custom_event_date: data.eventDate,
-      custom_budget_per_unit: toNumber(data.budgetPerUnit),
-      custom_total_budget: toNumber(data.totalBudget),
-      custom_message: data.message,
-    });
+    const leadPayload = buildLeadPayload(data);
 
     const url = `${erpUrl.replace(/\/$/, "")}/api/resource/${encodeURIComponent(
       leadDoctype
@@ -282,11 +180,12 @@ export async function POST(request: Request) {
         Accept: "application/json",
       },
       body: JSON.stringify(leadPayload),
+      cache: "no-store",
     });
 
     const rawText = await response.text();
 
-    let result: any = null;
+    let result: unknown = null;
 
     try {
       result = rawText ? JSON.parse(rawText) : null;
@@ -295,7 +194,7 @@ export async function POST(request: Request) {
     }
 
     if (!response.ok) {
-      console.error("Frappe CRM Lead creation failed:", {
+      console.error("Lead creation failed:", {
         status: response.status,
         statusText: response.statusText,
         doctype: leadDoctype,
@@ -307,32 +206,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Could not create lead in Frappe CRM.",
+          message: "Could not create lead in ERPNext/Frappe CRM.",
           status: response.status,
           statusText: response.statusText,
           doctype: leadDoctype,
+          sentPayload: leadPayload,
           erpError: result,
         },
         { status: response.status }
       );
     }
 
-    const createdLeadName = result?.data?.name;
-
-    if (createdLeadName) {
-      try {
-        await createFrappeComment({
-          leadName: createdLeadName,
-          content: enquiryDetails,
-        });
-      } catch (commentError) {
-        console.error("Frappe CRM Lead comment creation failed:", commentError);
-      }
-    }
-
     return NextResponse.json({
       success: true,
-      message: "Lead created successfully in Frappe CRM.",
+      message: "Lead created successfully.",
       lead: result,
     });
   } catch (error) {

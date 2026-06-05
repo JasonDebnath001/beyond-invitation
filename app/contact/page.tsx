@@ -15,9 +15,10 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <main className="bg-white">
+      {/* Hero with enquiry form visible above the fold */}
       <section className="relative overflow-hidden bg-paper">
-        <div className="mx-auto max-w-7xl px-6 py-20 sm:py-24 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-12 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-20">
+          <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-carbon">
               Contact Us
             </p>
@@ -31,12 +32,43 @@ export default function ContactPage() {
               envelopes, rakhi packaging, or a custom design, our team is here
               to help you choose the right product.
             </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href={`https://wa.me/91${phoneNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-full bg-carbon px-6 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
+              >
+                Chat on WhatsApp
+              </Link>
+
+              <Link
+                href={`tel:+91${phoneNumber}`}
+                className="inline-flex items-center justify-center rounded-full border border-carbon/20 bg-white px-6 py-3 text-sm font-semibold text-carbon transition hover:border-carbon"
+              >
+                Call Now
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-carbon/10 bg-white p-6 shadow-[0_20px_70px_rgba(62,12,23,0.12)] sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
+              Enquiry Form
+            </p>
+
+            <h2 className="mt-4 font-display text-3xl font-semibold text-ink">
+              Send us your requirement
+            </h2>
+
+            <ContactLeadForm />
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-        <div>
+      {/* Contact details */}
+      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
+        <div className="mb-10 max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
             Reach Us
           </p>
@@ -49,65 +81,49 @@ export default function ContactPage() {
             For quick product queries, catalogue assistance, custom card
             requirements, or order support, call or message us directly.
           </p>
-
-          <div className="mt-8 space-y-4">
-            <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
-                Phone
-              </p>
-
-              <Link
-                href={`tel:+91${phoneNumber}`}
-                className="mt-2 block text-xl font-semibold text-carbon transition hover:text-carbon-dark"
-              >
-                {displayPhone}
-              </Link>
-            </div>
-
-            <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
-                WhatsApp
-              </p>
-
-              <Link
-                href={`https://wa.me/91${phoneNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
-              >
-                Chat on WhatsApp
-              </Link>
-            </div>
-
-            <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
-                Email
-              </p>
-
-              <Link
-                href={`mailto:${placeholderEmail}`}
-                className="mt-2 block text-lg font-semibold text-carbon transition hover:text-carbon-dark"
-              >
-                {placeholderEmail}
-              </Link>
-
-              <p className="mt-2 text-xs text-ink-light">
-                Placeholder email — replace this when final email is ready.
-              </p>
-            </div>
-          </div>
         </div>
 
-        <div className="rounded-[2rem] border border-carbon/10 bg-paper p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
-            Enquiry Form
-          </p>
+        <div className="grid gap-5 md:grid-cols-3">
+          <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
+              Phone
+            </p>
 
-          <h2 className="mt-4 font-display text-3xl font-semibold text-ink">
-            Send us your requirement
-          </h2>
+            <Link
+              href={`tel:+91${phoneNumber}`}
+              className="mt-2 block text-xl font-semibold text-carbon transition hover:text-carbon-dark"
+            >
+              {displayPhone}
+            </Link>
+          </div>
 
-          <ContactLeadForm />
+          <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
+              WhatsApp
+            </p>
+
+            <Link
+              href={`https://wa.me/91${phoneNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
+            >
+              Chat on WhatsApp
+            </Link>
+          </div>
+
+          <div className="rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
+              Email
+            </p>
+
+            <Link
+              href={`mailto:${placeholderEmail}`}
+              className="mt-2 block text-lg font-semibold text-carbon transition hover:text-carbon-dark"
+            >
+              {placeholderEmail}
+            </Link>
+          </div>
         </div>
       </section>
     </main>

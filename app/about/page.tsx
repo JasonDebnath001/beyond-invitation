@@ -7,40 +7,40 @@ import { BRAND, TAGLINE } from "@/components/siteConfig";
 export const metadata: Metadata = {
   title: `About Us | ${BRAND}`,
   description:
-    "Learn about Beyond Invitation, a Kolkata-based wedding invitation brand crafting premium wedding cards, shagun envelopes, Rakhi packaging and celebration stationery.",
+    "Learn about Beyond Invitation, a brand of Bharat Agency Wedding Cards Pvt. Ltd., carrying a 65+ year legacy in wedding cards, shagun envelopes, Rakhi packaging and celebration stationery.",
 };
 
 const highlights = [
-  { value: "10+", label: "Years of Experience" },
-  { value: "600+", label: "Celebrations Served" },
-  { value: "Premium", label: "Design & Print Finish" },
-  { value: "Kolkata", label: "Based Wedding Card Studio" },
+  { value: "65+", label: "Years of Legacy" },
+  { value: "3", label: "Celebrations Categories" },
+  { value: "Premium", label: "Cards, Envelopes & Packaging" },
+  { value: "Kolkata", label: "Based Wedding Card House" },
 ];
 
 const values = [
   {
     no: "01",
-    title: "Designs with emotion",
-    text: "Every card is planned to feel personal — from traditional wedding themes to modern minimal layouts, each invitation is made to match the story of the celebration.",
+    title: "A legacy built on trust",
+    text: "Beyond Invitation is the brand of Bharat Agency Wedding Cards Pvt. Ltd., a company that has been around for more than 65 years and has served families through generations of celebrations.",
   },
   {
     no: "02",
-    title: "Quality you can feel",
-    text: "We focus on paper, print clarity, finishing and presentation so the invitation feels premium in hand and memorable for every guest.",
+    title: "From greetings to weddings",
+    text: "The journey started with greeting cards and gradually expanded into wedding cards, carrying forward the same warmth, care and personal touch that made every message feel special.",
   },
   {
     no: "03",
-    title: "Guidance at every step",
-    text: "From choosing a design to final correction and delivery, our team helps customers make confident decisions without confusion.",
+    title: "Tradition with new ideas",
+    text: "Today, the company offers wedding cards, shagun envelopes, Rakhi packaging and boxes, blending decades of experience with designs made for modern Indian celebrations.",
   },
 ];
 
 const services = [
-  "Wedding Invitation Cards",
+  "Wedding Cards",
   "Designer Wedding Cards",
-  "Digital Wedding Invitations",
   "Shagun / Money Envelopes",
-  "Rakhi Cards & Packaging",
+  "Rakhi Packaging",
+  "Rakhi Boxes",
   "Special Occasion Cards",
 ];
 
@@ -80,15 +80,16 @@ export default function AboutPage() {
             </p>
 
             <h1 className="font-display text-4xl leading-[1.08] text-carbon sm:text-5xl lg:text-6xl">
-              Invitations that leave a lasting impression.
+              Invitations that carry a legacy.
             </h1>
 
             <p className="mt-6 text-base leading-8 text-ink-mid sm:text-lg">
-              {BRAND} is a wedding invitation and celebration stationery brand
-              from Kolkata, creating cards that blend tradition, elegance and
-              thoughtful modern design. From grand wedding cards to shagun
-              envelopes and festive packaging, we help every celebration begin
-              beautifully.
+              {BRAND} is the brand of Bharat Agency Wedding Cards Pvt. Ltd.,
+              a company with a legacy of over 65 years. What started as a
+              greeting card business gradually grew into a trusted wedding card
+              house, and today we create wedding cards, shagun envelopes, Rakhi
+              packaging and boxes for celebrations that deserve a beautiful
+              beginning.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -117,8 +118,9 @@ export default function AboutPage() {
 
                 <div className="my-8 border-y border-white/15 py-8 sm:my-10 sm:py-10">
                   <p className="font-serif text-3xl leading-snug sm:text-4xl">
-                    “A wedding begins before the first ceremony — it begins with
-                    the invitation.”
+                    “A legacy that began with greetings now helps families
+                    celebrate weddings, festivals and special moments
+                    beautifully.”
                   </p>
                 </div>
 
@@ -147,18 +149,22 @@ export default function AboutPage() {
       <section className="px-6 py-16 md:px-10 lg:py-24">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
-            Beyond ordinary invitations
+            A legacy beyond ordinary invitations
           </p>
 
           <h2 className="mx-auto mt-4 max-w-4xl font-display text-3xl leading-tight text-carbon sm:text-4xl lg:text-5xl">
-            We create the first impression of your celebration.
+            From greeting cards to wedding cards, our story has always been
+            about celebrations.
           </h2>
 
           <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-ink-mid sm:text-lg">
-            At {BRAND}, the invitation is not treated as just paper. It is the
-            first glimpse of the event, the tone of the occasion and often a
-            keepsake for the family. Our work brings together cultural details,
-            premium finishes, practical budgets and personal service.
+            Beyond Invitation carries forward the heritage of Bharat Agency
+            Wedding Cards Pvt. Ltd., a name that has been around for more than
+            six decades. Over the years, the company expanded from greeting
+            cards into wedding cards, and then into celebration essentials like
+            shagun envelopes, Rakhi packaging and boxes. Every product we make
+            is rooted in experience, trust and the joy of helping families mark
+            important moments.
           </p>
         </div>
       </section>
@@ -172,7 +178,7 @@ export default function AboutPage() {
             </p>
 
             <h2 className="mt-4 font-display text-3xl leading-tight text-carbon sm:text-4xl lg:text-5xl">
-              Crafted with care, guided with clarity.
+              Built on heritage, crafted for today.
             </h2>
           </div>
 
@@ -212,9 +218,10 @@ export default function AboutPage() {
             </h2>
 
             <p className="mt-5 leading-8 text-ink-mid">
-              Whether you are planning a traditional wedding, a refined modern
-              celebration, a festive Rakhi collection or a gifting presentation,
-              our catalog is built to offer both variety and elegance.
+              From wedding cards that announce a new beginning to shagun
+              envelopes and Rakhi packaging that complete festive gifting, our
+              collections are designed to bring elegance, tradition and
+              presentation together.
             </p>
 
             <Link
@@ -304,7 +311,6 @@ export default function AboutPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-carbon">
                     Location
                   </p>
-
                   <p className="mt-3 leading-7 text-ink-mid">
                     8, Jackson Lane, Canning Street, Kolkata - 700001
                   </p>
@@ -318,7 +324,7 @@ export default function AboutPage() {
                   <p className="mt-3 leading-7 text-ink-mid">
                     WhatsApp: +91 7044815488
                     <br />
-                    Email: sales@beyondinvitation.com
+                    Email: contact@khushionline.net
                   </p>
                 </div>
               </div>
@@ -354,8 +360,8 @@ export default function AboutPage() {
 
                 <div className="mt-16">
                   <p className="font-serif text-3xl leading-tight text-carbon sm:text-4xl">
-                    Wedding cards, envelopes and festive packaging designed to
-                    feel personal.
+                    Wedding cards, shagun envelopes and Rakhi packaging backed
+                    by a 65+ year legacy.
                   </p>
 
                   <div className="mt-8 h-px bg-carbon/10" />

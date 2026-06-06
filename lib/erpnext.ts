@@ -417,12 +417,23 @@ function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
 
   const urls: string[] = [];
 
-  const looksLikeImage = (v: unknown) =>
-    typeof v === "string" &&
-    (/\.(jpe?g|png|webp|gif)$/i.test(v) ||
-      v.startsWith("/files/") ||
-      v.startsWith("/private/files/") ||
-      v.startsWith("http"));
+const looksLikeImage = (v: unknown) => {
+  if (typeof v !== "string") return false;
+
+  const value = v.trim();
+  if (!value) return false;
+
+  // Do not allow videos to be collected as gallery images.
+  if (looksLikeVideoUrl(value)) return false;
+
+  const cleanPath = value.split("?")[0].toLowerCase();
+
+  return (
+    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
+    value.startsWith("/files/") ||
+    value.startsWith("/private/files/")
+  );
+};
 
   const push = (v: unknown) => {
     if (!looksLikeImage(v)) return;

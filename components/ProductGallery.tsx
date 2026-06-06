@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 interface ProductGalleryProps {
   images: string[];
@@ -20,21 +20,28 @@ type GalleryItem =
       src: string;
     };
 
-/** Resolve an image reference to a usable src: ERP URL or local /products file. */
+/**
+ * Resolve an image reference to a usable src:
+ * ERP URL or local /products file.
+ */
 function getImageSrc(img: string) {
   if (!img) return "";
 
-  if (img.startsWith("http://") || img.startsWith("https://")) return img;
+  const value = img.trim();
+  if (!value) return "";
 
-  if (img.startsWith("/files/") || img.startsWith("/private/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-
-    return erpUrl ? `${erpUrl}${img}` : img;
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
   }
 
-  if (img.startsWith("/")) return img;
+  if (value.startsWith("/files/") || value.startsWith("/private/files/")) {
+    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
+    return erpUrl ? `${erpUrl}${value}` : value;
+  }
 
-  return `/products/${img}`;
+  if (value.startsWith("/")) return value;
+
+  return `/products/${value}`;
 }
 
 function isYoutubeUrl(src: string) {
@@ -53,13 +60,11 @@ function toYoutubeEmbedUrl(src: string) {
     if (url.hostname.includes("youtube.com")) {
       if (url.pathname === "/watch") {
         const id = url.searchParams.get("v");
-
         return id ? `https://www.youtube.com/embed/${id}` : src;
       }
 
       if (url.pathname.startsWith("/shorts/")) {
         const id = url.pathname.split("/")[2];
-
         return id ? `https://www.youtube.com/embed/${id}` : src;
       }
 
@@ -70,7 +75,6 @@ function toYoutubeEmbedUrl(src: string) {
 
     if (url.hostname === "youtu.be") {
       const id = url.pathname.replace("/", "");
-
       return id ? `https://www.youtube.com/embed/${id}` : src;
     }
 
@@ -94,7 +98,6 @@ function toVimeoEmbedUrl(src: string) {
 
     if (url.hostname.includes("vimeo.com")) {
       const id = url.pathname.split("/").filter(Boolean)[0];
-
       return id ? `https://player.vimeo.com/video/${id}` : src;
     }
 
@@ -107,7 +110,6 @@ function toVimeoEmbedUrl(src: string) {
 function getVideoSrc(src: string) {
   if (isYoutubeUrl(src)) return toYoutubeEmbedUrl(src);
   if (isVimeoUrl(src)) return toVimeoEmbedUrl(src);
-
   return src;
 }
 
@@ -122,6 +124,42 @@ function isDirectVideo(src: string) {
   return /\.(mp4|webm|ogg|mov)$/i.test(src.split("?")[0]);
 }
 
+function isVideoLikeUrl(src: string) {
+  return (
+    isYoutubeUrl(src) ||
+    isVimeoUrl(src) ||
+    isDirectVideo(src)
+  );
+}
+
+function isImageLikeUrl(src: string) {
+  const value = src.trim();
+  if (!value) return false;
+
+  // Important: prevent YouTube/Vimeo/video URLs from becoming blank images.
+  if (isVideoLikeUrl(value)) return false;
+
+  const cleanPath = value.split("?")[0].toLowerCase();
+
+  return (
+    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
+    value.startsWith("/files/") ||
+    value.startsWith("/private/files/") ||
+    value.startsWith("/") ||
+    !value.startsWith("http")
+  );
+}
+
+function cleanMediaList(list: string[]) {
+  return Array.from(
+    new Set(
+      list
+        .map((src) => src?.trim())
+        .filter((src): src is string => Boolean(src)),
+    ),
+  );
+}
+
 function withAutoplayParams(src: string) {
   try {
     const url = new URL(src);
@@ -131,7 +169,11 @@ function withAutoplayParams(src: string) {
     url.searchParams.set("playsinline", "1");
     return url.toString();
   } catch {
-    return src + (src.includes("?") ? "&" : "?") + "autoplay=1&mute=1&playsinline=1";
+    return (
+      src +
+      (src.includes("?") ? "&" : "?") +
+      "autoplay=1&mute=1&playsinline=1"
+    );
   }
 }
 
@@ -154,10 +196,17 @@ export default function ProductGallery({
   alt,
   badge,
 }: ProductGalleryProps) {
-  const media: GalleryItem[] = [
-    ...images.map((src) => ({ type: "image" as const, src })),
-    ...videos.map((src) => ({ type: "video" as const, src })),
-  ];
+  const media: GalleryItem[] = useMemo(() => {
+    const cleanImages = cleanMediaList(images).filter(isImageLikeUrl);
+    const cleanVideos = cleanMediaList(videos).filter((src) =>
+      isVideoLikeUrl(src),
+    );
+
+    return [
+      ...cleanImages.map((src) => ({ type: "image" as const, src })),
+      ...cleanVideos.map((src) => ({ type: "video" as const, src })),
+    ];
+  }, [images, videos]);
 
   const [active, setActive] = useState(0);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
@@ -172,7 +221,7 @@ export default function ProductGallery({
 
   const total = media.length;
   const hasMedia = total > 0;
-  const activeItem = hasMedia ? media[active] : null;
+  const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
 
   const activeSrc =
     activeItem?.type === "image"
@@ -191,7 +240,7 @@ export default function ProductGallery({
     [total],
   );
 
-  function onKeyDown(e: React.KeyboardEvent) {
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       go(-1);
@@ -235,6 +284,7 @@ export default function ProductGallery({
 
     const containerWidth = rect.width;
     const containerHeight = rect.height;
+
     const imageAspect = imageSize.width / imageSize.height;
     const containerAspect = containerWidth / containerHeight;
 
@@ -255,6 +305,7 @@ export default function ProductGallery({
 
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+
     const imageX = mouseX - offsetX;
     const imageY = mouseY - offsetY;
 
@@ -285,17 +336,16 @@ export default function ProductGallery({
   }
 
   return (
-    <div
-      className="space-y-4"
-      tabIndex={0}
-      onKeyDown={onKeyDown}
-      aria-label="Product media gallery"
-    >
+    <div className="space-y-4">
       <div
         ref={stageRef}
+        role="region"
+        tabIndex={0}
+        aria-label={`${alt} media gallery`}
+        onKeyDown={onKeyDown}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="group relative aspect-square overflow-hidden rounded-[2rem] border border-gold/20 bg-white shadow-soft"
+        className="group relative aspect-square overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-card outline-none"
       >
         {hasMedia && activeItem ? (
           <>
@@ -309,7 +359,9 @@ export default function ProductGallery({
                 <img
                   src={activeSrc}
                   alt={alt}
-                  onLoad={(event) => saveImageSize(active, event.currentTarget)}
+                  onLoad={(event) =>
+                    saveImageSize(active, event.currentTarget)
+                  }
                   onError={() => markFailed(active)}
                   className="h-full w-full object-contain p-3"
                 />
@@ -318,28 +370,30 @@ export default function ProductGallery({
               <iframe
                 src={withAutoplayParams(activeSrc)}
                 title={`${alt} video`}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
+                className="h-full w-full"
               />
             ) : isDirectVideo(activeSrc) ? (
               <video
                 src={activeSrc}
                 controls
-                playsInline
                 autoPlay
                 muted
-                className="h-full w-full bg-black object-contain"
+                playsInline
+                className="h-full w-full object-contain bg-black"
               />
             ) : (
-              <a
-                href={activeSrc}
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-full w-full items-center justify-center p-8 text-center text-sm font-semibold text-carbon underline"
-              >
-                Open product video
-              </a>
+              <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
+                <a
+                  href={activeSrc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-carbon"
+                >
+                  Open product video
+                </a>
+              </div>
             )}
           </>
         ) : (
@@ -353,21 +407,21 @@ export default function ProductGallery({
           activeSrc &&
           !failed[active] && (
             <div
-              className="pointer-events-none absolute inset-0 z-20 hidden bg-white bg-no-repeat md:block"
+              className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] bg-no-repeat md:block"
               style={{
                 backgroundImage: `url(${activeSrc})`,
                 backgroundSize: `${ZOOM_SCALE * 100}%`,
                 backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
               }}
             >
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs text-white">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
                 Move mouse to zoom
-              </span>
+              </div>
             </div>
           )}
 
         {badge && (
-          <span className="absolute left-4 top-4 z-30 rounded-full bg-gold px-4 py-1 text-xs font-bold uppercase tracking-[0.2em] text-carbon">
+          <span className="absolute left-5 top-5 z-30 rounded-full bg-gold px-4 py-2 text-xs font-bold uppercase tracking-[0.3em] text-white">
             {badge}
           </span>
         )}
@@ -392,7 +446,7 @@ export default function ProductGallery({
               →
             </button>
 
-            <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow-sm">
+            <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
               {active + 1} / {total}
             </span>
           </>
@@ -400,7 +454,7 @@ export default function ProductGallery({
       </div>
 
       {total > 1 && (
-        <div className="grid grid-flow-col auto-cols-[theme(spacing.14)] gap-3 overflow-x-auto pb-2 sm:auto-cols-[70px] lg:grid-flow-row lg:grid-cols-5 lg:overflow-visible lg:pb-0">
+        <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5">
           {media.map((item, i) => {
             const isActive = i === active;
             const src =
@@ -425,11 +479,11 @@ export default function ProductGallery({
                 }`}
               >
                 {item.type === "video" ? (
-                  <div className="flex h-full w-full items-center justify-center bg-carbon text-lg text-white">
+                  <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
                     ▶
                   </div>
                 ) : failed[i] || !src ? (
-                  <div className="flex h-full w-full items-center justify-center text-xl">
+                  <div className="flex h-full w-full items-center justify-center text-lg">
                     {emoji}
                   </div>
                 ) : (

@@ -111,7 +111,7 @@ export function Hero() {
 }
 
 
-/** Shop by Category carousel. */
+/** Shop by Category section. */
 export function CelebrationGrid({
   categories: _categories,
 }: {
@@ -161,35 +161,31 @@ export function CelebrationGrid({
   ];
 
   return (
-    <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <SectionHeading eyebrow="Explore our range" title="Shop by Category" />
+    <section className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-20 lg:py-24">
+      <SectionHeading eyebrow="Browse by event" title="Shop by Category" />
 
-        <div className="flex gap-6 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {categoryItems.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/collections/${cat.slug}`}
-              className="group min-w-[180px] text-center sm:min-w-[220px]"
-            >
-              <div className="mx-auto flex h-44 w-44 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 p-2 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl sm:h-48 sm:w-48">
-                <div className="relative h-full w-full overflow-hidden rounded-full">
-                  <Image
-                    src={cat.image}
-                    alt={cat.name}
-                    fill
-                    sizes="220px"
-                    className="object-cover transition duration-500 group-hover:scale-110"
-                  />
-                </div>
-              </div>
+      <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-4 md:mt-12 md:grid-cols-4 md:gap-8 lg:grid-cols-8 lg:gap-6">
+        {categoryItems.map((cat) => (
+          <Link
+            key={cat.slug}
+            href={`/collections/${cat.slug}`}
+            className="group flex flex-col items-center text-center"
+          >
+            <div className="relative h-16 w-16 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-neutral-200 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-lg md:h-32 md:w-32 lg:h-36 lg:w-36">
+              <Image
+                src={cat.image}
+                alt={cat.name}
+                fill
+                sizes="(max-width: 768px) 64px, (max-width: 1024px) 128px, 144px"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
 
-              <h3 className="mt-4 text-sm font-semibold text-stone-900 sm:text-base">
-                {cat.name}
-              </h3>
-            </Link>
-          ))}
-        </div>
+            <h3 className="mt-2 max-w-[74px] text-[9px] font-medium uppercase leading-tight tracking-[0.04em] text-carbon md:mt-4 md:max-w-[150px] md:text-[12px] md:tracking-[0.1em]">
+              {cat.name}
+            </h3>
+          </Link>
+        ))}
       </div>
     </section>
   );

@@ -24,9 +24,9 @@ const navMenu: NavItem[] = [
     label: "Wedding Card",
     href: "/collections/wedding-card",
     dropdown: [
-      { label: "Hindu", href: "/collections/wedding-card-hindu" },
-      { label: "Muslim", href: "/collections/wedding-card-muslim" },
-      { label: "Christian", href: "/collections/wedding-card-christian" },
+      { label: "Hindu Wedding Cards", href: "/collections/wedding-card-hindu" },
+      { label: "Muslim Wedding Cards", href: "/collections/wedding-card-muslim" },
+      { label: "Christian Wedding Cards", href: "/collections/wedding-card-christian" },
     ],
   },
   { label: "Shagun Envelopes", href: "/collections/shagun-envelopes" },

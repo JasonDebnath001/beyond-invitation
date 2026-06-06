@@ -1,10 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -26,9 +23,9 @@ const config: Config = {
         paper: "#FBF7F1",
       },
       fontFamily: {
-        display: ['"Playfair Display"', "serif"],
-        body: ['"DM Sans"', "sans-serif"],
-        serif: ['"Cormorant Garamond"', "serif"],
+        display: ["var(--font-assistant)", "sans-serif"],
+        body: ["var(--font-assistant)", "sans-serif"],
+        serif: ["var(--font-assistant)", "sans-serif"],
       },
       keyframes: {
         fadeDown: {

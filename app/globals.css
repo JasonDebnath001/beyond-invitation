@@ -3,9 +3,19 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-white font-body text-ink antialiased;
+  html {
+    font-family: var(--font-assistant), sans-serif;
   }
+
+  body {
+    @apply bg-white text-ink antialiased;
+    font-family: var(--font-assistant), sans-serif;
+  }
+
+  * {
+    font-family: var(--font-assistant), sans-serif;
+  }
+
   ::selection {
     @apply bg-carbon text-white;
   }

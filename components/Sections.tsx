@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Category } from "@/types";
+
+import { ProductSection } from "@/components/ProductGrid";
+import type { Category, Product } from "@/types";
 
 /* ------------------------------------------------------------------ */
 /* Shared building blocks */
@@ -10,7 +12,7 @@ import type { Category } from "@/types";
 /** Tracked-out uppercase eyebrow label used above section titles. */
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-gold">
+    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-700">
       {children}
     </p>
   );
@@ -27,15 +29,19 @@ function SectionHeading({
   align?: "center" | "left";
 }) {
   return (
-    <div className={align === "center" ? "text-center" : "text-left"}>
+    <div
+      className={`mb-10 ${
+        align === "center" ? "text-center" : "text-left"
+      }`}
+    >
       <Eyebrow>{eyebrow}</Eyebrow>
 
-      <h2 className="font-serif text-3xl text-carbon md:text-4xl">
+      <h2 className="mt-3 font-serif text-3xl text-stone-950 sm:text-4xl md:text-5xl">
         {title}
       </h2>
 
       <div
-        className={`mt-5 h-px w-24 bg-gold ${
+        className={`mt-5 h-px w-24 bg-amber-700/40 ${
           align === "center" ? "mx-auto" : ""
         }`}
       />
@@ -57,48 +63,47 @@ export function Hero() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-cream py-24 md:py-32">
-      <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 md:grid-cols-2">
+    <section className="relative overflow-hidden bg-stone-950 px-4 py-24 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
-          <Eyebrow>New Collection 2025</Eyebrow>
+          <Eyebrow>New Collection 2026</Eyebrow>
 
-          <h1 className="font-serif text-5xl leading-tight text-carbon md:text-7xl">
+          <h1 className="mt-5 max-w-3xl font-serif text-4xl leading-tight sm:text-5xl md:text-6xl">
             Beautiful wedding invitations for every occasion
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg leading-8 text-neutral-600">
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-300">
             Handcrafted with intention — from the understated to the opulent,
             find the card that speaks your heart.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
-              href="/collections/wedding-cards"
-              className="rounded-full bg-carbon px-7 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-gold"
+              href="/collections/wedding"
+              className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-stone-950 transition hover:bg-amber-100"
             >
               Explore Collection →
             </Link>
 
             <Link
               href="/collections/luxe"
-              className="rounded-full border border-carbon px-7 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-carbon transition hover:border-gold hover:text-gold"
+              className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-stone-950"
             >
               View Luxe Range
             </Link>
           </div>
         </div>
 
-        <div className="rounded-[2rem] bg-white p-8 shadow-sm">
-          <div className="grid grid-cols-2 gap-6">
-            {stats.map((s) => (
-              <div key={s.label} className="border-l border-gold pl-4">
-                <p className="font-serif text-3xl text-carbon">{s.num}</p>
-                <p className="mt-1 text-sm uppercase tracking-[0.18em] text-neutral-500">
-                  {s.label}
-                </p>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          {stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+            >
+              <p className="font-serif text-3xl text-white">{s.num}</p>
+              <p className="mt-2 text-sm text-stone-300">{s.label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -108,11 +113,14 @@ export function Hero() {
 /** Editorial brand statement band. */
 export function BrandStatement() {
   return (
-    <section className="bg-carbon px-6 py-14 text-center">
-      <p className="mx-auto max-w-4xl font-serif text-2xl leading-relaxed text-cream md:text-3xl">
-        An invitation is the first impression of a celebration. We make it one
-        worth keeping — printed on the finest paper, finished entirely by hand.
-      </p>
+    <section className="bg-[#f8f2ea] px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl text-center">
+        <p className="font-serif text-2xl leading-relaxed text-stone-900 sm:text-3xl">
+          An invitation is the first impression of a celebration. We make it one
+          worth keeping — printed on the finest paper, finished entirely by
+          hand.
+        </p>
+      </div>
     </section>
   );
 }
@@ -167,45 +175,69 @@ export function CelebrationGrid({
   ];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-white via-[#fffaf4] to-white py-20 md:py-24">
-      <div className="pointer-events-none absolute left-0 top-16 h-56 w-56 rounded-full bg-[#d4af37]/10 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-10 right-0 h-64 w-64 rounded-full bg-[#7a1f1f]/10 blur-3xl" />
+    <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <SectionHeading eyebrow="Explore our range" title="Shop by Category" />
 
-      <div className="relative w-full px-6">
-        <SectionHeading eyebrow="Curated collections" title="Shop by Category" />
-
-        <div className="mt-12 overflow-x-auto pb-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex snap-x snap-mandatory gap-6 md:gap-8">
-            {categoryItems.map((cat) => (
-              <div
-                key={cat.slug}
-                className="group min-w-[155px] snap-start text-center sm:min-w-[175px] md:min-w-[190px]"
-              >
-                <Link
-                  href={`/collections/${cat.slug}`}
-                  aria-label={`View ${cat.name} collection`}
-                  className="relative mx-auto inline-block h-36 w-36 rounded-full bg-white p-2 shadow-[0_18px_50px_rgba(0,0,0,0.08)] ring-1 ring-neutral-200 transition duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_24px_70px_rgba(122,31,31,0.18)] sm:h-40 sm:w-40 md:h-44 md:w-44"
-                >
-                  <div className="absolute inset-1 rounded-full border border-dashed border-[#d4af37]/50" />
-
-                  <div className="relative h-full w-full overflow-hidden rounded-full bg-neutral-100">
-                    <Image
-                      src={cat.image}
-                      alt={cat.name}
-                      fill
-                      sizes="(max-width: 640px) 144px, (max-width: 768px) 160px, 176px"
-                      className="object-cover transition duration-700 group-hover:scale-110"
-                    />
-                  </div>
-                </Link>
-
-                {/* labels removed: image contains category name visually */}
+        <div className="flex gap-6 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categoryItems.map((cat) => (
+            <Link
+              key={cat.slug}
+              href={`/collections/${cat.slug}`}
+              className="group min-w-[150px] text-center sm:min-w-[180px]"
+            >
+              <div className="mx-auto flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 p-2 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl sm:h-40 sm:w-40">
+                <div className="relative h-full w-full overflow-hidden rounded-full">
+                  <Image
+                    src={cat.image}
+                    alt={cat.name}
+                    fill
+                    sizes="180px"
+                    className="object-cover transition duration-500 group-hover:scale-110"
+                  />
+                </div>
               </div>
-            ))}
-          </div>
+
+              <h3 className="mt-4 text-sm font-semibold text-stone-900 sm:text-base">
+                {cat.name}
+              </h3>
+            </Link>
+          ))}
         </div>
       </div>
     </section>
+  );
+}
+
+/** Sale collection section.
+ *
+ * Only this section creates sale pricing:
+ * - price = original ERP price
+ * - mrp = 20% increased price, shown as strikethrough
+ */
+export function SaleCollection({ products }: { products: Product[] }) {
+  const saleProducts: Product[] = products.map((product) => {
+    const originalPrice = Number(product.price || 0);
+    const increasedMrp = Math.ceil(originalPrice * 1.2);
+
+    return {
+      ...product,
+      price: originalPrice,
+      mrp: increasedMrp,
+      badge: "SALE",
+      onSale: true,
+    };
+  });
+
+  return (
+    <ProductSection
+      label="Limited time offer"
+      title="Sale Collection"
+      products={saleProducts}
+      viewAllHref="/collections/wedding"
+      viewAllText="View All Sale Products"
+      shaded
+    />
   );
 }
 
@@ -219,22 +251,17 @@ export function FeatureStrip() {
   ];
 
   return (
-    <section className="bg-white px-6 py-12">
-      <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-4">
+    <section className="bg-stone-950 px-4 py-12 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((it, i) => (
-          <div
-            key={it.title}
-            className="rounded-3xl border border-neutral-200 bg-cream p-6"
-          >
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">
+          <div key={it.title} className="rounded-3xl border border-white/10 p-6">
+            <p className="text-xs font-semibold tracking-[0.3em] text-amber-400">
               0{i + 1}
             </p>
 
-            <h3 className="mt-4 font-serif text-2xl text-carbon">
-              {it.title}
-            </h3>
+            <h3 className="mt-4 font-serif text-2xl">{it.title}</h3>
 
-            <p className="mt-2 text-sm text-neutral-600">{it.sub}</p>
+            <p className="mt-2 text-sm text-stone-300">{it.sub}</p>
           </div>
         ))}
       </div>
@@ -263,23 +290,23 @@ export function WhyUs() {
   ];
 
   return (
-    <section className="bg-cream px-6 py-20 md:py-24">
+    <section className="bg-white px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <SectionHeading eyebrow="Why choose us" title="The Beyond Invitation Promise" />
+        <SectionHeading eyebrow="Why choose us" title="Made for Moments" />
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3">
           {cards.map((c) => (
             <div
               key={c.no}
-              className="rounded-[2rem] bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              className="rounded-[2rem] border border-stone-200 bg-[#fbf7f0] p-8"
             >
-              <p className="font-serif text-5xl text-gold">{c.no}</p>
+              <p className="font-serif text-4xl text-amber-700/50">{c.no}</p>
 
-              <h3 className="mt-6 font-serif text-2xl text-carbon">
+              <h3 className="mt-6 font-serif text-2xl text-stone-950">
                 {c.title}
               </h3>
 
-              <p className="mt-4 leading-7 text-neutral-600">{c.text}</p>
+              <p className="mt-4 leading-7 text-stone-600">{c.text}</p>
             </div>
           ))}
         </div>
@@ -309,27 +336,24 @@ export function Testimonials() {
   ];
 
   return (
-    <section className="bg-white px-6 py-20 md:py-24">
+    <section className="bg-[#f8f2ea] px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <SectionHeading eyebrow="Client words" title="Loved by families across India" />
+        <SectionHeading eyebrow="Loved by families" title="Kind Words" />
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3">
           {reviews.map((r) => (
-            <article
-              key={r.author}
-              className="rounded-[2rem] border border-neutral-200 p-8"
-            >
-              <p className="text-gold">★★★★★</p>
+            <div key={r.author} className="rounded-[2rem] bg-white p-8 shadow-sm">
+              <p className="text-sm tracking-[0.2em] text-amber-600">★★★★★</p>
 
-              <blockquote className="mt-5 leading-7 text-neutral-700">
+              <blockquote className="mt-5 leading-8 text-stone-700">
                 “{r.text}”
               </blockquote>
 
               <div className="mt-6">
-                <p className="font-semibold text-carbon">{r.author}</p>
-                <p className="text-sm text-neutral-500">{r.location}</p>
+                <p className="font-semibold text-stone-950">{r.author}</p>
+                <p className="text-sm text-stone-500">{r.location}</p>
               </div>
-            </article>
+            </div>
           ))}
         </div>
       </div>
@@ -347,17 +371,12 @@ export function Milestones() {
   ];
 
   return (
-    <section className="bg-carbon px-6 py-16">
-      <div className="mx-auto grid max-w-7xl gap-8 text-center md:grid-cols-4">
+    <section className="bg-stone-950 px-4 py-16 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((it) => (
-          <div key={it.label}>
-            <p className="font-serif text-4xl text-gold md:text-5xl">
-              {it.num}
-            </p>
-
-            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.25em] text-cream">
-              {it.label}
-            </p>
+          <div key={it.label} className="text-center">
+            <p className="font-serif text-4xl text-white">{it.num}</p>
+            <p className="mt-2 text-sm text-stone-300">{it.label}</p>
           </div>
         ))}
       </div>

@@ -2,7 +2,9 @@ import { getAllCategories } from "@/lib/products";
 import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 
 import {
+  BrandStatement,
   CelebrationGrid,
+  SaleCollection,
   FeatureStrip,
   WhyUs,
   Testimonials,
@@ -13,6 +15,23 @@ import { ProductSection } from "@/components/ProductGrid";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+function getNormalProducts(products: ErpProduct[]): ErpProduct[] {
+  return products.map((product) => {
+    const originalPrice = Number(product.price || 0);
+
+    return {
+      ...product,
+
+      // Normal product sections should NOT show the sale strikethrough.
+      mrp: originalPrice,
+
+      // Remove sale-only display from normal sections.
+      badge: product.badge === "SALE" ? undefined : product.badge,
+      onSale: false,
+    };
+  });
+}
 
 export default async function HomePage() {
   const categories = await getAllCategories();
@@ -31,9 +50,13 @@ export default async function HomePage() {
         : "Unknown ERPNext product fetch error";
   }
 
+  const normalProducts = getNormalProducts(erpProducts);
+
   return (
     <>
       <HeroCarousel />
+
+      <BrandStatement />
 
       <CelebrationGrid categories={categories} />
 
@@ -55,10 +78,12 @@ export default async function HomePage() {
         </section>
       ) : (
         <>
+          <SaleCollection products={erpProducts} />
+
           <ProductSection
             label="Fresh from our catalogue"
             title="Trendy Collection"
-            products={erpProducts}
+            products={normalProducts}
             viewAllHref="/collections/wedding"
             viewAllText="View All Products"
           />
@@ -68,7 +93,7 @@ export default async function HomePage() {
           <ProductSection
             label="Exclusive & elegant"
             title="Premium Invitations"
-            products={erpProducts}
+            products={normalProducts}
             viewAllHref="/collections/luxe"
             viewAllText="View All Premium Cards"
             shaded
@@ -79,7 +104,6 @@ export default async function HomePage() {
       <WhyUs />
 
       <Testimonials />
-
     </>
   );
 }

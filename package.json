@@ -11,6 +11,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",
     "isomorphic-dompurify": "^2.0.2",
+    "lucide-react": "^1.17.0",
     "next": "^15.5.18",
     "razorpay": "^2.9.6",
     "react": "^19.2.6",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
 
 import CartButton from "./CartButton";
@@ -67,6 +68,7 @@ const navMenu: NavItem[] = [
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useUser();
+  const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(
@@ -87,6 +89,11 @@ export default function Navbar() {
   }, []);
 
   const closeMobile = () => setMobileOpen(false);
+
+  useEffect(() => {
+    setMobileOpen(false);
+    setActiveDropdownIndex(null);
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 backdrop-blur">
@@ -267,7 +274,7 @@ export default function Navbar() {
                 </div>
               ))}
 
-              <div className="rounded-2xl bg-paper/60 p-3">
+              <div className="rounded-2xl bg-paper/60 p-3" onClick={closeMobile}>
                 <WishlistNavLink />
               </div>
             </nav>

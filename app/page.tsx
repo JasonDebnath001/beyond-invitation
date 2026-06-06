@@ -7,6 +7,7 @@ import {
   FeatureStrip,
   WhyUs,
   Testimonials,
+  OurShowroom,
 } from "@/components/Sections";
 
 import HeroCarousel from "@/components/HeroCarousel";
@@ -99,6 +100,8 @@ export default async function HomePage() {
       )}
 
       <WhyUs />
+
+      <OurShowroom />
 
       <Testimonials />
     </>

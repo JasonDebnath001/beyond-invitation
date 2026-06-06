@@ -365,3 +365,65 @@ export function Milestones() {
     </section>
   );
 }
+
+export function OurShowroom() {
+  const address =
+    "Shop No. 8, Indra Kumar Karnani St, China Bazar, B.B.D. Bagh, Kolkata, West Bengal 700001";
+
+  return (
+    <section className="bg-white px-6 py-16 sm:px-10 lg:px-16">
+      <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+        {/* Left Side: Address */}
+        <div>
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-gold">
+            Visit Us
+          </p>
+
+          <h2 className="mb-8 font-serif text-4xl font-semibold uppercase tracking-[0.08em] text-carbon sm:text-5xl">
+            Our Showroom
+          </h2>
+
+          <div className="border-y border-carbon/15 py-6">
+            <div className="flex gap-4">
+              <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold/10 text-xl">
+                📍
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-lg font-semibold text-carbon">
+                  Kolkata, West Bengal
+                </h3>
+
+                <p className="max-w-xl text-base leading-8 text-carbon/70">
+                  {address}
+                </p>
+
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    address,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 inline-flex rounded-full bg-carbon px-6 py-3 text-sm font-bold uppercase tracking-[0.22em] text-white transition hover:bg-gold"
+                >
+                  View on Maps
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Showroom Image */}
+        <div className="relative overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-card">
+          <Image
+            src="/showroom.jpeg"
+            alt="Beyond Invitation Kolkata showroom"
+            width={800}
+            height={500}
+            className="h-[320px] w-full object-cover sm:h-[420px] lg:h-[460px]"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}

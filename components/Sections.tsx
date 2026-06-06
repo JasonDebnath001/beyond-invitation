@@ -110,20 +110,6 @@ export function Hero() {
   );
 }
 
-/** Editorial brand statement band. */
-export function BrandStatement() {
-  return (
-    <section className="bg-[#f8f2ea] px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl text-center">
-        <p className="font-serif text-2xl leading-relaxed text-stone-900 sm:text-3xl">
-          An invitation is the first impression of a celebration. We make it one
-          worth keeping — printed on the finest paper, finished entirely by
-          hand.
-        </p>
-      </div>
-    </section>
-  );
-}
 
 /** Shop by Category carousel. */
 export function CelebrationGrid({
@@ -135,42 +121,42 @@ export function CelebrationGrid({
     {
       name: "Hindu Wedding Cards",
       slug: "wedding-card-hindu",
-      image: "/category/hindu-wedding-cards.jpeg",
+      image: "/category/hindu-wedding-cards.png",
     },
     {
       name: "Muslim Wedding Cards",
       slug: "wedding-card-muslim",
-      image: "/category/muslim-wedding-cards.jpeg",
+      image: "/category/muslim-wedding-cards.png",
     },
     {
       name: "Christian Wedding Cards",
       slug: "wedding-card-christian",
-      image: "/category/christian-wedding-cards.jpeg",
+      image: "/category/christian-wedding-cards.png",
     },
     {
       name: "Shagun Envelopes",
       slug: "shagun-envelopes",
-      image: "/category/shagun-envelopes.jpeg",
+      image: "/category/shagun-envelopes.png",
     },
     {
       name: "Shagun Boxes",
       slug: "shagun-boxes",
-      image: "/category/shagun-boxes.jpeg",
+      image: "/category/shagun-boxes.png",
     },
     {
       name: "Rakhi Cards",
       slug: "rakhi-cards",
-      image: "/category/rakhi-cards.jpeg",
+      image: "/category/rakhi-cards.png",
     },
     {
       name: "Rakhi Boxes",
       slug: "rakhi-boxes",
-      image: "/category/rakhi-boxes.jpeg",
+      image: "/category/rakhi-boxes.png",
     },
     {
       name: "Rakhi Tags",
       slug: "rakhi-tags",
-      image: "/category/rakhi-tags.jpeg",
+      image: "/category/rakhi-tags.png",
     },
   ];
 
@@ -184,15 +170,15 @@ export function CelebrationGrid({
             <Link
               key={cat.slug}
               href={`/collections/${cat.slug}`}
-              className="group min-w-[150px] text-center sm:min-w-[180px]"
+              className="group min-w-[180px] text-center sm:min-w-[220px]"
             >
-              <div className="mx-auto flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 p-2 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl sm:h-40 sm:w-40">
+              <div className="mx-auto flex h-44 w-44 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 p-2 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl sm:h-48 sm:w-48">
                 <div className="relative h-full w-full overflow-hidden rounded-full">
                   <Image
                     src={cat.image}
                     alt={cat.name}
                     fill
-                    sizes="180px"
+                    sizes="220px"
                     className="object-cover transition duration-500 group-hover:scale-110"
                   />
                 </div>

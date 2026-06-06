@@ -3,93 +3,134 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Show,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
+
 import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
+import WishlistNavLink from "./WishlistNavLink";
 import { BRAND, TAGLINE } from "./siteConfig";
 
-/** A dropdown entry is either a link or a non-clickable section heading. */
 type DropdownItem = { label: string; href: string } | { section: string };
-/** A top-level nav item, with an optional hover dropdown. */
-type NavItem = { label: string; href: string; dropdown?: DropdownItem[] };
 
-/** Navigation structure — edit this array to change the menu. */
+type NavItem = {
+  label: string;
+  href: string;
+  dropdown?: DropdownItem[];
+};
+
 const navMenu: NavItem[] = [
   {
     label: "Wedding Card",
     href: "/collections/wedding-card",
     dropdown: [
-      { label: "Hindu Wedding Cards", href: "/collections/wedding-card-hindu" },
-      { label: "Muslim Wedding Cards", href: "/collections/wedding-card-muslim" },
-      { label: "Christian Wedding Cards", href: "/collections/wedding-card-christian" },
+      {
+        label: "Hindu Wedding Cards",
+        href: "/collections/wedding-card-hindu",
+      },
+      {
+        label: "Muslim Wedding Cards",
+        href: "/collections/wedding-card-muslim",
+      },
+      {
+        label: "Christian Wedding Cards",
+        href: "/collections/wedding-card-christian",
+      },
     ],
   },
-  { label: "Shagun Envelopes", href: "/collections/shagun-envelopes" },
-  { label: "Shagun Boxes", href: "/collections/shagun-boxes" },
+  {
+    label: "Shagun Envelopes",
+    href: "/collections/shagun-envelopes",
+  },
+  {
+    label: "Shagun Boxes",
+    href: "/collections/shagun-boxes",
+  },
   {
     label: "Rakhi",
     href: "/collections/rakhi",
     dropdown: [
-      { label: "Cards", href: "/collections/rakhi-cards" },
-      { label: "Boxes", href: "/collections/rakhi-boxes" },
-      { label: "Tag", href: "/collections/rakhi-tag" },
+      {
+        label: "Cards",
+        href: "/collections/rakhi-cards",
+      },
+      {
+        label: "Boxes",
+        href: "/collections/rakhi-boxes",
+      },
+      {
+        label: "Tag",
+        href: "/collections/rakhi-tag",
+      },
     ],
   },
 ];
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(null);
+  const { isLoaded, isSignedIn } = useUser();
 
-  // Close the mobile panel on Escape.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(
+    null,
+  );
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMobileOpen(false);
+      if (e.key === "Escape") {
+        setMobileOpen(false);
+        setActiveDropdownIndex(null);
+      }
     }
+
     document.addEventListener("keydown", onKey);
+
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   const closeMobile = () => setMobileOpen(false);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-neutral-200 bg-white">
-      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-6">
-        {/* Logo + wordmark */}
+    <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2.5"
+          className="flex min-w-0 items-center gap-3 py-3"
           onClick={closeMobile}
         >
-          <Image
-            src="/logo.png"
-            alt={BRAND}
-            width={44}
-            height={44}
-            priority
-            className="h-11 w-11 shrink-0 object-contain"
-          />
-          <span className="flex flex-col leading-none">
-            <span className="font-display text-[19px] font-medium tracking-[0.03em] text-carbon">
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-paper">
+            <Image
+              src="/logo.png"
+              alt={BRAND}
+              fill
+              sizes="44px"
+              className="object-contain"
+              priority
+            />
+          </div>
+
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold tracking-wide text-carbon">
               {BRAND}
-            </span>
-            <span className="mt-1 hidden text-[8px] font-medium uppercase tracking-[0.26em] text-neutral-400 sm:block">
+            </div>
+
+            <div className="hidden truncate text-[11px] uppercase tracking-[0.16em] text-carbon/55 sm:block">
               {TAGLINE}
-            </span>
-          </span>
+            </div>
+          </div>
         </Link>
 
-        {/* Desktop menu */}
-        <div className="hidden items-center gap-8 lg:flex">
+        <nav className="hidden items-center gap-7 lg:flex">
           {navMenu.map((item, navIndex) => (
             <div
-              key={item.label}
-              className="group relative"
+              key={item.href}
+              className="relative"
+              onMouseEnter={() => {
+                if (item.dropdown) {
+                  setActiveDropdownIndex(navIndex);
+                }
+              }}
+              onMouseLeave={() => {
+                setActiveDropdownIndex(null);
+              }}
               onBlur={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node)) {
                   setActiveDropdownIndex(null);
@@ -98,42 +139,45 @@ export default function Navbar() {
             >
               <Link
                 href={item.href}
-                onFocus={() => item.dropdown && setActiveDropdownIndex(navIndex)}
                 aria-haspopup={item.dropdown ? "menu" : undefined}
-                aria-expanded={item.dropdown ? activeDropdownIndex === navIndex : undefined}
-                className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon transition-colors hover:text-carbon"
+                aria-expanded={
+                  item.dropdown ? activeDropdownIndex === navIndex : undefined
+                }
+                className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon transition-colors hover:text-carbon/70"
               >
                 {item.label}
+
                 {item.dropdown && (
-                  <svg
-                    width="9"
-                    height="9"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    aria-hidden
+                  <span
+                    aria-hidden="true"
+                    className={`text-xs transition-transform ${
+                      activeDropdownIndex === navIndex ? "rotate-180" : ""
+                    }`}
                   >
-                    <path d="m3 4.5 3 3 3-3" />
-                  </svg>
+                    ▾
+                  </span>
                 )}
               </Link>
 
-              {item.dropdown && (
-                <div className="absolute left-1/2 top-full hidden min-w-[230px] -translate-x-1/2 animate-fadeDown border border-neutral-200 bg-white p-1.5 shadow-[0_16px_44px_rgba(90,18,32,0.14)] group-hover:block group-focus-within:block">
+              {item.dropdown && activeDropdownIndex === navIndex && (
+                <div
+                  role="menu"
+                  className="absolute left-0 top-full min-w-64 rounded-2xl border border-carbon/10 bg-white p-2 shadow-xl"
+                >
                   {item.dropdown.map((d, i) =>
                     "section" in d ? (
                       <div
-                        key={`sec-${i}`}
-                        className="px-3.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400"
+                        key={`section-${i}`}
+                        className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-carbon/45"
                       >
                         {d.section}
                       </div>
                     ) : (
                       <Link
-                        key={d.label}
+                        key={d.href}
                         href={d.href}
-                        className="block px-3.5 py-2 text-[12.5px] text-neutral-600 transition-colors hover:bg-paper hover:text-carbon"
+                        role="menuitem"
+                        className="block rounded-xl px-3 py-2 text-sm text-carbon transition hover:bg-paper"
                       >
                         {d.label}
                       </Link>
@@ -143,168 +187,110 @@ export default function Navbar() {
               )}
             </div>
           ))}
-        </div>
+        </nav>
 
-        {/* Right-side actions */}
-        <div className="flex items-center gap-2">
-          <div className="hidden md:block">
-            <SearchBar />
-          </div>
+        <div className="hidden items-center gap-4 lg:flex">
+          <SearchBar />
 
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <button
-                type="button"
-                className="hidden border border-carbon px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-carbon transition-colors hover:bg-carbon hover:text-white sm:block"
-              >
-                Sign In
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <button
-                type="button"
-                className="hidden bg-carbon px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-carbon-dark lg:block"
-              >
-                Sign Up
-              </button>
-            </SignUpButton>
-          </Show>
-
-          <Show when="signed-in">
-            <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
-          </Show>
+          <WishlistNavLink />
 
           <CartButton />
 
-          {/* Hamburger — mobile only */}
+          <Show when={isLoaded && isSignedIn}>
+            <UserButton />
+          </Show>
+
+          <Show when={isLoaded && !isSignedIn}>
+            <SignInButton mode="modal">
+              <button className="rounded-full bg-carbon px-4 py-2 text-sm font-semibold text-white transition hover:bg-carbon/85">
+                Sign In
+              </button>
+            </SignInButton>
+          </Show>
+        </div>
+
+        <div className="flex items-center gap-3 lg:hidden">
+          <CartButton />
+
           <button
             type="button"
-            onClick={() => setMobileOpen((o) => !o)}
+            onClick={() => setMobileOpen((open) => !open)}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
-            className="flex h-10 w-10 items-center justify-center text-carbon transition-colors hover:bg-paper lg:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-carbon transition-colors hover:bg-paper"
           >
             {mobileOpen ? (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
+              <span aria-hidden="true" className="text-2xl leading-none">
+                ×
+              </span>
             ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path d="M3 6h18M3 12h18M3 18h18" />
-              </svg>
+              <span aria-hidden="true" className="text-2xl leading-none">
+                ☰
+              </span>
             )}
           </button>
         </div>
       </div>
 
-      {/* Mobile panel */}
       {mobileOpen && (
-        <div className="absolute inset-x-0 top-full max-h-[calc(100vh-72px)] overflow-y-auto border-b border-neutral-200 bg-white lg:hidden">
-          <div className="px-6 py-5">
-            {/* Search (native GET form → /search) */}
-            <form action="/search" className="mb-5">
-              <div className="relative flex items-center">
-                <span className="pointer-events-none absolute left-3 text-neutral-400">
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    aria-hidden
+        <div className="border-t border-carbon/10 bg-white px-4 py-5 shadow-xl lg:hidden">
+          <div className="mx-auto max-w-7xl space-y-5">
+            <SearchBar />
+
+            <nav className="space-y-2">
+              {navMenu.map((item) => (
+                <div key={item.href} className="rounded-2xl bg-paper/60 p-3">
+                  <Link
+                    href={item.href}
+                    onClick={closeMobile}
+                    className="block text-sm font-semibold uppercase tracking-[0.12em] text-carbon"
                   >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  name="q"
-                  placeholder="Search cards"
-                  aria-label="Search products"
-                  className="w-full border border-neutral-300 bg-white py-2.5 pl-9 pr-3 text-[13px] text-carbon placeholder:text-neutral-400 focus:border-carbon focus:outline-none"
-                />
-              </div>
-            </form>
+                    {item.label}
+                  </Link>
 
-            {/* Nav links */}
-            {navMenu.map((item) => (
-              <div
-                key={item.label}
-                className="border-b border-neutral-100 py-1 last:border-0"
-              >
-                <Link
-                  href={item.href}
-                  onClick={closeMobile}
-                  className="block py-2.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon"
-                >
-                  {item.label}
-                </Link>
-                {item.dropdown && (
-                  <div className="pb-2 pl-3.5">
-                    {item.dropdown.map((d, i) =>
-                      "section" in d ? null : (
-                        <Link
-                          key={d.label}
-                          href={d.href}
-                          onClick={closeMobile}
-                          className="block py-1.5 text-[13px] text-neutral-500 transition-colors hover:text-carbon"
-                        >
-                          {d.label}
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+                  {item.dropdown && (
+                    <div className="mt-3 space-y-2 border-l border-carbon/15 pl-3">
+                      {item.dropdown.map((d, i) =>
+                        "section" in d ? null : (
+                          <Link
+                            key={`${d.href}-${i}`}
+                            href={d.href}
+                            onClick={closeMobile}
+                            className="block text-sm text-carbon/75"
+                          >
+                            {d.label}
+                          </Link>
+                        ),
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
 
-            {/* Auth */}
-            <div className="flex flex-wrap gap-3 pt-5">
-              <Show when="signed-out">
+              <div className="rounded-2xl bg-paper/60 p-3">
+                <WishlistNavLink />
+              </div>
+            </nav>
+
+            <div className="flex items-center gap-3 border-t border-carbon/10 pt-4">
+              <Show when={isLoaded && isSignedIn}>
+                <UserButton />
+              </Show>
+
+              <Show when={isLoaded && !isSignedIn}>
                 <SignInButton mode="modal">
                   <button
-                    type="button"
-                    className="flex-1 border border-carbon px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-carbon transition-colors hover:bg-carbon hover:text-white"
+                    onClick={closeMobile}
+                    className="rounded-full bg-carbon px-4 py-2 text-sm font-semibold text-white"
                   >
                     Sign In
                   </button>
                 </SignInButton>
-                <SignUpButton mode="modal">
-                  <button
-                    type="button"
-                    className="flex-1 bg-carbon px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-carbon-dark"
-                  >
-                    Sign Up
-                  </button>
-                </SignUpButton>
-              </Show>
-              <Show when="signed-in">
               </Show>
             </div>
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

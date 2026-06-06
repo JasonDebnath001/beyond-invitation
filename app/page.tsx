@@ -2,7 +2,6 @@ import { getAllCategories } from "@/lib/products";
 import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 
 import {
-  BrandStatement,
   CelebrationGrid,
   FeatureStrip,
   WhyUs,
@@ -35,8 +34,6 @@ export default async function HomePage() {
   return (
     <>
       <HeroCarousel />
-
-      <BrandStatement />
 
       <CelebrationGrid categories={categories} />
 

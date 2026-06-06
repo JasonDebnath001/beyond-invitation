@@ -1,17 +1,18 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Category } from "@/types";
 
 /* ------------------------------------------------------------------ */
-/* Shared building blocks                                             */
+/* Shared building blocks */
 /* ------------------------------------------------------------------ */
 
 /** Tracked-out uppercase eyebrow label used above section titles. */
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <span className="block text-[11px] font-semibold uppercase tracking-[0.3em] text-neutral-400">
+    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-gold">
       {children}
-    </span>
+    </p>
   );
 }
 
@@ -28,11 +29,13 @@ function SectionHeading({
   return (
     <div className={align === "center" ? "text-center" : "text-left"}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 className="mt-3 font-display text-[30px] font-medium leading-tight tracking-[-0.01em] text-carbon md:text-[42px]">
+
+      <h2 className="font-serif text-3xl text-carbon md:text-4xl">
         {title}
       </h2>
+
       <div
-        className={`mt-5 h-px w-14 bg-carbon ${
+        className={`mt-5 h-px w-24 bg-gold ${
           align === "center" ? "mx-auto" : ""
         }`}
       />
@@ -41,10 +44,10 @@ function SectionHeading({
 }
 
 /* ------------------------------------------------------------------ */
-/* Sections                                                           */
+/* Sections */
 /* ------------------------------------------------------------------ */
 
-/** Static hero banner (legacy export — kept for compatibility). */
+/** Static hero banner legacy export — kept for compatibility. */
 export function Hero() {
   const stats = [
     { num: "40,000+", label: "Happy Customers" },
@@ -54,89 +57,153 @@ export function Hero() {
   ];
 
   return (
-    <div className="relative flex min-h-[520px] items-center overflow-hidden bg-carbon">
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-20">
-        <div className="flex items-center gap-3">
-          <span className="h-px w-10 bg-white/40" />
-          <span className="text-[11px] font-medium uppercase tracking-[0.3em] text-white/55">
-            New Collection 2025
-          </span>
+    <section className="relative overflow-hidden bg-cream py-24 md:py-32">
+      <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 md:grid-cols-2">
+        <div>
+          <Eyebrow>New Collection 2025</Eyebrow>
+
+          <h1 className="font-serif text-5xl leading-tight text-carbon md:text-7xl">
+            Beautiful wedding invitations for every occasion
+          </h1>
+
+          <p className="mt-6 max-w-xl text-lg leading-8 text-neutral-600">
+            Handcrafted with intention — from the understated to the opulent,
+            find the card that speaks your heart.
+          </p>
+
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Link
+              href="/collections/wedding-cards"
+              className="rounded-full bg-carbon px-7 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-gold"
+            >
+              Explore Collection →
+            </Link>
+
+            <Link
+              href="/collections/luxe"
+              className="rounded-full border border-carbon px-7 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-carbon transition hover:border-gold hover:text-gold"
+            >
+              View Luxe Range
+            </Link>
+          </div>
         </div>
-        <h1 className="mt-7 max-w-[600px] font-display text-[clamp(38px,5vw,64px)] font-medium leading-[1.1] text-white">
-          Beautiful <em className="font-normal italic">wedding</em> invitations
-          for every occasion
-        </h1>
-        <p className="mt-6 max-w-[480px] text-[15px] font-light leading-relaxed text-white/55">
-          Handcrafted with intention — from the understated to the opulent,
-          find the card that speaks your heart.
-        </p>
-        <div className="mt-9 flex flex-wrap gap-3">
-          <Link
-            href="/collections/wedding"
-            className="bg-white px-7 py-3.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon transition hover:bg-neutral-200"
-          >
-            Explore Collection &#8594;
-          </Link>
-          <Link
-            href="/collections/luxe"
-            className="border border-white/25 px-7 py-3.5 text-[12px] font-medium uppercase tracking-[0.14em] text-white transition hover:border-white"
-          >
-            View Luxe Range
-          </Link>
-        </div>
-        <div className="mt-12 flex flex-wrap gap-10 border-t border-white/10 pt-8">
-          {stats.map((s) => (
-            <div key={s.label}>
-              <span className="block font-display text-[28px] font-medium text-white">
-                {s.num}
-              </span>
-              <span className="text-[11px] uppercase tracking-[0.18em] text-white/45">
-                {s.label}
-              </span>
-            </div>
-          ))}
+
+        <div className="rounded-[2rem] bg-white p-8 shadow-sm">
+          <div className="grid grid-cols-2 gap-6">
+            {stats.map((s) => (
+              <div key={s.label} className="border-l border-gold pl-4">
+                <p className="font-serif text-3xl text-carbon">{s.num}</p>
+                <p className="mt-1 text-sm uppercase tracking-[0.18em] text-neutral-500">
+                  {s.label}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
 /** Editorial brand statement band. */
 export function BrandStatement() {
   return (
-    <section className="border-y border-neutral-200 bg-white">
-      <div className="mx-auto max-w-3xl px-6 py-20 text-center md:py-24">
-        <p className="mt-7 text-balance font-display text-[26px] font-medium leading-[1.45] tracking-[-0.01em] text-carbon md:text-[34px]">
-          An invitation is the first impression of a celebration. We make it one
-          worth keeping — printed on the finest paper, finished entirely by
-          hand.
-        </p>
-      </div>
+    <section className="bg-carbon px-6 py-14 text-center">
+      <p className="mx-auto max-w-4xl font-serif text-2xl leading-relaxed text-cream md:text-3xl">
+        An invitation is the first impression of a celebration. We make it one
+        worth keeping — printed on the finest paper, finished entirely by hand.
+      </p>
     </section>
   );
 }
 
-/** "Shop by Celebration" category grid. */
-export function CelebrationGrid({ categories }: { categories: Category[] }) {
-  return (
-    <section className="mx-auto max-w-7xl px-6 py-20 md:py-24">
-      <SectionHeading eyebrow="Browse by event" title="Shop by Celebration" />
+/** Shop by Category carousel. */
+export function CelebrationGrid({
+  categories: _categories,
+}: {
+  categories: Category[];
+}) {
+  const categoryItems = [
+    {
+      name: "Hindu Wedding Cards",
+      slug: "wedding-card-hindu",
+      image: "/category/hindu-wedding-cards.jpeg",
+    },
+    {
+      name: "Muslim Wedding Cards",
+      slug: "wedding-card-muslim",
+      image: "/category/muslim-wedding-cards.jpeg",
+    },
+    {
+      name: "Christian Wedding Cards",
+      slug: "wedding-card-christian",
+      image: "/category/christian-wedding-cards.jpeg",
+    },
+    {
+      name: "Shagun Envelopes",
+      slug: "shagun-envelopes",
+      image: "/category/shagun-envelopes.jpeg",
+    },
+    {
+      name: "Shagun Boxes",
+      slug: "shagun-boxes",
+      image: "/category/shagun-boxes.jpeg",
+    },
+    {
+      name: "Rakhi Cards",
+      slug: "rakhi-cards",
+      image: "/category/rakhi-cards.jpeg",
+    },
+    {
+      name: "Rakhi Boxes",
+      slug: "rakhi-boxes",
+      image: "/category/rakhi-boxes.jpeg",
+    },
+    {
+      name: "Rakhi Tags",
+      slug: "rakhi-tags",
+      image: "/category/rakhi-tags.jpeg",
+    },
+  ];
 
-      <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden border border-neutral-200 bg-neutral-200 sm:grid-cols-3 lg:grid-cols-7">
-        {categories.map((cat) => (
-          <Link
-            key={cat.slug}
-            href={`/collections/${cat.slug}`}
-            className="group flex flex-col items-center justify-center gap-3 bg-white px-3 py-9 text-center transition-colors duration-300 hover:bg-carbon"
-          >
-            <span className="text-3xl transition-transform duration-300 group-hover:-translate-y-0.5">
-              {cat.emoji}
-            </span>
-            <span className="text-[11.5px] font-medium uppercase tracking-[0.12em] text-carbon transition-colors duration-300 group-hover:text-white">
-              {cat.name}
-            </span>
-          </Link>
-        ))}
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-b from-white via-[#fffaf4] to-white py-20 md:py-24">
+      <div className="pointer-events-none absolute left-0 top-16 h-56 w-56 rounded-full bg-[#d4af37]/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-10 right-0 h-64 w-64 rounded-full bg-[#7a1f1f]/10 blur-3xl" />
+
+      <div className="relative w-full px-6">
+        <SectionHeading eyebrow="Curated collections" title="Shop by Category" />
+
+        <div className="mt-12 overflow-x-auto pb-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex snap-x snap-mandatory gap-6 md:gap-8">
+            {categoryItems.map((cat) => (
+              <div
+                key={cat.slug}
+                className="group min-w-[155px] snap-start text-center sm:min-w-[175px] md:min-w-[190px]"
+              >
+                <Link
+                  href={`/collections/${cat.slug}`}
+                  aria-label={`View ${cat.name} collection`}
+                  className="relative mx-auto inline-block h-36 w-36 rounded-full bg-white p-2 shadow-[0_18px_50px_rgba(0,0,0,0.08)] ring-1 ring-neutral-200 transition duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_24px_70px_rgba(122,31,31,0.18)] sm:h-40 sm:w-40 md:h-44 md:w-44"
+                >
+                  <div className="absolute inset-1 rounded-full border border-dashed border-[#d4af37]/50" />
+
+                  <div className="relative h-full w-full overflow-hidden rounded-full bg-neutral-100">
+                    <Image
+                      src={cat.image}
+                      alt={cat.name}
+                      fill
+                      sizes="(max-width: 640px) 144px, (max-width: 768px) 160px, 176px"
+                      className="object-cover transition duration-700 group-hover:scale-110"
+                    />
+                  </div>
+                </Link>
+
+                {/* labels removed: image contains category name visually */}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -152,29 +219,30 @@ export function FeatureStrip() {
   ];
 
   return (
-    <div className="bg-carbon">
-      <div className="mx-auto grid max-w-7xl grid-cols-2 md:grid-cols-4">
+    <section className="bg-white px-6 py-12">
+      <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-4">
         {items.map((it, i) => (
           <div
             key={it.title}
-            className={`px-6 py-11 text-center md:py-14 ${
-              i < items.length - 1 ? "md:border-r md:border-white/10" : ""
-            } ${i < 2 ? "border-b border-white/10 md:border-b-0" : ""}`}
+            className="rounded-3xl border border-neutral-200 bg-cream p-6"
           >
-            <div className="font-display text-[15px] font-medium uppercase tracking-[0.14em] text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">
+              0{i + 1}
+            </p>
+
+            <h3 className="mt-4 font-serif text-2xl text-carbon">
               {it.title}
-            </div>
-            <div className="mt-2 text-[12px] tracking-wide text-white/45">
-              {it.sub}
-            </div>
+            </h3>
+
+            <p className="mt-2 text-sm text-neutral-600">{it.sub}</p>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
-/** "Why choose us" section. */
+/** Why choose us section. */
 export function WhyUs() {
   const cards = [
     {
@@ -195,22 +263,23 @@ export function WhyUs() {
   ];
 
   return (
-    <section className="bg-paper py-20 md:py-24">
-      <div className="mx-auto max-w-7xl px-6">
-        <SectionHeading eyebrow="Our promise" title="Why Choose Beyond Invitation" />
+    <section className="bg-cream px-6 py-20 md:py-24">
+      <div className="mx-auto max-w-7xl">
+        <SectionHeading eyebrow="Why choose us" title="The Beyond Invitation Promise" />
 
-        <div className="mt-12 grid gap-px border border-neutral-200 bg-neutral-200 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
           {cards.map((c) => (
-            <div key={c.no} className="bg-white p-9 md:p-10">
-              <span className="font-display text-[40px] font-medium leading-none text-neutral-200">
-                {c.no}
-              </span>
-              <h3 className="mt-5 font-display text-[20px] font-medium text-carbon">
+            <div
+              key={c.no}
+              className="rounded-[2rem] bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+            >
+              <p className="font-serif text-5xl text-gold">{c.no}</p>
+
+              <h3 className="mt-6 font-serif text-2xl text-carbon">
                 {c.title}
               </h3>
-              <p className="mt-3 text-[14px] leading-relaxed text-neutral-500">
-                {c.text}
-              </p>
+
+              <p className="mt-4 leading-7 text-neutral-600">{c.text}</p>
             </div>
           ))}
         </div>
@@ -240,28 +309,27 @@ export function Testimonials() {
   ];
 
   return (
-    <section className="bg-white py-20 md:py-24">
-      <div className="mx-auto max-w-7xl px-6">
-        <SectionHeading eyebrow="Kind words" title="What People Are Saying" />
+    <section className="bg-white px-6 py-20 md:py-24">
+      <div className="mx-auto max-w-7xl">
+        <SectionHeading eyebrow="Client words" title="Loved by families across India" />
 
-        <div className="mt-12 grid gap-px border border-neutral-200 bg-neutral-200 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
           {reviews.map((r) => (
-            <figure key={r.author} className="flex flex-col bg-white p-9 md:p-10">
-              <div className="text-[12px] tracking-[0.3em] text-carbon">
-                &#9733;&#9733;&#9733;&#9733;&#9733;
-              </div>
-              <blockquote className="mt-5 font-display text-[18px] font-medium italic leading-[1.5] text-carbon">
-                &ldquo;{r.text}&rdquo;
+            <article
+              key={r.author}
+              className="rounded-[2rem] border border-neutral-200 p-8"
+            >
+              <p className="text-gold">★★★★★</p>
+
+              <blockquote className="mt-5 leading-7 text-neutral-700">
+                “{r.text}”
               </blockquote>
-              <figcaption className="mt-6 border-t border-neutral-200 pt-5">
-                <div className="text-[12.5px] font-semibold uppercase tracking-[0.12em] text-carbon">
-                  {r.author}
-                </div>
-                <div className="mt-1 text-[12px] tracking-wide text-neutral-400">
-                  {r.location}
-                </div>
-              </figcaption>
-            </figure>
+
+              <div className="mt-6">
+                <p className="font-semibold text-carbon">{r.author}</p>
+                <p className="text-sm text-neutral-500">{r.location}</p>
+              </div>
+            </article>
           ))}
         </div>
       </div>
@@ -279,21 +347,17 @@ export function Milestones() {
   ];
 
   return (
-    <section className="bg-carbon">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 md:grid-cols-4">
-        {items.map((it, i) => (
-          <div
-            key={it.label}
-            className={`px-6 py-14 text-center ${
-              i < items.length - 1 ? "md:border-r md:border-white/10" : ""
-            } ${i < 2 ? "border-b border-white/10 md:border-b-0" : ""}`}
-          >
-            <span className="block font-display text-[40px] font-medium leading-none text-white md:text-[48px]">
+    <section className="bg-carbon px-6 py-16">
+      <div className="mx-auto grid max-w-7xl gap-8 text-center md:grid-cols-4">
+        {items.map((it) => (
+          <div key={it.label}>
+            <p className="font-serif text-4xl text-gold md:text-5xl">
               {it.num}
-            </span>
-            <span className="mt-3 block text-[11px] uppercase tracking-[0.22em] text-white/45">
+            </p>
+
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.25em] text-cream">
               {it.label}
-            </span>
+            </p>
           </div>
         ))}
       </div>

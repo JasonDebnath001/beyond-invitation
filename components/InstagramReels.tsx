@@ -1,31 +1,82 @@
-"use client";
-
 import Link from "next/link";
 
-const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/beyond_invitation/";
+type InstagramReel = {
+  id: string;
+  caption?: string;
+  media_type: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink: string;
+  timestamp?: string;
+};
 
-const reels = [
-  {
-    id: "reel-1",
-    title: "Wedding Cards",
-    description: "Premium invitation designs, textures, foiling, and layouts.",
-  },
-  {
-    id: "reel-2",
-    title: "Shagun Envelopes",
-    description: "Elegant envelopes for weddings, gifting, and occasions.",
-  },
-  {
-    id: "reel-3",
-    title: "Rakhi Packaging",
-    description: "Rakhi boxes, cards, tags, and festive packaging ideas.",
-  },
-  {
-    id: "reel-4",
-    title: "Behind The Scenes",
-    description: "A closer look at printing, packing, and showroom moments.",
-  },
-];
+type InstagramApiResponse = {
+  data?: InstagramReel[];
+  error?: {
+    message: string;
+    type?: string;
+    code?: number;
+  };
+};
+
+const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/beyond_invitation/";
+const INSTAGRAM_GRAPH_VERSION = "v25.0";
+
+async function getInstagramReels(limit = 14): Promise<InstagramReel[]> {
+  const userId = process.env.INSTAGRAM_USER_ID;
+  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  if (!userId || !accessToken) {
+    console.error(
+      "Instagram env vars missing: INSTAGRAM_USER_ID or INSTAGRAM_ACCESS_TOKEN",
+    );
+    return [];
+  }
+
+  const fields = [
+    "id",
+    "caption",
+    "media_type",
+    "media_url",
+    "thumbnail_url",
+    "permalink",
+    "timestamp",
+  ].join(",");
+
+  const url = new URL(
+    `https://graph.facebook.com/${INSTAGRAM_GRAPH_VERSION}/${userId}/media`,
+  );
+
+  url.searchParams.set("fields", fields);
+  url.searchParams.set("limit", String(limit * 3));
+  url.searchParams.set("access_token", accessToken);
+
+  try {
+    const response = await fetch(url.toString(), {
+      cache: "no-store",
+    });
+
+    const json = (await response.json()) as InstagramApiResponse;
+
+    if (!response.ok || json.error) {
+      console.error("Instagram API error:", json.error?.message);
+      return [];
+    }
+
+    return (json.data || [])
+      .filter((item) => {
+        return (
+          item.media_type === "VIDEO" &&
+          Boolean(item.permalink) &&
+          Boolean(item.thumbnail_url || item.media_url)
+        );
+      })
+      .slice(0, limit);
+  } catch (error) {
+    console.error("Failed to fetch Instagram reels:", error);
+    return [];
+  }
+}
 
 function InstagramIcon({ className = "" }: { className?: string }) {
   return (
@@ -46,30 +97,18 @@ function InstagramIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function PlayIcon() {
-  return (
-    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-carbon shadow-lg transition-transform duration-300 group-hover:scale-110">
-      <svg
-        className="ml-0.5 h-5 w-5"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path d="M8 5v14l11-7z" />
-      </svg>
-    </span>
-  );
-}
+export default async function InstagramReels() {
+  const reels = await getInstagramReels(14);
 
-export default function InstagramReels() {
+  if (!reels.length) {
+    return null;
+  }
+
   return (
     <section
       id="instagram-reels"
       className="relative z-10 block bg-white py-16 sm:py-20"
     >
-        <div className="bg-red-600 px-4 py-2 text-center text-sm font-bold text-white">
-  INSTAGRAM SECTION LOADED
-</div>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -98,44 +137,36 @@ export default function InstagramReels() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {reels.map((item) => (
-            <Link
-              key={item.id}
-              href={INSTAGRAM_PROFILE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative aspect-[9/14] overflow-hidden border border-neutral-200 bg-paper p-4 transition-colors hover:border-carbon"
-            >
-              <div className="flex h-full flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <InstagramIcon className="h-5 w-5 text-carbon" />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+          {reels.map((reel) => {
+            const imageSrc = reel.thumbnail_url || reel.media_url;
 
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                    Reel
-                  </span>
+            if (!imageSrc) {
+              return null;
+            }
+
+            return (
+              <Link
+                key={reel.id}
+                href={reel.permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open Instagram reel"
+                className="group relative aspect-[9/14] overflow-hidden bg-neutral-100"
+              >
+                <img
+                  src={imageSrc}
+                  alt={reel.caption || "Instagram reel from Beyond Invitation"}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+
+                <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <InstagramIcon className="h-8 w-8 text-white" />
                 </div>
-
-                <div>
-                  <div className="mb-4 flex justify-center">
-                    <PlayIcon />
-                  </div>
-
-                  <h3 className="font-serif text-xl text-carbon">
-                    {item.title}
-                  </h3>
-
-                  <p className="mt-2 text-xs leading-5 text-neutral-600">
-                    {item.description}
-                  </p>
-                </div>
-
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-carbon">
-                  Open Instagram →
-                </p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>

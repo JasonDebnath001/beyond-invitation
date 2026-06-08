@@ -68,7 +68,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               src={src}
               alt={product.name}
               onError={() => setFailed(true)}
-              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+              className="h-full w object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-paper text-6xl">

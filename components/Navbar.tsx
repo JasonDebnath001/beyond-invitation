@@ -203,11 +203,11 @@ export default function Navbar() {
 
           <CartButton />
 
-          <Show when={isLoaded && isSignedIn}>
+          <Show when={() => isLoaded && isSignedIn}>
             <UserButton />
           </Show>
 
-          <Show when={isLoaded && !isSignedIn}>
+          <Show when={() => isLoaded && !isSignedIn}>
             <SignInButton mode="modal">
               <button className="rounded-full bg-carbon px-4 py-2 text-sm font-semibold text-white transition hover:bg-carbon/85">
                 Sign In
@@ -280,11 +280,11 @@ export default function Navbar() {
             </nav>
 
             <div className="flex items-center gap-3 border-t border-carbon/10 pt-4">
-              <Show when={isLoaded && isSignedIn}>
+              <Show when={() => isLoaded && isSignedIn}>
                 <UserButton />
               </Show>
 
-              <Show when={isLoaded && !isSignedIn}>
+              <Show when={() => isLoaded && !isSignedIn}>
                 <SignInButton mode="modal">
                   <button
                     onClick={closeMobile}

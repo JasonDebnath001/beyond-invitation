@@ -6,17 +6,17 @@ import { useEffect, useState } from "react";
 const reviews = [
   {
     name: "Aishwarya & Nikhil, Kolkata",
-    image: "/reviews/review-1.jpg",
+    image: "/reviews/reviews1.png",
     text: "Our wedding invitation cards turned out beautiful and elegant. The quality of paper and print was really good, and everything was delivered on time. We are happy we chose Beyond Invitation for such an important part of our wedding.",
   },
   {
     name: "Ritika & Arjun, Kolkata",
-    image: "/reviews/review-2.jpg",
+    image: "/reviews/reviews2.png",
     text: "The designs were premium, the finishing was neat, and the team helped us select the perfect card within our budget. Our family loved the invitations.",
   },
   {
     name: "Priya & Sayan, Kolkata",
-    image: "/reviews/review-3.jpg",
+    image: "/reviews/reviews3.png",
     text: "Very professional service and beautiful card collections. From selection to delivery, the whole experience was smooth and reliable.",
   },
 ];

@@ -6,13 +6,14 @@ import {
   SaleCollection,
   FeatureStrip,
   WhyUs,
-  Testimonials,
   OurShowroom,
   Catalogue,
 } from "@/components/Sections";
 
 import HeroCarousel from "@/components/HeroCarousel";
 import { ProductSection } from "@/components/ProductGrid";
+import KindWords from "@/components/KindWords";
+import InstagramReels from "@/components/InstagramReels";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -105,7 +106,8 @@ export default async function HomePage() {
       <OurShowroom />
       <Catalogue />
 
-      <Testimonials />
+      <KindWords />
+      <InstagramReels />
     </>
   );
 }

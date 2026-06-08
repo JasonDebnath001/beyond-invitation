@@ -9,6 +9,7 @@ import {
   UserButton,
   useUser,
 } from "@clerk/nextjs";
+
 import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
 import { BRAND, TAGLINE } from "./siteConfig";
@@ -84,29 +85,32 @@ function DesktopAuthButtons() {
 
   if (isSignedIn) {
     return (
-      <div className="flex items-center gap-4">
-        <Link
-          href="/my-orders"
-          className="text-sm font-semibold text-carbon transition hover:text-maroon"
-        >
-          My Orders
-        </Link>
-
-        <UserButton afterSignOutUrl="/" />
-      </div>
+      <UserButton
+        appearance={{
+          elements: {
+            avatarBox: "h-8 w-8",
+          },
+        }}
+      />
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="hidden items-center gap-2 xl:flex">
       <SignInButton mode="modal">
-        <button className="rounded-full px-4 py-2 text-sm font-semibold text-carbon transition hover:bg-paper">
+        <button
+          type="button"
+          className="inline-flex h-9 items-center justify-center whitespace-nowrap border border-carbon px-3.5 text-center text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-carbon transition-colors hover:bg-carbon hover:text-white"
+        >
           Sign In
         </button>
       </SignInButton>
 
       <SignUpButton mode="modal">
-        <button className="rounded-full bg-maroon px-4 py-2 text-sm font-semibold text-white transition hover:bg-maroon-dark">
+        <button
+          type="button"
+          className="inline-flex h-9 items-center justify-center whitespace-nowrap bg-carbon px-3.5 text-center text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-white transition-colors hover:bg-carbon-dark"
+        >
           Sign Up
         </button>
       </SignUpButton>
@@ -123,36 +127,23 @@ function MobileAuthButtons({ closeMobile }: { closeMobile: () => void }) {
 
   if (isSignedIn) {
     return (
-      <div className="space-y-2 border-t border-gold/20 pt-4">
-        <Link
-          href="/my-orders"
-          onClick={closeMobile}
-          className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
-        >
-          My Orders
-        </Link>
-
-        <Link
-          href="/account"
-          onClick={closeMobile}
-          className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
-        >
-          Account
-        </Link>
-
-        <div className="px-3 py-2">
-          <UserButton afterSignOutUrl="/" />
-        </div>
-      </div>
+      <Link
+        href="/account"
+        onClick={closeMobile}
+        className="inline-flex h-10 w-full items-center justify-center border border-carbon px-3 text-center text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-carbon transition-colors hover:bg-carbon hover:text-white"
+      >
+        Account
+      </Link>
     );
   }
 
   return (
-    <div className="space-y-2 border-t border-gold/20 pt-4">
+    <div className="grid grid-cols-2 gap-3">
       <SignInButton mode="modal">
         <button
+          type="button"
           onClick={closeMobile}
-          className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-carbon hover:bg-paper"
+          className="inline-flex h-10 w-full items-center justify-center whitespace-nowrap border border-carbon px-3 text-center text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-carbon transition-colors hover:bg-carbon hover:text-white"
         >
           Sign In
         </button>
@@ -160,8 +151,9 @@ function MobileAuthButtons({ closeMobile }: { closeMobile: () => void }) {
 
       <SignUpButton mode="modal">
         <button
+          type="button"
           onClick={closeMobile}
-          className="block w-full rounded-xl bg-maroon px-3 py-2 text-left text-sm font-semibold text-white hover:bg-maroon-dark"
+          className="inline-flex h-10 w-full items-center justify-center whitespace-nowrap bg-carbon px-3 text-center text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-white transition-colors hover:bg-carbon-dark"
         >
           Sign Up
         </button>
@@ -197,37 +189,40 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gold/20 bg-white/95 shadow-sm backdrop-blur">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Logo + wordmark */}
-        <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-white">
+        <Link
+          href="/"
+          onClick={closeMobile}
+          className="flex min-w-0 shrink-0 items-center gap-3"
+        >
+          <div className="relative h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-paper">
             <Image
               src="/logo.png"
               alt={BRAND}
               fill
-              className="object-contain p-1"
               sizes="48px"
+              className="object-contain p-1.5"
               priority
             />
           </div>
 
-          <div className="min-w-0">
-            <p className="truncate font-serif text-xl font-semibold text-maroon">
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate font-serif text-xl leading-tight text-carbon">
               {BRAND}
             </p>
-
-            <p className="hidden truncate text-xs uppercase tracking-[0.2em] text-gold sm:block">
+            <p className="truncate text-[10px] uppercase tracking-[0.22em] text-neutral-500">
               {TAGLINE}
             </p>
           </div>
         </Link>
 
         {/* Desktop menu */}
-        <div className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {navMenu.map((item, navIndex) => (
             <div
-              key={item.label}
+              key={item.href}
               className="relative"
               onMouseEnter={() => {
                 if (item.dropdown) {
@@ -243,24 +238,33 @@ export default function Navbar() {
             >
               <Link
                 href={item.href}
-                className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-semibold text-carbon transition hover:bg-paper hover:text-maroon"
+                className="inline-flex h-10 items-center gap-1 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-carbon transition-colors hover:bg-paper"
               >
                 {item.label}
 
                 {item.dropdown && (
-                  <span className="text-xs text-gold" aria-hidden="true">
-                    ▾
-                  </span>
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 )}
               </Link>
 
               {item.dropdown && activeDropdownIndex === navIndex && (
-                <div className="absolute left-0 top-full min-w-56 rounded-2xl border border-gold/20 bg-white p-2 shadow-xl">
+                <div className="absolute left-0 top-full min-w-64 border border-neutral-200 bg-white py-2 shadow-xl">
                   {item.dropdown.map((dropdownItem, index) =>
                     "section" in dropdownItem ? (
                       <p
                         key={`${dropdownItem.section}-${index}`}
-                        className="px-3 py-2 text-xs uppercase tracking-[0.2em] text-gold"
+                        className="px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
                       >
                         {dropdownItem.section}
                       </p>
@@ -268,7 +272,7 @@ export default function Navbar() {
                       <Link
                         key={dropdownItem.href}
                         href={dropdownItem.href}
-                        className="block rounded-xl px-3 py-2 text-sm font-medium text-carbon transition hover:bg-paper hover:text-maroon"
+                        className="block px-4 py-2.5 text-sm text-carbon transition-colors hover:bg-paper"
                       >
                         {dropdownItem.label}
                       </Link>
@@ -278,72 +282,100 @@ export default function Navbar() {
               )}
             </div>
           ))}
-        </div>
+        </nav>
 
         {/* Right-side actions */}
-        <div className="hidden items-center gap-4 lg:flex">
-          <SearchBar />
-          <CartButton />
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          <div className="hidden md:block">
+            <SearchBar />
+          </div>
+
           <DesktopAuthButtons />
-        </div>
 
-        {/* Mobile actions */}
-        <div className="flex items-center gap-3 lg:hidden">
           <CartButton />
 
+          {/* Hamburger — mobile only */}
           <button
             type="button"
             onClick={() => setMobileOpen((open) => !open)}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-carbon transition-colors hover:bg-paper"
+            className="flex h-10 w-10 items-center justify-center text-carbon transition-colors hover:bg-paper lg:hidden"
           >
             {mobileOpen ? (
-              <span className="text-2xl leading-none">×</span>
+              <svg
+                className="h-6 w-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
             ) : (
-              <span className="text-2xl leading-none">☰</span>
+              <svg
+                className="h-6 w-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 7h16" />
+                <path d="M4 12h16" />
+                <path d="M4 17h16" />
+              </svg>
             )}
           </button>
         </div>
-      </nav>
+      </div>
 
       {/* Mobile panel */}
       {mobileOpen && (
-        <div className="border-t border-gold/20 bg-white px-4 py-4 shadow-lg lg:hidden">
-          <div className="mx-auto max-w-7xl space-y-4">
+        <div className="border-t border-neutral-200 bg-white px-4 py-5 shadow-lg lg:hidden">
+          <div className="mb-5">
             <SearchBar />
+          </div>
 
-            <div className="space-y-1">
-              {navMenu.map((item) => (
-                <div key={item.label}>
-                  <Link
-                    href={item.href}
-                    onClick={closeMobile}
-                    className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
-                  >
-                    {item.label}
-                  </Link>
+          <nav className="space-y-1">
+            {navMenu.map((item) => (
+              <div key={item.href} className="border-b border-neutral-100 pb-2">
+                <Link
+                  href={item.href}
+                  onClick={closeMobile}
+                  className="flex items-center justify-between py-3 text-sm font-semibold uppercase tracking-[0.12em] text-carbon"
+                >
+                  {item.label}
+                </Link>
 
-                  {item.dropdown && (
-                    <div className="ml-4 border-l border-gold/20 pl-3">
-                      {item.dropdown.map((dropdownItem, index) =>
-                        "section" in dropdownItem ? null : (
-                          <Link
-                            key={`${dropdownItem.href}-${index}`}
-                            href={dropdownItem.href}
-                            onClick={closeMobile}
-                            className="block rounded-xl px-3 py-2 text-sm text-ink-light hover:bg-paper hover:text-maroon"
-                          >
-                            {dropdownItem.label}
-                          </Link>
-                        ),
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                {item.dropdown && (
+                  <div className="space-y-1 pb-2 pl-4">
+                    {item.dropdown.map((dropdownItem, index) =>
+                      "section" in dropdownItem ? null : (
+                        <Link
+                          key={`${dropdownItem.href}-${index}`}
+                          href={dropdownItem.href}
+                          onClick={closeMobile}
+                          className="block py-2 text-sm text-neutral-600"
+                        >
+                          {dropdownItem.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
 
+          {/* Auth */}
+          <div className="pt-5">
             <MobileAuthButtons closeMobile={closeMobile} />
           </div>
         </div>

@@ -21,18 +21,28 @@ type InstagramApiResponse = {
 
 const INSTAGRAM_GRAPH_VERSION = "v25.0";
 
+function isValidInstagramReel(item: InstagramReel) {
+  return (
+    item.media_type === "VIDEO" &&
+    Boolean(item.permalink) &&
+    Boolean(item.thumbnail_url || item.media_url)
+  );
+}
+
 export async function fetchInstagramReels(limit = 8): Promise<InstagramReel[]> {
   const userId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
   if (!userId || !accessToken) {
-    console.warn("Instagram credentials are missing.");
+    console.warn(
+      "Instagram credentials are missing. Add INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN in production.",
+    );
     return [];
   }
 
   if (!/^\d+$/.test(userId)) {
     console.error(
-      "INSTAGRAM_USER_ID must be the numeric Instagram Business Account ID, not the Instagram handle."
+      "INSTAGRAM_USER_ID must be the numeric Instagram Business Account ID, not the Instagram handle.",
     );
     return [];
   }
@@ -48,7 +58,7 @@ export async function fetchInstagramReels(limit = 8): Promise<InstagramReel[]> {
   ].join(",");
 
   const url = new URL(
-    `https://graph.facebook.com/${INSTAGRAM_GRAPH_VERSION}/${userId}/media`
+    `https://graph.facebook.com/${INSTAGRAM_GRAPH_VERSION}/${userId}/media`,
   );
 
   url.searchParams.set("fields", fields);
@@ -58,7 +68,7 @@ export async function fetchInstagramReels(limit = 8): Promise<InstagramReel[]> {
   try {
     const response = await fetch(url.toString(), {
       next: {
-        revalidate: 60 * 30, // 30 minutes
+        revalidate: 60 * 30,
       },
     });
 
@@ -69,10 +79,7 @@ export async function fetchInstagramReels(limit = 8): Promise<InstagramReel[]> {
       return [];
     }
 
-    return (json.data || [])
-      .filter((item) => item.media_type === "VIDEO")
-      .filter((item) => item.permalink && (item.thumbnail_url || item.media_url))
-      .slice(0, limit);
+    return (json.data || []).filter(isValidInstagramReel).slice(0, limit);
   } catch (error) {
     console.error("Failed to fetch Instagram reels:", error);
     return [];

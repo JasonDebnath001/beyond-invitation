@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type InstagramReel = {
@@ -10,73 +13,12 @@ type InstagramReel = {
   timestamp?: string;
 };
 
-type InstagramApiResponse = {
-  data?: InstagramReel[];
-  error?: {
-    message: string;
-    type?: string;
-    code?: number;
-  };
+type InstagramReelsApiResponse = {
+  reels: InstagramReel[];
+  error?: string | null;
 };
 
 const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/beyond_invitation/";
-const INSTAGRAM_GRAPH_VERSION = "v25.0";
-
-async function getInstagramReels(limit = 14): Promise<InstagramReel[]> {
-  const userId = process.env.INSTAGRAM_USER_ID;
-  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-
-  if (!userId || !accessToken) {
-    console.error(
-      "Instagram env vars missing: INSTAGRAM_USER_ID or INSTAGRAM_ACCESS_TOKEN",
-    );
-    return [];
-  }
-
-  const fields = [
-    "id",
-    "caption",
-    "media_type",
-    "media_url",
-    "thumbnail_url",
-    "permalink",
-    "timestamp",
-  ].join(",");
-
-  const url = new URL(
-    `https://graph.facebook.com/${INSTAGRAM_GRAPH_VERSION}/${userId}/media`,
-  );
-
-  url.searchParams.set("fields", fields);
-  url.searchParams.set("limit", String(limit * 3));
-  url.searchParams.set("access_token", accessToken);
-
-  try {
-    const response = await fetch(url.toString(), {
-      cache: "no-store",
-    });
-
-    const json = (await response.json()) as InstagramApiResponse;
-
-    if (!response.ok || json.error) {
-      console.error("Instagram API error:", json.error?.message);
-      return [];
-    }
-
-    return (json.data || [])
-      .filter((item) => {
-        return (
-          item.media_type === "VIDEO" &&
-          Boolean(item.permalink) &&
-          Boolean(item.thumbnail_url || item.media_url)
-        );
-      })
-      .slice(0, limit);
-  } catch (error) {
-    console.error("Failed to fetch Instagram reels:", error);
-    return [];
-  }
-}
 
 function InstagramIcon({ className = "" }: { className?: string }) {
   return (
@@ -97,12 +39,51 @@ function InstagramIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export default async function InstagramReels() {
-  const reels = await getInstagramReels(14);
+export default function InstagramReels() {
+  const [reels, setReels] = useState<InstagramReel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!reels.length) {
-    return null;
-  }
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReels() {
+      try {
+        const response = await fetch("/api/instagram-reels", {
+          cache: "no-store",
+        });
+
+        const data = (await response.json()) as InstagramReelsApiResponse;
+
+        if (cancelled) {
+          return;
+        }
+
+        setReels(data.reels || []);
+        setError(data.error || null);
+      } catch (fetchError) {
+        if (cancelled) {
+          return;
+        }
+
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to load Instagram reels.",
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadReels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section
@@ -137,37 +118,63 @@ export default async function InstagramReels() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-          {reels.map((reel) => {
-            const imageSrc = reel.thumbnail_url || reel.media_url;
+        {loading ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+            {Array.from({ length: 14 }).map((_, index) => (
+              <div
+                key={index}
+                className="aspect-[9/14] animate-pulse bg-neutral-100"
+              />
+            ))}
+          </div>
+        ) : reels.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+            {reels.map((reel) => {
+              const imageSrc = reel.thumbnail_url || reel.media_url;
 
-            if (!imageSrc) {
-              return null;
-            }
+              if (!imageSrc) {
+                return null;
+              }
 
-            return (
-              <Link
-                key={reel.id}
-                href={reel.permalink}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open Instagram reel"
-                className="group relative aspect-[9/14] overflow-hidden bg-neutral-100"
-              >
-                <img
-                  src={imageSrc}
-                  alt={reel.caption || "Instagram reel from Beyond Invitation"}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
+              return (
+                <Link
+                  key={reel.id}
+                  href={reel.permalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open Instagram reel"
+                  className="group relative aspect-[9/14] overflow-hidden bg-neutral-100"
+                >
+                  <img
+                    src={imageSrc}
+                    alt={reel.caption || "Instagram reel from Beyond Invitation"}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
 
-                <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  <InstagramIcon className="h-8 w-8 text-white" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <InstagramIcon className="h-8 w-8 text-white" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="border border-neutral-200 bg-paper px-5 py-6 text-sm text-neutral-600">
+            <p>
+              Instagram reels could not be loaded right now. Please check the
+              deployment logs or open{" "}
+              <code className="text-carbon">/api/instagram-reels</code> on the
+              live site.
+            </p>
+
+            {error && (
+              <p className="mt-2 text-xs text-neutral-500">
+                Error: {error}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

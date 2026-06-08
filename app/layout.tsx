@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Assistant } from "next/font/google";
 
 import "./globals.css";
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={assistant.variable}>
-        <body>
+        <body className="min-h-screen bg-white font-sans text-carbon antialiased">
           <CartProvider>
             <Navbar />
             <main>{children}</main>

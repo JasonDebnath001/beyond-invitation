@@ -1,36 +1,29 @@
-// components/InstagramReels.tsx
+"use client";
 
-import Image from "next/image";
 import Link from "next/link";
-
-import { fetchInstagramReels } from "@/lib/instagram";
-
-type InstagramReelsProps = {
-  limit?: number;
-};
 
 const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/beyond_invitation/";
 
-const fallbackReels = [
+const reels = [
   {
-    id: "fallback-1",
-    title: "Wedding cards",
-    description: "See our latest wedding card designs on Instagram.",
+    id: "reel-1",
+    title: "Wedding Cards",
+    description: "Premium invitation designs, textures, foiling, and layouts.",
   },
   {
-    id: "fallback-2",
-    title: "Packaging details",
-    description: "Explore finishing, foiling, envelopes, and packaging ideas.",
+    id: "reel-2",
+    title: "Shagun Envelopes",
+    description: "Elegant envelopes for weddings, gifting, and occasions.",
   },
   {
-    id: "fallback-3",
-    title: "Behind the scenes",
-    description: "Watch how our invitation pieces come together.",
+    id: "reel-3",
+    title: "Rakhi Packaging",
+    description: "Rakhi boxes, cards, tags, and festive packaging ideas.",
   },
   {
-    id: "fallback-4",
-    title: "Real moments",
-    description: "Browse reels from our showroom and client orders.",
+    id: "reel-4",
+    title: "Behind The Scenes",
+    description: "A closer look at printing, packing, and showroom moments.",
   },
 ];
 
@@ -55,7 +48,7 @@ function InstagramIcon({ className = "" }: { className?: string }) {
 
 function PlayIcon() {
   return (
-    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-carbon shadow-lg transition-transform duration-300 group-hover:scale-110">
+    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-carbon shadow-lg transition-transform duration-300 group-hover:scale-110">
       <svg
         className="ml-0.5 h-5 w-5"
         viewBox="0 0 24 24"
@@ -68,13 +61,15 @@ function PlayIcon() {
   );
 }
 
-export default async function InstagramReels({
-  limit = 8,
-}: InstagramReelsProps) {
-  const reels = await fetchInstagramReels(limit);
-
+export default function InstagramReels() {
   return (
-    <section className="bg-white py-16 sm:py-20">
+    <section
+      id="instagram-reels"
+      className="relative z-10 block bg-white py-16 sm:py-20"
+    >
+        <div className="bg-red-600 px-4 py-2 text-center text-sm font-bold text-white">
+  INSTAGRAM SECTION LOADED
+</div>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -103,91 +98,45 @@ export default async function InstagramReels({
           </Link>
         </div>
 
-        {reels.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
-            {reels.map((reel) => {
-              const imageSrc = reel.thumbnail_url || reel.media_url;
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {reels.map((item) => (
+            <Link
+              key={item.id}
+              href={INSTAGRAM_PROFILE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative aspect-[9/14] overflow-hidden border border-neutral-200 bg-paper p-4 transition-colors hover:border-carbon"
+            >
+              <div className="flex h-full flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <InstagramIcon className="h-5 w-5 text-carbon" />
 
-              if (!imageSrc) {
-                return null;
-              }
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                    Reel
+                  </span>
+                </div>
 
-              return (
-                <Link
-                  key={reel.id}
-                  href={reel.permalink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative aspect-[9/14] overflow-hidden bg-neutral-100"
-                  aria-label="Open Instagram reel"
-                >
-                  <Image
-                    src={imageSrc}
-                    alt={reel.caption || "Instagram reel from Beyond Invitation"}
-                    fill
-                    sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-
-                  <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-carbon">
-                    Instagram
-                  </div>
-
-                  <div className="absolute inset-0 flex items-center justify-center">
+                <div>
+                  <div className="mb-4 flex justify-center">
                     <PlayIcon />
                   </div>
 
-                  {reel.caption && (
-                    <p className="absolute bottom-3 left-3 right-3 line-clamp-2 text-xs leading-5 text-white">
-                      {reel.caption}
-                    </p>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {fallbackReels.map((item) => (
-              <Link
-                key={item.id}
-                href={INSTAGRAM_PROFILE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative aspect-[9/14] overflow-hidden border border-neutral-200 bg-paper p-4 transition-colors hover:border-carbon"
-              >
-                <div className="flex h-full flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <InstagramIcon className="h-5 w-5 text-carbon" />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                      Reel
-                    </span>
-                  </div>
+                  <h3 className="font-serif text-xl text-carbon">
+                    {item.title}
+                  </h3>
 
-                  <div>
-                    <div className="mb-4 flex justify-center">
-                      <PlayIcon />
-                    </div>
-
-                    <h3 className="font-serif text-xl text-carbon">
-                      {item.title}
-                    </h3>
-
-                    <p className="mt-2 text-xs leading-5 text-neutral-600">
-                      {item.description}
-                    </p>
-                  </div>
-
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-carbon">
-                    Open Instagram →
+                  <p className="mt-2 text-xs leading-5 text-neutral-600">
+                    {item.description}
                   </p>
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
+
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-carbon">
+                  Open Instagram →
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   );

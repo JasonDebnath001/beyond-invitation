@@ -107,7 +107,7 @@ export default async function HomePage() {
       <Catalogue />
 
       <KindWords />
-      <InstagramReels limit={8} />
+      <InstagramReels />
     </>
   );
 }

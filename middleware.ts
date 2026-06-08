@@ -4,13 +4,15 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
  * Clerk middleware.
  *
  * Public browsing is allowed.
- * Ordering/payment routes are protected so only signed-in users can place orders.
+ * Account, wishlist, orders, and ordering/payment routes are protected
+ * so only signed-in users can access them.
  *
  * IMPORTANT:
  * Do not protect /api/razorpay/webhook because Razorpay calls it server-to-server.
  */
 const isProtectedRoute = createRouteMatcher([
   "/account(.*)",
+  "/wishlist(.*)",
   "/my-orders(.*)",
   "/checkout(.*)",
   "/api/razorpay/order(.*)",

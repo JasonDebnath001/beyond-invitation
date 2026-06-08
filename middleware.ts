@@ -11,6 +11,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
  */
 const isProtectedRoute = createRouteMatcher([
   "/account(.*)",
+  "/my-orders(.*)",
   "/checkout(.*)",
   "/api/razorpay/order(.*)",
   "/api/razorpay/verify(.*)",

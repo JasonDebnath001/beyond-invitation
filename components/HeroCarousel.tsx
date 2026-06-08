@@ -3,9 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 
 const SLIDES = [
-  { src: "/hero1.png", alt: "Hero image 1" },
-  { src: "/hero2.png", alt: "Hero image 2" },
-  { src: "/hero3.png", alt: "Hero image 3" },
+  {
+    src: "/hero1.png",
+    mobileSrc: "/mobile_hero1.png",
+    alt: "Hero image 1",
+  },
+  {
+    src: "/hero2.png",
+    mobileSrc: "/mobile_hero2.png",
+    alt: "Hero image 2",
+  },
+  {
+    src: "/hero3.png",
+    mobileSrc: "/mobile_hero3.png",
+    alt: "Hero image 3",
+  },
 ];
 
 const AUTO_ADVANCE_MS = 6000;
@@ -34,8 +46,10 @@ export default function HeroCarousel() {
   return (
     <section
       className="relative overflow-hidden bg-carbon"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => setPaused(false)}
     >
       {/* Slide track */}
       <div
@@ -47,11 +61,14 @@ export default function HeroCarousel() {
             key={slide.src}
             className="relative flex min-h-[560px] w-full min-w-full items-center justify-center"
           >
-            <img
-              src={slide.src}
-              alt={slide.alt}
-              className="h-full w-full object-cover"
-            />
+            <picture>
+              <source media="(max-width: 767px)" srcSet={slide.mobileSrc} />
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                className="h-full w-full object-cover"
+              />
+            </picture>
           </div>
         ))}
       </div>

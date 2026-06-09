@@ -3,15 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import {
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useUser,
+} from "@clerk/nextjs";
 
 import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
-import WishlistNavLink from "./WishlistNavLink";
 import { BRAND, TAGLINE } from "./siteConfig";
 
-type DropdownItem = { label: string; href: string } | { section: string };
+type DropdownItem =
+  | {
+      label: string;
+      href: string;
+    }
+  | {
+      section: string;
+    };
 
 type NavItem = {
   label: string;
@@ -47,18 +57,125 @@ const navMenu: NavItem[] = [
   },
 ];
 
-export default function Navbar() {
+function DesktopAuthButtons() {
   const { isLoaded, isSignedIn } = useUser();
-  const pathname = usePathname();
 
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (isSignedIn) {
+    return (
+      <div className="flex shrink-0 items-center gap-3">
+        <Link
+          href="/wishlist"
+          className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.08em] text-carbon transition hover:text-maroon"
+        >
+          Wishlist
+        </Link>
+
+        <Link
+          href="/my-orders"
+          className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.08em] text-carbon transition hover:text-maroon"
+        >
+          My Orders
+        </Link>
+
+        <UserButton afterSignOutUrl="/" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <SignInButton mode="modal">
+        <button className="h-9 rounded-full border border-carbon px-4 text-xs font-semibold text-carbon transition hover:bg-carbon hover:text-white">
+          Sign In
+        </button>
+      </SignInButton>
+
+      <SignUpButton mode="modal">
+        <button className="h-9 rounded-full bg-maroon px-4 text-xs font-semibold text-white transition hover:bg-maroon-dark">
+          Sign Up
+        </button>
+      </SignUpButton>
+    </div>
+  );
+}
+
+function MobileAuthButtons({ closeMobile }: { closeMobile: () => void }) {
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (isSignedIn) {
+    return (
+      <div className="space-y-1 border-t border-gold/20 pt-3">
+        <Link
+          href="/wishlist"
+          onClick={closeMobile}
+          className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
+        >
+          Wishlist
+        </Link>
+
+        <Link
+          href="/my-orders"
+          onClick={closeMobile}
+          className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
+        >
+          My Orders
+        </Link>
+
+        <Link
+          href="/account"
+          onClick={closeMobile}
+          className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
+        >
+          Account
+        </Link>
+
+        <div className="px-3 py-2">
+          <UserButton afterSignOutUrl="/" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 border-t border-gold/20 pt-3">
+      <SignInButton mode="modal">
+        <button
+          onClick={closeMobile}
+          className="block w-full rounded-xl border border-carbon px-3 py-2 text-left text-sm font-semibold text-carbon hover:bg-carbon hover:text-white"
+        >
+          Sign In
+        </button>
+      </SignInButton>
+
+      <SignUpButton mode="modal">
+        <button
+          onClick={closeMobile}
+          className="block w-full rounded-xl bg-maroon px-3 py-2 text-left text-sm font-semibold text-white hover:bg-maroon-dark"
+        >
+          Sign Up
+        </button>
+      </SignUpButton>
+    </div>
+  );
+}
+
+export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(null);
 
   const closeMobile = () => setMobileOpen(false);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
         setMobileOpen(false);
         setActiveDropdownIndex(null);
       }
@@ -71,7 +188,7 @@ export default function Navbar() {
   useEffect(() => {
     setMobileOpen(false);
     setActiveDropdownIndex(null);
-  }, [pathname]);
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 backdrop-blur">
@@ -82,19 +199,19 @@ export default function Navbar() {
               src="/logo.png"
               alt={BRAND}
               fill
-              sizes="44px"
-              className="object-contain"
+              className="object-contain p-1"
+              sizes="40px"
               priority
             />
           </div>
 
           <div className="min-w-0">
-            <div className="truncate text-base font-semibold tracking-wide text-carbon">
+            <p className="whitespace-nowrap font-serif text-lg font-semibold leading-tight text-maroon">
               {BRAND}
             </div>
             <div className="hidden truncate text-[11px] uppercase tracking-[0.16em] text-carbon/55 sm:block">
               {TAGLINE}
-            </div>
+            </p>
           </div>
         </Link>
 
@@ -180,19 +297,10 @@ export default function Navbar() {
           <WishlistNavLink />
           <CartButton />
 
-          <Show when={() => isLoaded && isSignedIn}>
-            <UserButton />
-          </Show>
-
-          <Show when={() => isLoaded && !isSignedIn}>
-            <SignInButton mode="modal">
-              <button className="rounded-full bg-carbon px-4 py-2 text-sm font-semibold text-white transition hover:bg-carbon/85">
-                Sign In
-              </button>
-            </SignInButton>
-          </Show>
+          <DesktopAuthButtons />
         </div>
 
+        {/* Mobile actions */}
         <div className="flex items-center gap-3 lg:hidden">
           <CartButton />
 
@@ -201,18 +309,19 @@ export default function Navbar() {
             onClick={() => setMobileOpen((open) => !open)}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-carbon transition-colors hover:bg-paper"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-carbon transition-colors hover:bg-paper"
           >
             <span aria-hidden="true" className="text-2xl leading-none">
               {mobileOpen ? "×" : "☰"}
             </span>
           </button>
         </div>
-      </div>
+      </nav>
 
+      {/* Mobile panel */}
       {mobileOpen && (
-        <div className="border-t border-carbon/10 bg-white px-4 py-5 shadow-xl lg:hidden">
-          <div className="mx-auto max-w-7xl space-y-5">
+        <div className="border-t border-gold/20 bg-white px-4 py-4 shadow-lg lg:hidden">
+          <div className="mx-auto max-w-7xl space-y-4">
             <SearchBar />
 
             <nav className="space-y-2">
@@ -247,9 +356,9 @@ export default function Navbar() {
                             key={`${d.label}-${d.href}-${i}`}
                             href={d.href}
                             onClick={closeMobile}
-                            className="block text-sm text-carbon/75"
+                            className="block rounded-xl px-3 py-2 text-sm text-ink-light hover:bg-paper hover:text-maroon"
                           >
-                            {d.label}
+                            {dropdownItem.label}
                           </Link>
                         ),
                       )}
@@ -257,28 +366,9 @@ export default function Navbar() {
                   )}
                 </div>
               ))}
-
-              <div className="rounded-2xl bg-paper/60 p-3" onClick={closeMobile}>
-                <WishlistNavLink />
-              </div>
-            </nav>
-
-            <div className="flex items-center gap-3 border-t border-carbon/10 pt-4">
-              <Show when={() => isLoaded && isSignedIn}>
-                <UserButton />
-              </Show>
-
-              <Show when={() => isLoaded && !isSignedIn}>
-                <SignInButton mode="modal">
-                  <button
-                    onClick={closeMobile}
-                    className="rounded-full bg-carbon px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Sign In
-                  </button>
-                </SignInButton>
-              </Show>
             </div>
+
+            <MobileAuthButtons closeMobile={closeMobile} />
           </div>
         </div>
       )}

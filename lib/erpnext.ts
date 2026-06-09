@@ -1444,3 +1444,165 @@ export async function createPaymentEntryForSalesOrder(args: {
 
   return { name: pe.data.name };
 }
+
+// ===========================================================================
+// MY ORDERS - Customer order history from ERPNext Sales Order
+// ===========================================================================
+
+export interface CustomerOrderItem {
+  itemCode: string;
+  itemName: string;
+  slug: string;
+  qty: number;
+  rate: number;
+  amount: number;
+  image?: string;
+}
+
+export interface CustomerOrder {
+  name: string;
+  transactionDate: string;
+  deliveryDate?: string;
+  status: string;
+  docstatus: number;
+  paymentStatus: string;
+  grandTotal: number;
+  currency: string;
+  customerName?: string;
+  contactEmail?: string;
+  contactMobile?: string;
+  addressDisplay?: string;
+  notes?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  items: CustomerOrderItem[];
+}
+
+type ErpSalesOrderListRow = {
+  name: string;
+};
+
+type ErpSalesOrderItemRow = {
+  item_code?: string;
+  item_name?: string;
+  qty?: number;
+  rate?: number;
+  amount?: number;
+  image?: string;
+};
+
+type ErpSalesOrderDoc = {
+  name: string;
+  transaction_date?: string;
+  delivery_date?: string;
+  status?: string;
+  docstatus?: number;
+  grand_total?: number;
+  rounded_total?: number;
+  currency?: string;
+  customer_name?: string;
+  contact_email?: string;
+  contact_mobile?: string;
+  address_display?: string;
+  notes?: string;
+  items?: ErpSalesOrderItemRow[];
+  [key: string]: unknown;
+};
+
+function normalizeOrderStatus(docstatus?: number, status?: string) {
+  const cleanStatus = safeTrim(status);
+
+  if (cleanStatus) return cleanStatus;
+  if (docstatus === 0) return "Draft";
+  if (docstatus === 1) return "Submitted";
+  if (docstatus === 2) return "Cancelled";
+
+  return "Unknown";
+}
+
+function normalizeOrderPaymentStatus(value: unknown, docstatus?: number) {
+  const clean = cleanTextValue(value);
+
+  if (clean) return clean;
+  if (docstatus === 1) return "Paid";
+
+  return "Pending";
+}
+
+function mapSalesOrderDocToCustomerOrder(doc: ErpSalesOrderDoc): CustomerOrder {
+  const paymentStatus = normalizeOrderPaymentStatus(
+    doc[ERPNEXT_PAYMENT_STATUS_FIELD],
+    doc.docstatus,
+  );
+
+  return {
+    name: doc.name,
+    transactionDate: safeTrim(doc.transaction_date),
+    deliveryDate: safeTrim(doc.delivery_date) || undefined,
+    status: normalizeOrderStatus(doc.docstatus, doc.status),
+    docstatus: Number(doc.docstatus ?? 0),
+    paymentStatus,
+    grandTotal: Number(doc.rounded_total || doc.grand_total || 0),
+    currency: safeTrim(doc.currency) || "INR",
+    customerName: safeTrim(doc.customer_name) || undefined,
+    contactEmail: safeTrim(doc.contact_email) || undefined,
+    contactMobile: safeTrim(doc.contact_mobile) || undefined,
+    addressDisplay: safeTrim(doc.address_display) || undefined,
+    notes: cleanTextValue(doc.notes) || undefined,
+    razorpayOrderId: cleanTextValue(doc[ERPNEXT_RZP_ORDER_FIELD]) || undefined,
+    razorpayPaymentId:
+      cleanTextValue(doc[ERPNEXT_RZP_PAYMENT_FIELD]) || undefined,
+    items: (doc.items ?? []).map((item) => {
+      const itemCode = safeTrim(item.item_code);
+      const itemName = safeTrim(item.item_name) || itemCode;
+
+      return {
+        itemCode,
+        itemName,
+        slug: normalizeSlug(itemCode),
+        qty: Number(item.qty || 0),
+        rate: Number(item.rate || 0),
+        amount: Number(item.amount || 0),
+        image: buildImageUrl(item.image)[0],
+      };
+    }),
+  };
+}
+
+/**
+ * Fetch the signed-in customer's order history from ERPNext.
+ *
+ * This uses Sales Order.contact_email because checkout writes the Clerk/user
+ * email into the ERPNext Sales Order.
+ */
+export async function fetchCustomerOrdersByEmail(
+  email: string,
+): Promise<CustomerOrder[]> {
+  const cleanEmail = safeTrim(email).toLowerCase();
+
+  if (!cleanEmail) return [];
+
+  const list = await erpGetFresh<ErpNextListResponse<ErpSalesOrderListRow>>(
+    "/api/resource/Sales Order",
+    {
+      fields: JSON.stringify(["name"]),
+      filters: JSON.stringify([
+        ["Sales Order", "contact_email", "=", cleanEmail],
+      ]),
+      order_by: "creation desc",
+      limit_page_length: "100",
+    },
+  );
+
+  const orders = await Promise.all(
+    (list.data ?? []).map(async (row) => {
+      const doc = await erpGetFresh<ErpNextSingleResponse<ErpSalesOrderDoc>>(
+        `/api/resource/Sales Order/${encodeURIComponent(row.name)}`,
+      );
+
+      return mapSalesOrderDocToCustomerOrder(doc.data);
+    }),
+  );
+
+  return orders;
+}

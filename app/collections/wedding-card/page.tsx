@@ -1,65 +1,25 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { getAllCategories, getCategoryBySlug } from "@/lib/products";
-import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
-import type { ProductCategory } from "@/types";
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-
-interface PageProps {
-  params: Promise<{ category: string }>;
-}
+import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function generateStaticParams() {
-  const categories = await getAllCategories();
+export const metadata: Metadata = {
+  title: "Wedding Cards – Beyond Invitation",
+  description:
+    "Browse all wedding card designs available at Beyond Invitation.",
+};
 
-  return categories.map((category) => ({
-    category: category.slug,
-  }));
-}
-
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
-  const { category: categorySlug } = await params;
-  const category = await getCategoryBySlug(categorySlug);
-
-  if (!category) {
-    return {
-      title: "Collection Not Found – Beyond Invitation",
-    };
-  }
-
-  return {
-    title: `${category.name} – Beyond Invitation`,
-    description: category.description,
-  };
-}
-
-export default async function CollectionPage({ params }: PageProps) {
-  const { category: categorySlug } = await params;
-
-  const category = await getCategoryBySlug(categorySlug);
-
-  if (!category) {
-    notFound();
-  }
-
-  let allProducts: ErpProduct[] = [];
+export default async function WeddingCardPage() {
   let products: ErpProduct[] = [];
   let errorMessage = "";
 
   try {
-    allProducts = await fetchErpProducts();
-
-    products = allProducts.filter(
-      (product) => product.category === (categorySlug as ProductCategory),
-    );
+    products = await fetchErpProducts();
   } catch (error) {
-    console.error(`ERPNext ${category.name} fetch failed:`, error);
+    console.error("ERPNext Wedding Card fetch failed:", error);
 
     errorMessage =
       error instanceof Error
@@ -78,11 +38,11 @@ export default async function CollectionPage({ params }: PageProps) {
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="font-serif text-3xl font-semibold text-maroon sm:text-4xl">
-                {category.name}
+                Wedding Cards
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-light">
-                {category.description}
+                Browse all wedding card designs fetched live from ERPNext.
               </p>
             </div>
 
@@ -118,8 +78,8 @@ export default async function CollectionPage({ params }: PageProps) {
             </h2>
 
             <p className="mt-2 text-sm text-ink-light">
-              ERPNext connected successfully, but no visible products were found
-              for this collection.
+              ERPNext connected successfully, but no visible products were
+              found.
             </p>
           </div>
         ) : (

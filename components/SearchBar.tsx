@@ -116,13 +116,13 @@ export default function SearchBar() {
             onFocus={() => setOpen(true)}
             placeholder="Search cards"
             aria-label="Search products"
-            className="w-48 border border-neutral-300 bg-white py-2.5 pl-9 pr-3 text-[13px] text-carbon transition-all placeholder:text-neutral-400 focus:w-64 focus:border-carbon focus:outline-none"
+            className="w-48 rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-[13px] text-carbon shadow-sm transition-all placeholder:text-neutral-400 focus:w-64 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10"
           />
         </div>
       </form>
 
       {showDropdown && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fadeDown overflow-hidden border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fadeDown overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)]">
           {loading && (
             <p className="px-4 py-3 text-[13px] text-neutral-400">
               Searching&hellip;
@@ -149,9 +149,9 @@ export default function SearchBar() {
                 <span className="flex-1 truncate text-[13px] font-medium text-carbon">
                   {product.name}
                 </span>
-                <span className="shrink-0 font-display text-[14px] font-medium text-carbon">
+                {/* <span className="shrink-0 font-display text-[14px] font-medium text-carbon">
                   &#8377;{product.price.toLocaleString("en-IN")}
-                </span>
+                </span> */}
               </button>
             ))}
 

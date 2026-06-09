@@ -233,19 +233,32 @@ export function FeatureStrip() {
   ];
 
   return (
-    <section className="bg-stone-950 px-4 py-12 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((it, i) => (
-          <div key={it.title} className="rounded-3xl border border-white/10 p-6">
-            <p className="text-xs font-semibold tracking-[0.3em] text-amber-400">
-              0{i + 1}
-            </p>
+    <section className="bg-[#85172b] px-4 py-14 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((it, i) => (
+            <div
+              key={it.title}
+              className="group rounded-3xl border border-white/15 bg-white/[0.04] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#e6c27a]/70 hover:bg-white/[0.07]"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e6c27a]/50 text-xs font-semibold text-[#f3d99b]">
+                  0{i + 1}
+                </span>
 
-            <h3 className="mt-4 font-serif text-2xl">{it.title}</h3>
+                <span className="h-px flex-1 bg-gradient-to-r from-[#e6c27a]/60 to-transparent" />
+              </div>
 
-            <p className="mt-2 text-sm text-stone-300">{it.sub}</p>
-          </div>
-        ))}
+              <h3 className="mt-5 font-serif text-2xl text-white">
+                {it.title}
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-white/65">
+                {it.sub}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

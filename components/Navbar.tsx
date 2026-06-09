@@ -25,27 +25,17 @@ type DropdownItem =
 
 type NavItem = {
   label: string;
-  href: string;
+  href?: string;
   dropdown?: DropdownItem[];
 };
 
 const navMenu: NavItem[] = [
   {
     label: "Wedding Card",
-    href: "/collections/wedding-card",
     dropdown: [
-      {
-        label: "Hindu Wedding Cards",
-        href: "/collections/wedding-card-hindu",
-      },
-      {
-        label: "Muslim Wedding Cards",
-        href: "/collections/wedding-card-muslim",
-      },
-      {
-        label: "Christian Wedding Cards",
-        href: "/collections/wedding-card-christian",
-      },
+      { label: "Hindu Wedding Cards", href: "/collections/wedding-card-hindu" },
+      { label: "Muslim Wedding Cards", href: "/collections/wedding-card-muslim" },
+      { label: "Christian Wedding Cards", href: "/collections/wedding-card-christian" },
     ],
   },
   {
@@ -60,18 +50,9 @@ const navMenu: NavItem[] = [
     label: "Rakhi",
     href: "/collections/rakhi",
     dropdown: [
-      {
-        label: "Cards",
-        href: "/collections/rakhi-cards",
-      },
-      {
-        label: "Boxes",
-        href: "/collections/rakhi-boxes",
-      },
-      {
-        label: "Tag",
-        href: "/collections/rakhi-tag",
-      },
+      { label: "Cards", href: "/collections/rakhi-cards" },
+      { label: "Boxes", href: "/collections/rakhi-boxes" },
+      { label: "Tag", href: "/collections/rakhi-tag" },
     ],
   },
 ];
@@ -188,9 +169,9 @@ function MobileAuthButtons({ closeMobile }: { closeMobile: () => void }) {
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(
-    null,
-  );
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(null);
+
+  const closeMobile = () => setMobileOpen(false);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -201,26 +182,19 @@ export default function Navbar() {
     }
 
     document.addEventListener("keydown", onKey);
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const closeMobile = () => {
+  useEffect(() => {
     setMobileOpen(false);
     setActiveDropdownIndex(null);
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gold/20 bg-white/95 shadow-sm backdrop-blur">
-      <nav className="mx-auto flex min-h-[68px] max-w-7xl items-center justify-between gap-3 px-4 py-2 lg:px-5 xl:px-8">
-        {/* Logo */}
-        <Link
-          href="/"
-          className="flex min-w-[220px] shrink-0 items-center gap-3"
-        >
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-gold/30 bg-white">
+    <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 items-center gap-3 py-3" onClick={closeMobile}>
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-paper">
             <Image
               src="/logo.png"
               alt={BRAND}
@@ -234,76 +208,93 @@ export default function Navbar() {
           <div className="min-w-0">
             <p className="whitespace-nowrap font-serif text-lg font-semibold leading-tight text-maroon">
               {BRAND}
-            </p>
-            <p className="max-w-[190px] truncate text-[10px] uppercase tracking-[0.22em] text-gold">
+            </div>
+            <div className="hidden truncate text-[11px] uppercase tracking-[0.16em] text-carbon/55 sm:block">
               {TAGLINE}
             </p>
           </div>
         </Link>
 
-        {/* Desktop menu */}
-        <div className="hidden flex-1 items-center justify-center gap-2 lg:flex xl:gap-4">
-          {navMenu.map((item, navIndex) => (
-            <div
-              key={item.label}
-              className="relative shrink-0"
-              onMouseEnter={() => {
-                if (item.dropdown) {
-                  setActiveDropdownIndex(navIndex);
-                }
-              }}
-              onMouseLeave={() => setActiveDropdownIndex(null)}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                  setActiveDropdownIndex(null);
-                }
-              }}
-            >
-              <Link
-                href={item.href}
-                className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-1.5 text-sm font-semibold text-carbon transition hover:bg-paper hover:text-maroon xl:px-3"
-              >
-                {item.label}
+        <nav className="hidden items-center gap-7 lg:flex">
+          {navMenu.map((item, navIndex) => {
+            const hasDropdown = Boolean(item.dropdown?.length);
 
-                {item.dropdown && (
-                  <span className="text-[10px] text-gold" aria-hidden="true">
-                    ▾
+            return (
+              <div
+                key={`${item.label}-${navIndex}`}
+                className="relative"
+                onMouseEnter={() => hasDropdown && setActiveDropdownIndex(navIndex)}
+                onMouseLeave={() => setActiveDropdownIndex(null)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                    setActiveDropdownIndex(null);
+                  }
+                }}
+              >
+                {hasDropdown ? (
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={activeDropdownIndex === navIndex}
+                    className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon transition-colors hover:text-carbon/70"
+                  >
+                    {item.label}
+                    <span
+                      aria-hidden="true"
+                      className={`text-xs transition-transform ${
+                        activeDropdownIndex === navIndex ? "rotate-180" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
+                  </button>
+                ) : item.href ? (
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon transition-colors hover:text-carbon/70"
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className="flex items-center gap-1.5 py-6 text-[11.5px] font-medium uppercase tracking-[0.16em] text-carbon">
+                    {item.label}
                   </span>
                 )}
-              </Link>
 
-              {item.dropdown && activeDropdownIndex === navIndex && (
-                <div className="absolute left-0 top-full min-w-56 rounded-2xl border border-gold/20 bg-white p-2 shadow-xl">
-                  {item.dropdown.map((dropdownItem, index) =>
-                    "section" in dropdownItem ? (
-                      <p
-                        key={`${dropdownItem.section}-${index}`}
-                        className="px-3 py-2 text-xs uppercase tracking-[0.2em] text-gold"
-                      >
-                        {dropdownItem.section}
-                      </p>
-                    ) : (
-                      <Link
-                        key={dropdownItem.href}
-                        href={dropdownItem.href}
-                        className="block whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-carbon transition hover:bg-paper hover:text-maroon"
-                      >
-                        {dropdownItem.label}
-                      </Link>
-                    ),
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                {hasDropdown && activeDropdownIndex === navIndex && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-full w-max min-w-56 rounded-2xl border border-carbon/10 bg-white p-2 shadow-xl"
+                  >
+                    {item.dropdown?.map((d, i) =>
+                      "section" in d ? (
+                        <div
+                          key={`${item.label}-section-${i}`}
+                          className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-carbon/45"
+                        >
+                          {d.section}
+                        </div>
+                      ) : (
+                        <Link
+                          key={`${d.label}-${d.href}-${i}`}
+                          href={d.href}
+                          role="menuitem"
+                          className="block rounded-xl px-3 py-2 text-sm text-carbon transition hover:bg-paper"
+                        >
+                          {d.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
 
-        {/* Right actions */}
-        <div className="hidden shrink-0 items-center gap-3 lg:flex">
-          <div className="w-[175px] xl:w-[210px]">
-            <SearchBar />
-          </div>
-
+        <div className="hidden items-center gap-4 lg:flex">
+          <SearchBar />
+          <WishlistNavLink />
           <CartButton />
 
           <DesktopAuthButtons />
@@ -320,11 +311,9 @@ export default function Navbar() {
             aria-expanded={mobileOpen}
             className="flex h-9 w-9 items-center justify-center rounded-full text-carbon transition-colors hover:bg-paper"
           >
-            {mobileOpen ? (
-              <span className="text-2xl leading-none">×</span>
-            ) : (
-              <span className="text-xl leading-none">☰</span>
-            )}
+            <span aria-hidden="true" className="text-2xl leading-none">
+              {mobileOpen ? "×" : "☰"}
+            </span>
           </button>
         </div>
       </nav>
@@ -335,24 +324,37 @@ export default function Navbar() {
           <div className="mx-auto max-w-7xl space-y-4">
             <SearchBar />
 
-            <div className="space-y-1">
-              {navMenu.map((item) => (
-                <div key={item.label}>
-                  <Link
-                    href={item.href}
-                    onClick={closeMobile}
-                    className="block rounded-xl px-3 py-2 text-sm font-semibold text-carbon hover:bg-paper"
-                  >
-                    {item.label}
-                  </Link>
+            <nav className="space-y-2">
+              {navMenu.map((item, index) => (
+                <div key={`${item.label}-${index}`} className="rounded-2xl bg-paper/60 p-3">
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      onClick={closeMobile}
+                      className="block text-sm font-semibold uppercase tracking-[0.12em] text-carbon"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <div className="block text-sm font-semibold uppercase tracking-[0.12em] text-carbon">
+                      {item.label}
+                    </div>
+                  )}
 
                   {item.dropdown && (
-                    <div className="ml-4 border-l border-gold/20 pl-3">
-                      {item.dropdown.map((dropdownItem, index) =>
-                        "section" in dropdownItem ? null : (
+                    <div className="mt-3 space-y-2 border-l border-carbon/15 pl-3">
+                      {item.dropdown.map((d, i) =>
+                        "section" in d ? (
+                          <div
+                            key={`${item.label}-mobile-section-${i}`}
+                            className="text-xs font-semibold uppercase tracking-[0.12em] text-carbon/45"
+                          >
+                            {d.section}
+                          </div>
+                        ) : (
                           <Link
-                            key={`${dropdownItem.href}-${index}`}
-                            href={dropdownItem.href}
+                            key={`${d.label}-${d.href}-${i}`}
+                            href={d.href}
                             onClick={closeMobile}
                             className="block rounded-xl px-3 py-2 text-sm text-ink-light hover:bg-paper hover:text-maroon"
                           >

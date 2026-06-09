@@ -4,13 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/types";
 
-/*
- * Navbar search box with a live results dropdown.
- * - Typing fetches results from /api/search (debounced).
- * - Clicking a result opens that product.
- * - Pressing Enter opens the full /search results page.
- */
-
 const MAX_DROPDOWN_RESULTS = 6;
 
 export default function SearchBar() {
@@ -21,9 +14,9 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Debounced live search — waits 250ms after the last keystroke.
   useEffect(() => {
     const q = query.trim();
+
     if (!q) {
       setResults([]);
       setLoading(false);
@@ -31,18 +24,22 @@ export default function SearchBar() {
     }
 
     setLoading(true);
+
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
           signal: controller.signal,
         });
+
         const data = (await res.json()) as { results: Product[] };
+
         if (!controller.signal.aborted) {
           setResults(data.results ?? []);
         }
       } catch (error) {
         const err = error as { name?: string };
+
         if (err.name !== "AbortError") {
           setResults([]);
         }
@@ -59,7 +56,6 @@ export default function SearchBar() {
     };
   }, [query]);
 
-  // Close the dropdown when clicking outside the search box.
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (
@@ -69,14 +65,17 @@ export default function SearchBar() {
         setOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     const q = query.trim();
     if (!q) return;
+
     setOpen(false);
     router.push(`/search?q=${encodeURIComponent(q)}`);
   }
@@ -91,9 +90,12 @@ export default function SearchBar() {
   const showDropdown = open && query.trim().length > 0;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div
+      ref={containerRef}
+      className="relative w-full lg:w-auto"
+    >
       <form onSubmit={handleSubmit}>
-        <div className="flex items-center">
+        <div className="relative flex items-center">
           <span className="pointer-events-none absolute left-3 text-neutral-400">
             <svg
               width="15"
@@ -109,6 +111,7 @@ export default function SearchBar() {
               <path d="m21 21-4.3-4.3" />
             </svg>
           </span>
+
           <input
             type="text"
             value={query}
@@ -116,13 +119,13 @@ export default function SearchBar() {
             onFocus={() => setOpen(true)}
             placeholder="Search cards"
             aria-label="Search products"
-            className="w-48 rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-[13px] text-carbon shadow-sm transition-all placeholder:text-neutral-400 focus:w-64 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10"
+            className="w-full rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-[13px] text-carbon shadow-sm transition-all placeholder:text-neutral-400 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10 lg:w-48 lg:focus:w-64"
           />
         </div>
       </form>
 
       {showDropdown && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fadeDown overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)]">
+        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-0 animate-fadeDown overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)] lg:w-80">
           {loading && (
             <p className="px-4 py-3 text-[13px] text-neutral-400">
               Searching&hellip;
@@ -146,12 +149,10 @@ export default function SearchBar() {
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-neutral-100 text-lg">
                   {product.emoji}
                 </span>
+
                 <span className="flex-1 truncate text-[13px] font-medium text-carbon">
                   {product.name}
                 </span>
-                {/* <span className="shrink-0 font-display text-[14px] font-medium text-carbon">
-                  &#8377;{product.price.toLocaleString("en-IN")}
-                </span> */}
               </button>
             ))}
 

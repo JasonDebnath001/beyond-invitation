@@ -11,13 +11,6 @@ interface ProductCardProps {
   product: Product;
 }
 
-/**
- * Resolve an image reference to a usable src:
- * - Full ERP/public URL
- * - ERPNext /files path
- * - Local /public path
- * - Local /public/products fallback
- */
 function getImageSrc(img: string) {
   if (!img) return "";
 
@@ -37,10 +30,6 @@ function getImageSrc(img: string) {
   return `/products/${img}`;
 }
 
-/**
- * A single product card:
- * image, badge, wishlist button, name, price and add-to-cart.
- */
 export default function ProductCard({ product }: ProductCardProps) {
   const [failed, setFailed] = useState(false);
 
@@ -48,73 +37,75 @@ export default function ProductCard({ product }: ProductCardProps) {
   const isSaleCard = product.badge === "SALE" || product.onSale === true;
 
   const badge =
-    product.badge ?? (!isSaleCard && discount > 0 ? `${discount}% OFF` : undefined);
+    product.badge ??
+    (!isSaleCard && discount > 0 ? `${discount}% OFF` : undefined);
 
   const firstImage = product.images?.[0];
   const src = firstImage ? getImageSrc(firstImage) : "";
   const showImage = Boolean(src && !failed);
 
   return (
-    <article className="group overflow-hidden rounded-3xl border border-carbon/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative aspect-[4/5] overflow-hidden bg-paper">
+    <article className="group overflow-hidden rounded-[28px] border border-carbon/10 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-carbon/15 hover:shadow-[0_18px_45px_rgba(0,0,0,0.10)]">
+      <div className="relative aspect-[4/4.6] overflow-hidden bg-white">
         <Link
           href={`/products/${product.slug}`}
           aria-label={`View ${product.name}`}
-          className="block h-full w-full"
+          className="flex h-full w-full items-center justify-center"
         >
           {showImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={src}
               alt={product.name}
               onError={() => setFailed(true)}
-              className="h-full w object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+              className="h-full w-full object-contain p-5 transition-transform duration-700 ease-out group-hover:scale-[1.06]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-paper text-6xl">
+            <div className="flex h-full w-full items-center justify-center text-6xl">
               {product.emoji}
             </div>
           )}
         </Link>
 
         {badge && (
-          <span className="absolute left-3 top-3 z-10 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-carbon shadow-sm">
+          <span className="absolute left-4 top-4 z-10 rounded-full border border-carbon/10 bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#85172b] shadow-sm">
             {badge}
           </span>
         )}
 
         <WishlistButton
           productSlug={product.slug}
-          className="absolute right-3 top-3 z-20"
+          className="absolute right-4 top-4 z-20 rounded-full bg-white shadow-sm"
         />
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className="border-t border-carbon/5 bg-white p-4 sm:p-5">
         <Link href={`/products/${product.slug}`} className="block">
-          <h3 className="line-clamp-2 min-h-[44px] text-base font-semibold leading-snug text-carbon transition-colors group-hover:text-carbon/75">
+          <h3 className="line-clamp-2 min-h-[42px] text-[15px] font-semibold leading-snug text-[#85172b] transition-colors group-hover:text-carbon">
             {product.name}
           </h3>
         </Link>
 
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-lg font-semibold text-carbon">
+        <div className="mt-3 flex min-h-[28px] flex-wrap items-center gap-2">
+          <span className="text-[18px] font-bold text-carbon">
             ₹{product.price.toLocaleString("en-IN")}
           </span>
 
           {product.mrp > product.price && (
-            <span className="text-sm text-carbon/45 line-through">
+            <span className="text-sm text-carbon/35 line-through">
               ₹{product.mrp.toLocaleString("en-IN")}
             </span>
           )}
 
           {!isSaleCard && discount > 0 && (
-            <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+            <span className="rounded-full bg-[#f8ead0] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#85172b]">
               {discount}% off
             </span>
           )}
         </div>
 
-        <AddToCartButton product={product} />
+        <div className="mt-4">
+          <AddToCartButton product={product} />
+        </div>
       </div>
     </article>
   );

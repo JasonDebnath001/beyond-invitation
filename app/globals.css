@@ -5,11 +5,17 @@
 @layer base {
   html {
     font-family: var(--font-assistant), sans-serif;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
   body {
     @apply bg-white text-ink antialiased;
     font-family: var(--font-assistant), sans-serif;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
   }
 
   * {

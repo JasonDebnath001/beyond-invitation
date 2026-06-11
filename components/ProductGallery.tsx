@@ -341,11 +341,7 @@ export default function ProductGallery({
         onKeyDown={onKeyDown}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className={`group relative overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-soft outline-none ${
-          isActiveVideo
-            ? "mx-auto aspect-[9/16] w-full max-w-[430px]"
-            : "aspect-square w-full"
-        }`}
+        className="group relative overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-soft outline-none mx-auto w-full max-w-[730px]"
       >
         {hasMedia && activeItem ? (
           <>
@@ -363,7 +359,7 @@ export default function ProductGallery({
                     saveImageSize(active, event.currentTarget)
                   }
                   onError={() => markFailed(active)}
-                  className="h-full w-full object-contain p-3"
+                  className="block max-w-full object-contain p-3"
                 />
               )
             ) : isEmbeddableVideo(activeSrc) ? (
@@ -372,7 +368,7 @@ export default function ProductGallery({
                 title={`${alt} video`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
-                className="h-full w-full border-0"
+                className="block w-full aspect-video border-0"
               />
             ) : isDirectVideo(activeSrc) ? (
               <video
@@ -380,10 +376,10 @@ export default function ProductGallery({
                 controls
                 playsInline
                 muted
-                className="h-full w-full object-cover"
+                className="block w-full h-auto"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center p-6 text-center">
+              <div className="flex min-h-[240px] w-full items-center justify-center p-6 text-center">
                 <a
                   href={activeSrc}
                   target="_blank"

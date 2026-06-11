@@ -20,12 +20,10 @@ const SLIDES = [
   },
 ];
 
-const AUTO_ADVANCE_MS = 6000;
+const AUTO_ADVANCE_MS = 5000;
 
 export default function HeroCarousel() {
   const [current, setCurrent] = useState(0);
-  const [paused, setPaused] = useState(false);
-
   const total = SLIDES.length;
 
   const goNext = useCallback(() => {
@@ -36,37 +34,34 @@ export default function HeroCarousel() {
     setCurrent((c) => (c - 1 + total) % total);
   }, [total]);
 
-  // Auto-advance, paused while the pointer is over the hero.
   useEffect(() => {
-    if (paused) return;
-    const timer = setInterval(goNext, AUTO_ADVANCE_MS);
-    return () => clearInterval(timer);
-  }, [paused, goNext]);
+    const timer = window.setInterval(() => {
+      goNext();
+    }, AUTO_ADVANCE_MS);
+
+    return () => window.clearInterval(timer);
+  }, [goNext]);
 
   return (
-    <section
-      className="relative overflow-hidden bg-carbon"
-      onPointerEnter={() => setPaused(true)}
-      onPointerLeave={() => setPaused(false)}
-      onTouchStart={() => setPaused(true)}
-      onTouchEnd={() => setPaused(false)}
-    >
+    <section className="relative overflow-hidden bg-carbon">
       {/* Slide track */}
       <div
         className="flex transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
-        {SLIDES.map((slide) => (
+        {SLIDES.map((slide, i) => (
           <div
             key={slide.src}
-            className="relative flex min-h-[560px] w-full min-w-full items-center justify-center"
+            className="relative flex min-h-[560px] w-full min-w-full items-center justify-center overflow-hidden"
           >
-            <picture>
+            <picture className="h-full w-full">
               <source media="(max-width: 767px)" srcSet={slide.mobileSrc} />
               <img
                 src={slide.src}
                 alt={slide.alt}
-                className="h-full w-full object-cover"
+                className={`h-full w-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  i === current ? "scale-100" : "scale-150"
+                }`}
               />
             </picture>
           </div>
@@ -82,6 +77,7 @@ export default function HeroCarousel() {
       >
         &#8592;
       </button>
+
       <button
         type="button"
         onClick={goNext}
@@ -99,7 +95,7 @@ export default function HeroCarousel() {
             type="button"
             onClick={() => setCurrent(i)}
             aria-label={`Go to slide ${i + 1}`}
-            className="flex h-8 w-8 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-white/75 transition"
+            className="flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-white/75"
           >
             <span
               className={`h-px transition-all duration-300 ${

@@ -12,18 +12,14 @@ interface ProductGalleryProps {
 
 type GalleryItem =
   | {
-      type: "image";
-      src: string;
-    }
+    type: "image";
+    src: string;
+  }
   | {
-      type: "video";
-      src: string;
-    };
+    type: "video";
+    src: string;
+  };
 
-/**
- * Resolve an image reference to a usable src:
- * ERP URL or local /products file.
- */
 function getImageSrc(img: string) {
   if (!img) return "";
 
@@ -125,18 +121,13 @@ function isDirectVideo(src: string) {
 }
 
 function isVideoLikeUrl(src: string) {
-  return (
-    isYoutubeUrl(src) ||
-    isVimeoUrl(src) ||
-    isDirectVideo(src)
-  );
+  return isYoutubeUrl(src) || isVimeoUrl(src) || isDirectVideo(src);
 }
 
 function isImageLikeUrl(src: string) {
   const value = src.trim();
   if (!value) return false;
 
-  // Important: prevent YouTube/Vimeo/video URLs from becoming blank images.
   if (isVideoLikeUrl(value)) return false;
 
   const cleanPath = value.split("?")[0].toLowerCase();
@@ -335,171 +326,184 @@ export default function ProductGallery({
     setZoomVisible(false);
   }
 
-  return (
-    <div className="space-y-4">
+  function renderThumbnails(isDesktop = false) {
+    if (total <= 1) return null;
+
+    return (
       <div
-        ref={stageRef}
-        role="region"
-        tabIndex={0}
-        aria-label={`${alt} media gallery`}
-        onKeyDown={onKeyDown}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="group relative aspect-square overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-card outline-none"
+        className={
+          isDesktop
+            ? "hidden w-24 shrink-0 flex-col gap-3 lg:flex"
+            : "flex gap-3 overflow-x-auto pb-2 lg:hidden"
+        }
       >
-        {hasMedia && activeItem ? (
-          <>
-            {activeItem.type === "image" ? (
-              failed[active] || !activeSrc ? (
-                <div className="flex h-full w-full items-center justify-center text-7xl">
+        {media.map((item, i) => {
+          const isActive = i === active;
+          const src =
+            item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
+
+          return (
+            <button
+              key={`${item.type}-${item.src}-${i}`}
+              type="button"
+              onClick={() => {
+                setZoomVisible(false);
+                setActive(i);
+              }}
+              aria-label={`View ${item.type} ${i + 1}`}
+              aria-current={isActive}
+              className={`relative aspect-square h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[70px] sm:w-[70px] lg:h-24 lg:w-24 ${isActive
+                ? "border-carbon ring-1 ring-carbon"
+                : "border-gold/25 hover:border-gold"
+                }`}
+            >
+              {item.type === "video" ? (
+                <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
+                  ▶
+                </div>
+              ) : failed[i] || !src ? (
+                <div className="flex h-full w-full items-center justify-center text-lg">
                   {emoji}
                 </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={activeSrc}
-                  alt={alt}
-                  onLoad={(event) =>
-                    saveImageSize(active, event.currentTarget)
-                  }
-                  onError={() => markFailed(active)}
-                  className="h-full w-full object-contain p-3"
+                  src={src}
+                  alt={`${alt} thumbnail ${i + 1}`}
+                  onError={() => markFailed(i)}
+                  className="h-full w-full object-contain p-1"
                 />
-              )
-            ) : isEmbeddableVideo(activeSrc) ? (
-              <iframe
-                src={withAutoplayParams(activeSrc)}
-                title={`${alt} video`}
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                className="h-full w-full"
-              />
-            ) : isDirectVideo(activeSrc) ? (
-              <video
-                src={activeSrc}
-                controls
-                autoPlay
-                muted
-                playsInline
-                className="h-full w-full object-contain bg-black"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
-                <a
-                  href={activeSrc}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-carbon"
-                >
-                  Open product video
-                </a>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-7xl">
-            {emoji}
-          </div>
-        )}
-
-        {activeItem?.type === "image" &&
-          zoomVisible &&
-          activeSrc &&
-          !failed[active] && (
-            <div
-              className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] bg-no-repeat md:block"
-              style={{
-                backgroundImage: `url(${activeSrc})`,
-                backgroundSize: `${ZOOM_SCALE * 100}%`,
-                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-              }}
-            >
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
-                Move mouse to zoom
-              </div>
-            </div>
-          )}
-
-        {badge && (
-          <span className="absolute left-5 top-5 z-30 rounded-full bg-gold px-4 py-2 text-xs font-bold uppercase tracking-[0.3em] text-white">
-            {badge}
-          </span>
-        )}
-
-        {total > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() => go(-1)}
-              aria-label="Previous media"
-              className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-            >
-              ←
+              )}
             </button>
-
-            <button
-              type="button"
-              onClick={() => go(1)}
-              aria-label="Next media"
-              className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-            >
-              →
-            </button>
-
-            <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
-              {active + 1} / {total}
-            </span>
-          </>
-        )}
+          );
+        })}
       </div>
+    );
+  }
 
-      {total > 1 && (
-        <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5">
-          {media.map((item, i) => {
-            const isActive = i === active;
-            const src =
-              item.type === "image"
-                ? getImageSrc(item.src)
-                : getVideoSrc(item.src);
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-4">
+        {renderThumbnails(true)}
 
-            return (
-              <button
-                key={`${item.type}-${item.src}-${i}`}
-                type="button"
-                onClick={() => {
-                  setZoomVisible(false);
-                  setActive(i);
-                }}
-                aria-label={`View ${item.type} ${i + 1}`}
-                aria-current={isActive}
-                className={`relative aspect-square h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[70px] sm:w-[70px] lg:h-auto lg:w-full ${
-                  isActive
-                    ? "border-carbon ring-1 ring-carbon"
-                    : "border-gold/25 hover:border-gold"
-                }`}
-              >
-                {item.type === "video" ? (
-                  <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
-                    ▶
-                  </div>
-                ) : failed[i] || !src ? (
-                  <div className="flex h-full w-full items-center justify-center text-lg">
+        <div
+          ref={stageRef}
+          role="region"
+          tabIndex={0}
+          aria-label={`${alt} media gallery`}
+          onKeyDown={onKeyDown}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          className="group relative aspect-square min-w-0 flex-1 overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-card outline-none"
+        >
+          {hasMedia && activeItem ? (
+            <>
+              {activeItem.type === "image" ? (
+                failed[active] || !activeSrc ? (
+                  <div className="flex h-full w-full items-center justify-center text-7xl">
                     {emoji}
                   </div>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={src}
-                    alt={`${alt} thumbnail ${i + 1}`}
-                    onError={() => markFailed(i)}
-                    className="h-full w-full object-contain p-1"
+                    src={activeSrc}
+                    alt={alt}
+                    onLoad={(event) =>
+                      saveImageSize(active, event.currentTarget)
+                    }
+                    onError={() => markFailed(active)}
+                    className="h-full w-full object-contain p-3"
                   />
-                )}
+                )
+              ) : isEmbeddableVideo(activeSrc) ? (
+                <iframe
+                  src={withAutoplayParams(activeSrc)}
+                  title={`${alt} video`}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full"
+                />
+              ) : isDirectVideo(activeSrc) ? (
+                <video
+                  src={activeSrc}
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  className="h-full w-full object-contain bg-black"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
+                  <a
+                    href={activeSrc}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-carbon"
+                  >
+                    Open product video
+                  </a>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-7xl">
+              {emoji}
+            </div>
+          )}
+
+          {activeItem?.type === "image" &&
+            zoomVisible &&
+            activeSrc &&
+            !failed[active] && (
+              <div
+                className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] bg-no-repeat md:block"
+                style={{
+                  backgroundImage: `url(${activeSrc})`,
+                  backgroundSize: `${ZOOM_SCALE * 100}%`,
+                  backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                }}
+              >
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
+                  Move mouse to zoom
+                </div>
+              </div>
+            )}
+
+          {badge && (
+            <span className="absolute left-5 top-5 z-30 rounded-full bg-gold px-4 py-2 text-xs font-bold uppercase tracking-[0.3em] text-white">
+              {badge}
+            </span>
+          )}
+
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                aria-label="Previous media"
+                className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+              >
+                ←
               </button>
-            );
-          })}
+
+              <button
+                type="button"
+                onClick={() => go(1)}
+                aria-label="Next media"
+                className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+              >
+                →
+              </button>
+
+              <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
+                {active + 1} / {total}
+              </span>
+            </>
+          )}
         </div>
-      )}
+      </div>
+
+      {renderThumbnails(false)}
     </div>
   );
 }

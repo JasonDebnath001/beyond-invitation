@@ -134,7 +134,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         </nav>
 
         {/* Product layout */}
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14">
           {/* Left: Gallery */}
           <div className="lg:sticky lg:top-24 lg:self-start">
             <ProductGallery

@@ -176,6 +176,8 @@ function withAutoplayParams(src: string) {
   }
 }
 
+const ZOOM_SCALE = 2;
+
 export default function ProductGallery({
   images,
   videos = [],

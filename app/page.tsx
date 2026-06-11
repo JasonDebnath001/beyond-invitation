@@ -1,3 +1,6 @@
+// app/page.tsx
+
+import type { Metadata } from "next";
 import { getAllCategories } from "@/lib/products";
 import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 
@@ -18,21 +21,113 @@ import InstagramReels from "@/components/InstagramReels";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const siteUrl = "https://www.beyondinvitation.co.in";
+
+const siteName = "Beyond Invitation";
+
+const title =
+  "Beyond Invitation | Wedding Cards, Shagun Envelopes & Invitation Printing in Kolkata";
+
+const description =
+  "Shop premium wedding cards, shagun envelopes, shagun boxes, rakhi packaging, and custom invitation stationery from Beyond Invitation in Kolkata.";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  keywords: [
+    "Beyond Invitation",
+    "wedding cards Kolkata",
+    "wedding invitation cards Kolkata",
+    "invitation printing Kolkata",
+    "custom wedding invitations",
+    "premium wedding cards",
+    "Hindu wedding cards",
+    "Muslim wedding cards",
+    "Christian wedding cards",
+    "shagun envelopes",
+    "shagun boxes",
+    "rakhi packaging",
+    "rakhi cards",
+    "rakhi boxes",
+    "Indian wedding invitations",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title,
+    description,
+    url: "/",
+    siteName,
+    type: "website",
+    locale: "en_IN",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Beyond Invitation wedding cards and invitation stationery",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+};
+
 function getNormalProducts(products: ErpProduct[]): ErpProduct[] {
   return products.map((product) => {
     const originalPrice = Number(product.price || 0);
 
     return {
       ...product,
-
       // Normal product sections should NOT show the sale strikethrough.
       mrp: originalPrice,
-
       // Remove sale-only display from normal sections.
       badge: product.badge === "SALE" ? undefined : product.badge,
       onSale: false,
     };
   });
+}
+
+function getAbsoluteImageUrl(image?: string) {
+  if (!image) return undefined;
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  if (image.startsWith("/")) {
+    return `${siteUrl}${image}`;
+  }
+
+  return `${siteUrl}/${image}`;
+}
+
+function JsonLdScript({ data }: { data: Record<string, unknown> }) {
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
+    />
+  );
 }
 
 export default async function HomePage() {
@@ -53,9 +148,81 @@ export default async function HomePage() {
   }
 
   const normalProducts = getNormalProducts(erpProducts);
+  const featuredProducts = normalProducts.slice(0, 8);
+
+  const localBusinessJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `${siteUrl}/#localbusiness`,
+    name: siteName,
+    url: siteUrl,
+    image: `${siteUrl}/logo.png`,
+    description,
+    priceRange: "₹₹",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress:
+        "Shop No. 8, Indra Kumar Karnani St, China Bazar, B.B.D. Bagh",
+      addressLocality: "Kolkata",
+      addressRegion: "West Bengal",
+      postalCode: "700001",
+      addressCountry: "IN",
+    },
+    areaServed: [
+      {
+        "@type": "City",
+        name: "Kolkata",
+      },
+      {
+        "@type": "Country",
+        name: "India",
+      },
+    ],
+  };
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    name: siteName,
+    url: siteUrl,
+    publisher: {
+      "@id": `${siteUrl}/#localbusiness`,
+    },
+  };
+
+  const productListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Featured wedding cards and invitation stationery",
+    itemListElement: featuredProducts.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: `${siteUrl}/products/${product.slug}`,
+      item: {
+        "@type": "Product",
+        name: product.name,
+        description: product.description || description,
+        image: getAbsoluteImageUrl(product.images?.[0]),
+        url: `${siteUrl}/products/${product.slug}`,
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: product.price,
+          availability: "https://schema.org/InStock",
+        },
+      },
+    })),
+  };
 
   return (
     <>
+      <JsonLdScript data={localBusinessJsonLd} />
+      <JsonLdScript data={websiteJsonLd} />
+      {!erpError && featuredProducts.length > 0 ? (
+        <JsonLdScript data={productListJsonLd} />
+      ) : null}
+
       <HeroCarousel />
 
       <CelebrationGrid categories={categories} />
@@ -104,9 +271,11 @@ export default async function HomePage() {
       <WhyUs />
 
       <OurShowroom />
+
       <Catalogue />
 
       <KindWords />
+
       <InstagramReels />
     </>
   );

@@ -53,28 +53,34 @@ function toYoutubeEmbedUrl(src: string) {
   try {
     const url = new URL(src);
 
+    let id = "";
+
     if (url.hostname.includes("youtube.com")) {
       if (url.pathname === "/watch") {
-        const id = url.searchParams.get("v");
-        return id ? `https://www.youtube.com/embed/${id}` : src;
+        id = url.searchParams.get("v") || "";
       }
 
       if (url.pathname.startsWith("/shorts/")) {
-        const id = url.pathname.split("/")[2];
-        return id ? `https://www.youtube.com/embed/${id}` : src;
+        id = url.pathname.split("/")[2] || "";
       }
 
       if (url.pathname.startsWith("/embed/")) {
-        return src;
+        id = url.pathname.split("/")[2] || "";
       }
     }
 
     if (url.hostname === "youtu.be") {
-      const id = url.pathname.replace("/", "");
-      return id ? `https://www.youtube.com/embed/${id}` : src;
+      id = url.pathname.replace("/", "");
     }
 
-    return src;
+    if (!id) return src;
+
+    const embed = new URL(`https://www.youtube.com/embed/${id}`);
+    embed.searchParams.set("rel", "0");
+    embed.searchParams.set("modestbranding", "1");
+    embed.searchParams.set("playsinline", "1");
+
+    return embed.toString();
   } catch {
     return src;
   }
@@ -117,7 +123,7 @@ function isEmbeddableVideo(src: string) {
 }
 
 function isDirectVideo(src: string) {
-  return /\.(mp4|webm|ogg|mov)$/i.test(src.split("?")[0]);
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(src.split("?")[0]);
 }
 
 function isVideoLikeUrl(src: string) {
@@ -154,10 +160,12 @@ function cleanMediaList(list: string[]) {
 function withAutoplayParams(src: string) {
   try {
     const url = new URL(src);
+
     url.searchParams.set("autoplay", "1");
     url.searchParams.set("mute", "1");
     url.searchParams.set("muted", "1");
     url.searchParams.set("playsinline", "1");
+
     return url.toString();
   } catch {
     return (
@@ -167,18 +175,6 @@ function withAutoplayParams(src: string) {
     );
   }
 }
-
-type ImageSize = {
-  width: number;
-  height: number;
-};
-
-type ZoomPosition = {
-  x: number;
-  y: number;
-};
-
-const ZOOM_SCALE = 2.6;
 
 export default function ProductGallery({
   images,
@@ -221,17 +217,18 @@ export default function ProductGallery({
         ? getVideoSrc(activeItem.src)
         : "";
 
+  const isActiveVideo = activeItem?.type === "video";
+
   const go = useCallback(
     (delta: number) => {
       if (total === 0) return;
-
       setZoomVisible(false);
       setActive((current) => (current + delta + total) % total);
     },
     [total],
   );
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+  function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       go(-1);
@@ -244,7 +241,10 @@ export default function ProductGallery({
   }
 
   function markFailed(i: number) {
-    setFailed((current) => ({ ...current, [i]: true }));
+    setFailed((current) => ({
+      ...current,
+      [i]: true,
+    }));
   }
 
   function saveImageSize(i: number, img: HTMLImageElement) {

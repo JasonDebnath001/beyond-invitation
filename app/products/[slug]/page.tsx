@@ -25,18 +25,171 @@ interface PageProps {
 }
 
 const NOT_ENTERED = "not yet entered";
+const DEFAULT_SITE_URL = "https://www.beyondinvitation.co.in";
+
+type ProductLike = Product | ErpProduct;
+
+function getSiteUrl() {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+
+  return (fromEnv || DEFAULT_SITE_URL).replace(/\/$/, "");
+}
+
+function getErpPublicUrl() {
+  return (
+    process.env.NEXT_PUBLIC_ERPNEXT_URL ||
+    process.env.ERPNEXT_URL ||
+    ""
+  ).replace(/\/$/, "");
+}
+
+function absoluteUrl(pathOrUrl?: string | null) {
+  if (!pathOrUrl) return undefined;
+
+  const value = pathOrUrl.trim();
+  if (!value) return undefined;
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  if (value.startsWith("/files/") || value.startsWith("/private/files/")) {
+    const erpUrl = getErpPublicUrl();
+    return erpUrl ? `${erpUrl}${value}` : `${getSiteUrl()}${value}`;
+  }
+
+  if (value.startsWith("/")) {
+    return `${getSiteUrl()}${value}`;
+  }
+
+  return `${getSiteUrl()}/products/${value}`;
+}
+
+function stripHtml(value?: string | null) {
+  if (!value) return "";
+
+  return value
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncate(value: string, max = 160) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+
+  return `${clean.slice(0, max - 1).trimEnd()}…`;
+}
+
+function titleCase(value: string) {
+  return value
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getSubject(product: ProductLike) {
+  return "subject" in product && product.subject ? product.subject.trim() : "";
+}
+
+function getSku(product: ProductLike) {
+  return "itemCode" in product && product.itemCode
+    ? product.itemCode
+    : product.slug;
+}
+
+function buildProductUrl(product: ProductLike) {
+  return `${getSiteUrl()}/products/${product.slug}`;
+}
+
+function buildCollectionUrl(product: ProductLike) {
+  return `${getSiteUrl()}/collections/${product.category}`;
+}
+
+function getProductImages(product: ProductLike) {
+  return product.images
+    .map((image) => absoluteUrl(image))
+    .filter((image): image is string => Boolean(image));
+}
+
+function buildSeoTitle(product: ProductLike) {
+  const categoryLabel = titleCase(product.category);
+  const subject = getSubject(product);
+
+  const parts = [
+    product.name,
+    subject,
+    `${categoryLabel} Invitation Card`,
+    "Buy Online India",
+  ].filter(Boolean);
+
+  return truncate(`${parts.join(" | ")} - ${BRAND}`, 68);
+}
+
+function buildSeoDescription(product: ProductLike) {
+  const categoryLabel = titleCase(product.category);
+  const subject = getSubject(product);
+  const cleanDescription = stripHtml(product.description);
+
+  const fallback = `Buy ${product.name} online from ${BRAND}. Premium ${categoryLabel.toLowerCase()} invitation card${
+    subject ? ` for ${subject} ceremonies` : ""
+  } with customisation, quality material, and pan-India delivery.`;
+
+  const priceLine =
+    product.price > 0
+      ? ` Price starts at ₹${product.price.toLocaleString("en-IN")}.`
+      : "";
+
+  return truncate(
+    cleanDescription
+      ? `${cleanDescription}${priceLine} Shop ${categoryLabel.toLowerCase()} invitation cards at ${BRAND}.`
+      : fallback,
+    160,
+  );
+}
+
+function buildKeywords(product: ProductLike) {
+  const categoryLabel = titleCase(product.category);
+  const subject = getSubject(product);
+
+  return [
+    product.name,
+    `${product.name} price`,
+    `${product.name} online`,
+    `${categoryLabel} invitation card`,
+    `${categoryLabel} invitation card price`,
+    `${categoryLabel} card online India`,
+    subject ? `${subject} invitation card` : "",
+    "Indian wedding invitation cards",
+    "wedding cards Kolkata",
+    "premium wedding cards",
+    "custom invitation cards",
+    "Beyond Invitation",
+  ].filter(Boolean);
+}
+
+function productDetailValue(value: string | undefined | null) {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : NOT_ENTERED;
+}
 
 /** Resolve a product from local JSON first, then ERPNext if configured. */
-async function resolveProduct(
-  slug: string,
-): Promise<Product | ErpProduct | null> {
+async function resolveProduct(slug: string): Promise<ProductLike | null> {
   const local = await getProductBySlug(slug);
-
   if (local) return local;
 
   try {
     const erp = await fetchErpProductBySlug(slug);
-
     if (erp) return erp;
   } catch {
     // ERPNext not configured / unreachable — fall through to 404.
@@ -46,13 +199,10 @@ async function resolveProduct(
 }
 
 /** Related products, pulled from the same source as the product. */
-async function resolveRelated(
-  product: Product | ErpProduct,
-): Promise<Product[]> {
+async function resolveRelated(product: ProductLike): Promise<Product[]> {
   if ("itemCode" in product) {
     try {
       const all = await fetchErpProductsByCategory(product.category);
-
       return all.filter((p) => p.slug !== product.slug).slice(0, 4);
     } catch {
       return [];
@@ -65,7 +215,6 @@ async function resolveRelated(
 /** Pre-render local products at build time; ERP products render on demand. */
 export async function generateStaticParams() {
   const slugs = await getAllProductSlugs();
-
   return slugs.map((slug) => ({ slug }));
 }
 
@@ -73,337 +222,665 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-
   const product = await resolveProduct(slug);
 
-  if (!product) return { title: `Product Not Found – ${BRAND}` };
+  if (!product) {
+    return {
+      title: `Product Not Found - ${BRAND}`,
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const siteUrl = getSiteUrl();
+  const productUrl = buildProductUrl(product);
+  const images = getProductImages(product);
+  const title = buildSeoTitle(product);
+  const description = buildSeoDescription(product);
+  const categoryLabel = titleCase(product.category);
 
   return {
-    title: `${product.name} – ${BRAND}`,
-    description:
-      product.description?.replace(/<[^>]+>/g, "").slice(0, 160) || undefined,
+    metadataBase: new URL(siteUrl),
+    title,
+    description,
+    keywords: buildKeywords(product),
+    alternates: {
+      canonical: productUrl,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+    openGraph: {
+      type: "website",
+      siteName: BRAND,
+      locale: "en_IN",
+      url: productUrl,
+      title,
+      description,
+      images: images.map((image) => ({
+        url: image,
+        width: 1200,
+        height: 1200,
+        alt: `${product.name} - ${categoryLabel} invitation card by ${BRAND}`,
+      })),
+    },
+    twitter: {
+      card: images.length > 0 ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: images.slice(0, 1),
+    },
+    other: {
+      "product:brand": BRAND,
+      "product:retailer_item_id": getSku(product),
+      "product:price:amount": String(product.price),
+      "product:price:currency": "INR",
+      "og:price:amount": String(product.price),
+      "og:price:currency": "INR",
+    },
   };
 }
 
 const hasHtml = (s: string) => /<\/?[a-z][\s\S]*>/i.test(s);
 
-function productDetailValue(value: string | undefined | null) {
-  const cleaned = value?.trim();
-  return cleaned ? cleaned : NOT_ENTERED;
+function buildProductJsonLd(product: ProductLike) {
+  const productUrl = buildProductUrl(product);
+  const categoryLabel = titleCase(product.category);
+  const subject = getSubject(product);
+  const images = getProductImages(product);
+  const description = buildSeoDescription(product);
+  const discount = discountPercent(product);
+
+  const additionalProperty = [
+    subject
+      ? {
+          "@type": "PropertyValue",
+          name: "Tradition",
+          value: subject,
+        }
+      : null,
+    product.customisation
+      ? {
+          "@type": "PropertyValue",
+          name: "Customisation",
+          value: stripHtml(product.customisation),
+        }
+      : null,
+    product.material
+      ? {
+          "@type": "PropertyValue",
+          name: "Material",
+          value: stripHtml(product.material),
+        }
+      : null,
+    product.includes
+      ? {
+          "@type": "PropertyValue",
+          name: "Includes",
+          value: stripHtml(product.includes),
+        }
+      : null,
+    {
+      "@type": "PropertyValue",
+      name: "Minimum Order Quantity",
+      value: "50 pieces",
+    },
+    discount > 0
+      ? {
+          "@type": "PropertyValue",
+          name: "Discount",
+          value: `${discount}% OFF`,
+        }
+      : null,
+  ].filter(Boolean);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": `${productUrl}#product`,
+    name: product.name,
+    description,
+    image: images,
+    sku: getSku(product),
+    mpn: getSku(product),
+    brand: {
+      "@type": "Brand",
+      name: BRAND,
+    },
+    category: categoryLabel,
+    material: product.material ? stripHtml(product.material) : undefined,
+    additionalProperty,
+    offers: {
+      "@type": "Offer",
+      "@id": `${productUrl}#offer`,
+      url: productUrl,
+      priceCurrency: "INR",
+      price: product.price,
+      availability:
+        product.price > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/PreOrder",
+      itemCondition: "https://schema.org/NewCondition",
+      seller: {
+        "@type": "Organization",
+        name: BRAND,
+      },
+      priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
+    },
+  };
+}
+
+function buildBreadcrumbJsonLd(product: ProductLike) {
+  const productUrl = buildProductUrl(product);
+  const categoryLabel = titleCase(product.category);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: getSiteUrl(),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: categoryLabel,
+        item: buildCollectionUrl(product),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.name,
+        item: productUrl,
+      },
+    ],
+  };
+}
+
+function buildWebPageJsonLd(product: ProductLike) {
+  const productUrl = buildProductUrl(product);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${productUrl}#webpage`,
+    url: productUrl,
+    name: buildSeoTitle(product),
+    description: buildSeoDescription(product),
+    isPartOf: {
+      "@type": "WebSite",
+      name: BRAND,
+      url: getSiteUrl(),
+    },
+    mainEntity: {
+      "@id": `${productUrl}#product`,
+    },
+  };
+}
+
+function buildFaqJsonLd(product: ProductLike) {
+  const categoryLabel = titleCase(product.category).toLowerCase();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `Is printing included with this ${categoryLabel} invitation card?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Printing charges are not included in the listed product price. Printing cost depends on impressions, printing type, foil work, and card requirements.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How long does delivery take?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Surface delivery usually takes 4 to 12 days depending on the region. Air delivery is available for urgent orders and usually takes 4 to 8 days depending on the location.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is Cash on Delivery available?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Cash on Delivery orders require a 10% advance payment at the time of booking. The remaining balance is paid at delivery.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can this product be customised?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: product.customisation
+            ? stripHtml(product.customisation)
+            : "Customisation details depend on the selected card. Contact Beyond Invitation for exact customisation options.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What is the return policy?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Returns are not accepted unless there is an error from Beyond Invitation.",
+        },
+      },
+    ],
+  };
+}
+
+function buildRelatedJsonLd(related: Product[]) {
+  if (related.length === 0) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Related invitation cards",
+    itemListElement: related.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: buildProductUrl(item),
+      name: item.name,
+    })),
+  };
+}
+
+function JsonLdScript({ data }: { data: Record<string, unknown> | null }) {
+  if (!data) return null;
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
+    />
+  );
 }
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
-
   const product = await resolveProduct(slug);
 
   if (!product) notFound();
 
   const related = await resolveRelated(product);
   const discount = discountPercent(product);
-
   const categoryLabel = product.category.replace(/-/g, " ");
-
-  const subject =
-    "subject" in product && product.subject ? product.subject : "";
+  const categoryTitle = titleCase(product.category);
+  const subject = getSubject(product);
 
   return (
-    <div className="bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 md:py-12">
-        {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-1.5 overflow-hidden text-[12px] text-ink-light sm:mb-8 sm:text-[12.5px]">
-          <Link
-            href="/"
-            className="shrink-0 whitespace-nowrap transition-colors hover:text-carbon"
+    <>
+      <JsonLdScript data={buildProductJsonLd(product)} />
+      <JsonLdScript data={buildBreadcrumbJsonLd(product)} />
+      <JsonLdScript data={buildWebPageJsonLd(product)} />
+      <JsonLdScript data={buildFaqJsonLd(product)} />
+      <JsonLdScript data={buildRelatedJsonLd(related)} />
+
+      <div className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 md:py-12">
+          {/* Breadcrumb */}
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-6 flex items-center gap-1.5 overflow-hidden text-[12px] text-ink-light sm:mb-8 sm:text-[12.5px]"
           >
-            Home
-          </Link>
+            <Link
+              href="/"
+              className="shrink-0 whitespace-nowrap transition-colors hover:text-carbon"
+            >
+              Home
+            </Link>
 
-          <span className="shrink-0 text-gold">/</span>
+            <span className="shrink-0 text-gold">/</span>
 
-          <Link
-            href={`/collections/${product.category}`}
-            className="shrink-0 whitespace-nowrap capitalize transition-colors hover:text-carbon"
+            <Link
+              href={`/collections/${product.category}`}
+              className="shrink-0 whitespace-nowrap capitalize transition-colors hover:text-carbon"
+            >
+              {categoryLabel}
+            </Link>
+
+            <span className="shrink-0 text-gold">/</span>
+
+            <span className="truncate text-ink">{product.name}</span>
+          </nav>
+
+          {/* Product layout */}
+          <div
+            itemScope
+            itemType="https://schema.org/Product"
+            className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14"
           >
-            {categoryLabel}
-          </Link>
+            <meta itemProp="sku" content={getSku(product)} />
+            <meta itemProp="brand" content={BRAND} />
+            <meta itemProp="category" content={categoryTitle} />
 
-          <span className="shrink-0 text-gold">/</span>
-
-          <span className="truncate text-ink">{product.name}</span>
-        </nav>
-
-        {/* Product layout */}
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14">
-          {/* Left: Gallery */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
-            <ProductGallery
-              images={product.images}
-              videos={product.videos}
-              emoji={product.emoji}
-              alt={product.name}
-              badge={product.badge}
-            />
-          </div>
-
-          {/* Right: Product information */}
-          <div className="flex flex-col">
-            {/* Non-collapsible name + price section */}
-            <section className="rounded-2xl border border-gold/15 bg-white p-5 shadow-sm sm:p-6">
-              <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
-                <span className="capitalize">{categoryLabel}</span>
-
-                {subject && (
-                  <>
-                    <span className="text-gold/40">✦</span>
-                    <span>{subject}</span>
-                  </>
-                )}
-              </div>
-
-              <h1 className="mt-3 font-display text-3xl font-semibold leading-[1.12] text-carbon md:text-[40px]">
-                {product.name}
-              </h1>
-
-              <div className="mt-4 flex items-center gap-3 text-[13px] text-ink-mid">
-                <span className="tracking-[0.15em] text-gold">★★★★★</span>
-                <span className="h-3 w-px bg-gold/30" />
-                <span>Handcrafted to order</span>
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-end gap-3">
-                <span className="font-display text-[34px] font-bold leading-none text-carbon">
-                  ₹{product.price.toLocaleString("en-IN")}
-                </span>
-
-                {product.mrp > product.price && (
-                  <span className="pb-0.5 text-lg text-ink-light line-through">
-                    ₹{product.mrp.toLocaleString("en-IN")}
-                  </span>
-                )}
-
-                {discount > 0 && (
-                  <span className="mb-0.5 rounded-md bg-[#E8F7EE] px-2.5 py-1 text-[13px] font-semibold text-[#27A060]">
-                    {discount}% OFF
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-2 text-[12px] text-ink-light">
-                Inclusive of all taxes
-              </p>
-
-              <div className="my-7 h-px w-full bg-gradient-to-r from-gold/30 via-gold/15 to-transparent" />
-
-              <ProductBuyBox product={product} />
-            </section>
-
-            {/* Non-collapsible Description */}
-            <section className="mt-5 rounded-2xl border border-gold/15 bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="font-display text-[17px] font-semibold text-carbon">
-                Description
-              </h2>
-
-              <div className="mt-4 text-[14px] leading-relaxed text-ink-mid">
-                {product.description ? (
-                  hasHtml(product.description) ? (
-                    <div
-                      className="space-y-3 [&_li]:ml-4 [&_li]:list-disc"
-                      dangerouslySetInnerHTML={{
-                        __html: product.description,
-                      }}
-                    />
-                  ) : (
-                    <p className="whitespace-pre-line">
-                      {product.description}
-                    </p>
-                  )
-                ) : (
-                  <p>{NOT_ENTERED}</p>
-                )}
-              </div>
-            </section>
-
-            {/* Collapsible sections */}
-            <div className="mt-5 space-y-3">
-              <Accordion title="Printing">
-                <p className="text-[14px] leading-relaxed text-ink-mid">
-                  Printing charges is not included in the above price. The
-                  printing cost is dependent on variables like number of
-                  impressions, type of printing - Screen / UV / Offset, gold
-                  foil impression (optional) &amp; nature of cards. Please
-                  contact our customer care to know the printing cost of the
-                  card selected by you.
-                </p>
-              </Accordion>
-
-              <Accordion title="Shipping">
-                <div className="space-y-5 text-[14px] leading-relaxed text-ink-mid">
-                  <div>
-                    <h3 className="font-semibold text-carbon">1. Surface</h3>
-
-                    <p className="mt-2">
-                      Sent by courier through surface mode with door delivery.
-                      Delivery timelines vary by location.
-                    </p>
-
-                    <ul className="mt-3 space-y-1">
-                      <li>
-                        <span className="font-medium text-carbon">
-                          South India:
-                        </span>{" "}
-                        4 to 7 days
-                      </li>
-
-                      <li>
-                        <span className="font-medium text-carbon">
-                          North East and Himalayan region:
-                        </span>{" "}
-                        8 to 12 days
-                      </li>
-
-                      <li>
-                        <span className="font-medium text-carbon">
-                          Rest of India:
-                        </span>{" "}
-                        7 to 10 days
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-carbon">2. Air</h3>
-
-                    <p className="mt-2">
-                      Quick delivery by air, ideal for urgent orders.
-                    </p>
-
-                    <ul className="mt-3 space-y-1">
-                      <li>
-                        <span className="font-medium text-carbon">
-                          South India:
-                        </span>{" "}
-                        Not applicable, Surface delivery takes same time as Air.
-                      </li>
-
-                      <li>
-                        <span className="font-medium text-carbon">
-                          North East and Himalayan region:
-                        </span>{" "}
-                        5 to 8 days
-                      </li>
-
-                      <li>
-                        <span className="font-medium text-carbon">
-                          Rest of India:
-                        </span>{" "}
-                        4 to 5 days
-                      </li>
-                    </ul>
-                  </div>
-
-                  <p>
-                    Shipping cost is based on weight. Just add products to your
-                    cart and use the Shipping calculator to see the shipping
-                    price and expected Time of Delivery.
-                  </p>
-                </div>
-              </Accordion>
-
-              <Accordion title="Cash on Delivery">
-                <div className="space-y-3 text-[14px] leading-relaxed text-ink-mid">
-                  <p>
-                    For Cash on Delivery orders, a 10% advance payment is
-                    required at the time of booking. The remaining balance must
-                    be paid at the time of delivery. For assistance, please
-                    contact our team.
-                  </p>
-
-                  <p>
-                    <span className="font-medium text-carbon">Phone - </span>
-                    <a
-                      href="tel:+917044815488"
-                      className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
-                    >
-                      +91 7044815488
-                    </a>
-                  </p>
-                </div>
-              </Accordion>
-
-              <Accordion title="Dimensions">
-                <ul className="space-y-2 text-[14px] text-ink-mid">
-                  <SpecRow label="Height" value="27 cm" />
-                  <SpecRow label="Width" value="20.5 cm" />
-                  <SpecRow label="Weight" value="326 g" />
-                </ul>
-              </Accordion>
-
-              <Accordion title="Return Policy">
-                <p className="text-[14px] leading-relaxed text-ink-mid">
-                  We hope you love your order! However, we do not accept returns
-                  unless there is an error from our end.
-                </p>
-              </Accordion>
-
-              <Accordion title="Product Details">
-                <ul className="space-y-2 text-[14px] text-ink-mid">
-                  <SpecRow
-                    label="Category"
-                    value={<span className="capitalize">{categoryLabel}</span>}
-                  />
-
-                  {subject && <SpecRow label="Tradition" value={subject} />}
-
-                  <SpecRow
-                    label="Customisation"
-                    value={productDetailValue(product.customisation)}
-                  />
-
-                  <SpecRow
-                    label="Material"
-                    value={productDetailValue(product.material)}
-                  />
-
-                  <SpecRow
-                    label="Includes"
-                    value={productDetailValue(product.includes)}
-                  />
-                </ul>
-              </Accordion>
+            {/* Left: Gallery */}
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <ProductGallery
+                images={product.images}
+                videos={product.videos}
+                emoji={product.emoji}
+                alt={`${product.name} - ${categoryTitle} invitation card by ${BRAND}`}
+                badge={product.badge}
+              />
             </div>
-          </div>
-        </div>
 
-        {/* Related products */}
-        {related.length > 0 && (
-          <section className="mt-14 sm:mt-20">
-            <div className="mb-10 flex items-end justify-between gap-6">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
-                  More to love
+            {/* Right: Product information */}
+            <div className="flex flex-col">
+              {/* Non-collapsible name + price section */}
+              <section className="rounded-2xl border border-gold/15 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
+                  <span className="capitalize">{categoryLabel}</span>
+
+                  {subject && (
+                    <>
+                      <span className="text-gold/40">✦</span>
+                      <span>{subject}</span>
+                    </>
+                  )}
+                </div>
+
+                <h1
+                  itemProp="name"
+                  className="mt-3 font-display text-3xl font-semibold leading-[1.12] text-carbon md:text-[40px]"
+                >
+                  {product.name}
+                </h1>
+
+                <div className="mt-4 flex items-center gap-3 text-[13px] text-ink-mid">
+                  <span className="tracking-[0.15em] text-gold">★★★★★</span>
+                  <span className="h-3 w-px bg-gold/30" />
+                  <span>Handcrafted to order</span>
+                </div>
+
+                <div
+                  itemProp="offers"
+                  itemScope
+                  itemType="https://schema.org/Offer"
+                  className="mt-6 flex flex-wrap items-end gap-3"
+                >
+                  <meta itemProp="priceCurrency" content="INR" />
+                  <meta itemProp="price" content={String(product.price)} />
+                  <link
+                    itemProp="availability"
+                    href={
+                      product.price > 0
+                        ? "https://schema.org/InStock"
+                        : "https://schema.org/PreOrder"
+                    }
+                  />
+                  <link itemProp="itemCondition" href="https://schema.org/NewCondition" />
+
+                  <span className="font-display text-[34px] font-bold leading-none text-carbon">
+                    ₹{product.price.toLocaleString("en-IN")}
+                  </span>
+
+                  {product.mrp > product.price && (
+                    <span className="pb-0.5 text-lg text-ink-light line-through">
+                      ₹{product.mrp.toLocaleString("en-IN")}
+                    </span>
+                  )}
+
+                  {discount > 0 && (
+                    <span className="mb-0.5 rounded-md bg-[#E8F7EE] px-2.5 py-1 text-[13px] font-semibold text-[#27A060]">
+                      {discount}% OFF
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-2 text-[12px] text-ink-light">
+                  Inclusive of all taxes
                 </p>
 
-                <h2 className="mt-2 font-display text-[28px] font-semibold text-carbon md:text-[34px]">
-                  You May Also Like
+                <div className="my-7 h-px w-full bg-gradient-to-r from-gold/30 via-gold/15 to-transparent" />
+
+                <ProductBuyBox product={product} />
+              </section>
+
+              {/* Non-collapsible Description */}
+              <section className="mt-5 rounded-2xl border border-gold/15 bg-white p-5 shadow-sm sm:p-6">
+                <h2 className="font-display text-[17px] font-semibold text-carbon">
+                  Description
                 </h2>
 
-                <div className="mt-4 h-px w-14 bg-carbon" />
+                <div
+                  itemProp="description"
+                  className="mt-4 text-[14px] leading-relaxed text-ink-mid"
+                >
+                  {product.description ? (
+                    hasHtml(product.description) ? (
+                      <div
+                        className="space-y-3 [&_li]:ml-4 [&_li]:list-disc"
+                        dangerouslySetInnerHTML={{
+                          __html: product.description,
+                        }}
+                      />
+                    ) : (
+                      <p className="whitespace-pre-line">
+                        {product.description}
+                      </p>
+                    )
+                  ) : (
+                    <p>{NOT_ENTERED}</p>
+                  )}
+                </div>
+              </section>
+
+              {/* SEO-supporting product summary */}
+              <section className="mt-5 rounded-2xl border border-gold/15 bg-[#FCFAF6] p-5 shadow-sm sm:p-6">
+                <h2 className="font-display text-[17px] font-semibold text-carbon">
+                  {product.name} Price, Design & Ordering Details
+                </h2>
+
+                <p className="mt-4 text-[14px] leading-relaxed text-ink-mid">
+                  {product.name} is a premium {categoryTitle.toLowerCase()} invitation
+                  card from {BRAND}
+                  {subject ? ` for ${subject} ceremonies` : ""}. The current online
+                  price is ₹{product.price.toLocaleString("en-IN")} per piece before
+                  printing charges. You can order this design for weddings, family
+                  functions, and celebration stationery with customisation support,
+                  quality material, and delivery across India.
+                </p>
+              </section>
+
+              {/* Collapsible sections */}
+              <div className="mt-5 space-y-3">
+                <Accordion title="Printing">
+                  <p className="text-[14px] leading-relaxed text-ink-mid">
+                    Printing charges is not included in the above price. The
+                    printing cost is dependent on variables like number of
+                    impressions, type of printing - Screen / UV / Offset, gold
+                    foil impression (optional) &amp; nature of cards. Please
+                    contact our customer care to know the printing cost of the
+                    card selected by you.
+                  </p>
+                </Accordion>
+
+                <Accordion title="Shipping">
+                  <div className="space-y-5 text-[14px] leading-relaxed text-ink-mid">
+                    <div>
+                      <h3 className="font-semibold text-carbon">1. Surface</h3>
+
+                      <p className="mt-2">
+                        Sent by courier through surface mode with door delivery.
+                        Delivery timelines vary by location.
+                      </p>
+
+                      <ul className="mt-3 space-y-1">
+                        <li>
+                          <span className="font-medium text-carbon">
+                            South India:
+                          </span>{" "}
+                          4 to 7 days
+                        </li>
+
+                        <li>
+                          <span className="font-medium text-carbon">
+                            North East and Himalayan region:
+                          </span>{" "}
+                          8 to 12 days
+                        </li>
+
+                        <li>
+                          <span className="font-medium text-carbon">
+                            Rest of India:
+                          </span>{" "}
+                          7 to 10 days
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold text-carbon">2. Air</h3>
+
+                      <p className="mt-2">
+                        Quick delivery by air, ideal for urgent orders.
+                      </p>
+
+                      <ul className="mt-3 space-y-1">
+                        <li>
+                          <span className="font-medium text-carbon">
+                            South India:
+                          </span>{" "}
+                          Not applicable, Surface delivery takes same time as Air.
+                        </li>
+
+                        <li>
+                          <span className="font-medium text-carbon">
+                            North East and Himalayan region:
+                          </span>{" "}
+                          5 to 8 days
+                        </li>
+
+                        <li>
+                          <span className="font-medium text-carbon">
+                            Rest of India:
+                          </span>{" "}
+                          4 to 5 days
+                        </li>
+                      </ul>
+                    </div>
+
+                    <p>
+                      Shipping cost is based on weight. Just add products to your
+                      cart and use the Shipping calculator to see the shipping
+                      price and expected Time of Delivery.
+                    </p>
+                  </div>
+                </Accordion>
+
+                <Accordion title="Cash on Delivery">
+                  <div className="space-y-3 text-[14px] leading-relaxed text-ink-mid">
+                    <p>
+                      For Cash on Delivery orders, a 10% advance payment is
+                      required at the time of booking. The remaining balance must
+                      be paid at the time of delivery. For assistance, please
+                      contact our team.
+                    </p>
+
+                    <p>
+                      <span className="font-medium text-carbon">Phone - </span>
+                      <a
+                        href="tel:+917044815488"
+                        className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
+                      >
+                        +91 7044815488
+                      </a>
+                    </p>
+                  </div>
+                </Accordion>
+
+                <Accordion title="Dimensions">
+                  <ul className="space-y-2 text-[14px] text-ink-mid">
+                    <SpecRow label="Height" value="27 cm" />
+                    <SpecRow label="Width" value="20.5 cm" />
+                    <SpecRow label="Weight" value="326 g" />
+                  </ul>
+                </Accordion>
+
+                <Accordion title="Return Policy">
+                  <p className="text-[14px] leading-relaxed text-ink-mid">
+                    We hope you love your order! However, we do not accept returns
+                    unless there is an error from our end.
+                  </p>
+                </Accordion>
+
+                <Accordion title="Product Details">
+                  <ul className="space-y-2 text-[14px] text-ink-mid">
+                    <SpecRow
+                      label="Category"
+                      value={<span className="capitalize">{categoryLabel}</span>}
+                    />
+
+                    {subject && <SpecRow label="Tradition" value={subject} />}
+
+                    <SpecRow
+                      label="Customisation"
+                      value={productDetailValue(product.customisation)}
+                    />
+
+                    <SpecRow
+                      label="Material"
+                      value={productDetailValue(product.material)}
+                    />
+
+                    <SpecRow
+                      label="Includes"
+                      value={productDetailValue(product.includes)}
+                    />
+                  </ul>
+                </Accordion>
+              </div>
+            </div>
+          </div>
+
+          {/* Related products */}
+          {related.length > 0 && (
+            <section className="mt-14 sm:mt-20">
+              <div className="mb-10 flex items-end justify-between gap-6">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
+                    More to love
+                  </p>
+
+                  <h2 className="mt-2 font-display text-[28px] font-semibold text-carbon md:text-[34px]">
+                    You May Also Like
+                  </h2>
+
+                  <div className="mt-4 h-px w-14 bg-carbon" />
+                </div>
+
+                <Link
+                  href={`/collections/${product.category}`}
+                  className="hidden shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon sm:inline-flex"
+                >
+                  View collection <span>→</span>
+                </Link>
               </div>
 
-              <Link
-                href={`/collections/${product.category}`}
-                className="hidden shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon sm:inline-flex"
-              >
-                View collection <span>→</span>
-              </Link>
-            </div>
-
-            <ProductGrid products={related} />
-          </section>
-        )}
+              <ProductGrid products={related} />
+            </section>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

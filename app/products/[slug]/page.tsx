@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 
 import {
   getProductBySlug,
-  getAllProductSlugs,
   getRelatedProducts,
 } from "@/lib/products";
 import {
@@ -29,27 +28,59 @@ const DEFAULT_SITE_URL = "https://www.beyondinvitation.co.in";
 
 type ProductLike = Product | ErpProduct;
 
+export const dynamicParams = true;
+export const revalidate = 60;
+
+/**
+ * Important:
+ * Returning [] prevents Vercel from trying to prerender every local product page
+ * during build. Product pages will render dynamically/on-demand instead.
+ */
+export async function generateStaticParams() {
+  return [];
+}
+
+function ensureAbsoluteUrl(value?: string | null) {
+  const clean = (value || "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\/$/, "");
+
+  if (!clean) return "";
+
+  if (clean.startsWith("http://") || clean.startsWith("https://")) {
+    return clean;
+  }
+
+  return `https://${clean}`;
+}
+
 function getSiteUrl() {
   const fromEnv =
     process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ||
     process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.VERCEL_URL ||
+    DEFAULT_SITE_URL;
 
-  return (fromEnv || DEFAULT_SITE_URL).replace(/\/$/, "");
+  return ensureAbsoluteUrl(fromEnv) || DEFAULT_SITE_URL;
 }
 
 function getErpPublicUrl() {
-  return (
+  const fromEnv =
     process.env.NEXT_PUBLIC_ERPNEXT_URL ||
     process.env.ERPNEXT_URL ||
-    ""
-  ).replace(/\/$/, "");
+    "";
+
+  return ensureAbsoluteUrl(fromEnv);
 }
 
 function absoluteUrl(pathOrUrl?: string | null) {
   if (!pathOrUrl) return undefined;
 
   const value = pathOrUrl.trim();
+
   if (!value) return undefined;
 
   if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -72,8 +103,8 @@ function stripHtml(value?: string | null) {
   if (!value) return "";
 
   return value
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -85,6 +116,7 @@ function stripHtml(value?: string | null) {
 
 function truncate(value: string, max = 160) {
   const clean = value.replace(/\s+/g, " ").trim();
+
   if (clean.length <= max) return clean;
 
   return `${clean.slice(0, max - 1).trimEnd()}…`;
@@ -117,7 +149,7 @@ function buildCollectionUrl(product: ProductLike) {
 }
 
 function getProductImages(product: ProductLike) {
-  return product.images
+  return (product.images || [])
     .map((image) => absoluteUrl(image))
     .filter((image): image is string => Boolean(image));
 }
@@ -183,9 +215,9 @@ function productDetailValue(value: string | undefined | null) {
   return cleaned ? cleaned : NOT_ENTERED;
 }
 
-/** Resolve a product from local JSON first, then ERPNext if configured. */
 async function resolveProduct(slug: string): Promise<ProductLike | null> {
   const local = await getProductBySlug(slug);
+
   if (local) return local;
 
   try {
@@ -198,7 +230,6 @@ async function resolveProduct(slug: string): Promise<ProductLike | null> {
   return null;
 }
 
-/** Related products, pulled from the same source as the product. */
 async function resolveRelated(product: ProductLike): Promise<Product[]> {
   if ("itemCode" in product) {
     try {
@@ -212,83 +243,88 @@ async function resolveRelated(product: ProductLike): Promise<Product[]> {
   return getRelatedProducts(product);
 }
 
-/** Pre-render local products at build time; ERP products render on demand. */
-export async function generateStaticParams() {
-  const slugs = await getAllProductSlugs();
-  return slugs.map((slug) => ({ slug }));
-}
-
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const product = await resolveProduct(slug);
+  try {
+    const { slug } = await params;
+    const product = await resolveProduct(slug);
 
-  if (!product) {
+    if (!product) {
+      return {
+        title: `Product Not Found - ${BRAND}`,
+        robots: {
+          index: false,
+          follow: false,
+        },
+      };
+    }
+
+    const siteUrl = getSiteUrl();
+    const productUrl = buildProductUrl(product);
+    const images = getProductImages(product);
+    const title = buildSeoTitle(product);
+    const description = buildSeoDescription(product);
+    const categoryLabel = titleCase(product.category);
+
     return {
-      title: `Product Not Found - ${BRAND}`,
+      metadataBase: new URL(siteUrl),
+      title,
+      description,
+      keywords: buildKeywords(product),
+      alternates: {
+        canonical: productUrl,
+      },
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-image-preview": "large",
+          "max-snippet": -1,
+          "max-video-preview": -1,
+        },
+      },
+      openGraph: {
+        type: "website",
+        siteName: BRAND,
+        locale: "en_IN",
+        url: productUrl,
+        title,
+        description,
+        images: images.map((image) => ({
+          url: image,
+          width: 1200,
+          height: 1200,
+          alt: `${product.name} - ${categoryLabel} invitation card by ${BRAND}`,
+        })),
+      },
+      twitter: {
+        card: images.length > 0 ? "summary_large_image" : "summary",
+        title,
+        description,
+        images: images.slice(0, 1),
+      },
+      other: {
+        "product:brand": BRAND,
+        "product:retailer_item_id": getSku(product),
+        "product:price:amount": String(product.price),
+        "product:price:currency": "INR",
+        "og:price:amount": String(product.price),
+        "og:price:currency": "INR",
+      },
+    };
+  } catch {
+    return {
+      title: BRAND,
+      description: "Premium invitation cards by Beyond Invitation.",
       robots: {
         index: false,
-        follow: false,
+        follow: true,
       },
     };
   }
-
-  const siteUrl = getSiteUrl();
-  const productUrl = buildProductUrl(product);
-  const images = getProductImages(product);
-  const title = buildSeoTitle(product);
-  const description = buildSeoDescription(product);
-  const categoryLabel = titleCase(product.category);
-
-  return {
-    metadataBase: new URL(siteUrl),
-    title,
-    description,
-    keywords: buildKeywords(product),
-    alternates: {
-      canonical: productUrl,
-    },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1,
-      },
-    },
-    openGraph: {
-      type: "website",
-      siteName: BRAND,
-      locale: "en_IN",
-      url: productUrl,
-      title,
-      description,
-      images: images.map((image) => ({
-        url: image,
-        width: 1200,
-        height: 1200,
-        alt: `${product.name} - ${categoryLabel} invitation card by ${BRAND}`,
-      })),
-    },
-    twitter: {
-      card: images.length > 0 ? "summary_large_image" : "summary",
-      title,
-      description,
-      images: images.slice(0, 1),
-    },
-    other: {
-      "product:brand": BRAND,
-      "product:retailer_item_id": getSku(product),
-      "product:price:amount": String(product.price),
-      "product:price:currency": "INR",
-      "og:price:amount": String(product.price),
-      "og:price:currency": "INR",
-    },
-  };
 }
 
 const hasHtml = (s: string) => /<\/?[a-z][\s\S]*>/i.test(s);
@@ -500,7 +536,11 @@ function buildRelatedJsonLd(related: Product[]) {
   };
 }
 
-function JsonLdScript({ data }: { data: Record<string, unknown> | null }) {
+function JsonLdScript({
+  data,
+}: {
+  data: Record<string, unknown> | null;
+}) {
   if (!data) return null;
 
   return (
@@ -522,24 +562,26 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const related = await resolveRelated(product);
   const discount = discountPercent(product);
   const categoryLabel = product.category.replace(/-/g, " ");
-  const categoryTitle = titleCase(product.category);
   const subject = getSubject(product);
+
+  const productJsonLd = buildProductJsonLd(product);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(product);
+  const webPageJsonLd = buildWebPageJsonLd(product);
+  const faqJsonLd = buildFaqJsonLd(product);
+  const relatedJsonLd = buildRelatedJsonLd(related);
 
   return (
     <>
-      <JsonLdScript data={buildProductJsonLd(product)} />
-      <JsonLdScript data={buildBreadcrumbJsonLd(product)} />
-      <JsonLdScript data={buildWebPageJsonLd(product)} />
-      <JsonLdScript data={buildFaqJsonLd(product)} />
-      <JsonLdScript data={buildRelatedJsonLd(related)} />
+      <JsonLdScript data={productJsonLd} />
+      <JsonLdScript data={breadcrumbJsonLd} />
+      <JsonLdScript data={webPageJsonLd} />
+      <JsonLdScript data={faqJsonLd} />
+      <JsonLdScript data={relatedJsonLd} />
 
       <div className="bg-white">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 md:py-12">
           {/* Breadcrumb */}
-          <nav
-            aria-label="Breadcrumb"
-            className="mb-6 flex items-center gap-1.5 overflow-hidden text-[12px] text-ink-light sm:mb-8 sm:text-[12.5px]"
-          >
+          <nav className="mb-6 flex items-center gap-1.5 overflow-hidden text-[12px] text-ink-light sm:mb-8 sm:text-[12.5px]">
             <Link
               href="/"
               className="shrink-0 whitespace-nowrap transition-colors hover:text-carbon"
@@ -562,22 +604,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </nav>
 
           {/* Product layout */}
-          <div
-            itemScope
-            itemType="https://schema.org/Product"
-            className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14"
-          >
-            <meta itemProp="sku" content={getSku(product)} />
-            <meta itemProp="brand" content={BRAND} />
-            <meta itemProp="category" content={categoryTitle} />
-
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14">
             {/* Left: Gallery */}
             <div className="lg:sticky lg:top-24 lg:self-start">
               <ProductGallery
-                images={product.images}
+                images={product.images || []}
                 videos={product.videos}
                 emoji={product.emoji}
-                alt={`${product.name} - ${categoryTitle} invitation card by ${BRAND}`}
+                alt={product.name}
                 badge={product.badge}
               />
             </div>
@@ -597,10 +631,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   )}
                 </div>
 
-                <h1
-                  itemProp="name"
-                  className="mt-3 font-display text-3xl font-semibold leading-[1.12] text-carbon md:text-[40px]"
-                >
+                <h1 className="mt-3 font-display text-3xl font-semibold leading-[1.12] text-carbon md:text-[40px]">
                   {product.name}
                 </h1>
 
@@ -610,24 +641,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   <span>Handcrafted to order</span>
                 </div>
 
-                <div
-                  itemProp="offers"
-                  itemScope
-                  itemType="https://schema.org/Offer"
-                  className="mt-6 flex flex-wrap items-end gap-3"
-                >
-                  <meta itemProp="priceCurrency" content="INR" />
-                  <meta itemProp="price" content={String(product.price)} />
-                  <link
-                    itemProp="availability"
-                    href={
-                      product.price > 0
-                        ? "https://schema.org/InStock"
-                        : "https://schema.org/PreOrder"
-                    }
-                  />
-                  <link itemProp="itemCondition" href="https://schema.org/NewCondition" />
-
+                <div className="mt-6 flex flex-wrap items-end gap-3">
                   <span className="font-display text-[34px] font-bold leading-none text-carbon">
                     ₹{product.price.toLocaleString("en-IN")}
                   </span>
@@ -660,10 +674,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   Description
                 </h2>
 
-                <div
-                  itemProp="description"
-                  className="mt-4 text-[14px] leading-relaxed text-ink-mid"
-                >
+                <div className="mt-4 text-[14px] leading-relaxed text-ink-mid">
                   {product.description ? (
                     hasHtml(product.description) ? (
                       <div
@@ -683,23 +694,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </div>
               </section>
 
-              {/* SEO-supporting product summary */}
-              <section className="mt-5 rounded-2xl border border-gold/15 bg-[#FCFAF6] p-5 shadow-sm sm:p-6">
-                <h2 className="font-display text-[17px] font-semibold text-carbon">
-                  {product.name} Price, Design & Ordering Details
-                </h2>
-
-                <p className="mt-4 text-[14px] leading-relaxed text-ink-mid">
-                  {product.name} is a premium {categoryTitle.toLowerCase()} invitation
-                  card from {BRAND}
-                  {subject ? ` for ${subject} ceremonies` : ""}. The current online
-                  price is ₹{product.price.toLocaleString("en-IN")} per piece before
-                  printing charges. You can order this design for weddings, family
-                  functions, and celebration stationery with customisation support,
-                  quality material, and delivery across India.
-                </p>
-              </section>
-
               {/* Collapsible sections */}
               <div className="mt-5 space-y-3">
                 <Accordion title="Printing">
@@ -707,7 +701,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                     Printing charges is not included in the above price. The
                     printing cost is dependent on variables like number of
                     impressions, type of printing - Screen / UV / Offset, gold
-                    foil impression (optional) &amp; nature of cards. Please
+                    foil impression optional &amp; nature of cards. Please
                     contact our customer care to know the printing cost of the
                     card selected by you.
                   </p>
@@ -759,7 +753,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
                           <span className="font-medium text-carbon">
                             South India:
                           </span>{" "}
-                          Not applicable, Surface delivery takes same time as Air.
+                          Not applicable, Surface delivery takes same time as
+                          Air.
                         </li>
 
                         <li>
@@ -779,9 +774,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
                     </div>
 
                     <p>
-                      Shipping cost is based on weight. Just add products to your
-                      cart and use the Shipping calculator to see the shipping
-                      price and expected Time of Delivery.
+                      Shipping cost is based on weight. Just add products to
+                      your cart and use the Shipping calculator to see the
+                      shipping price and expected Time of Delivery.
                     </p>
                   </div>
                 </Accordion>
@@ -790,13 +785,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   <div className="space-y-3 text-[14px] leading-relaxed text-ink-mid">
                     <p>
                       For Cash on Delivery orders, a 10% advance payment is
-                      required at the time of booking. The remaining balance must
-                      be paid at the time of delivery. For assistance, please
-                      contact our team.
+                      required at the time of booking. The remaining balance
+                      must be paid at the time of delivery. For assistance,
+                      please contact our team.
                     </p>
 
                     <p>
                       <span className="font-medium text-carbon">Phone - </span>
+
                       <a
                         href="tel:+917044815488"
                         className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
@@ -817,8 +813,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
                 <Accordion title="Return Policy">
                   <p className="text-[14px] leading-relaxed text-ink-mid">
-                    We hope you love your order! However, we do not accept returns
-                    unless there is an error from our end.
+                    We hope you love your order! However, we do not accept
+                    returns unless there is an error from our end.
                   </p>
                 </Accordion>
 

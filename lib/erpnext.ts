@@ -90,6 +90,17 @@ type ErpItemPrice = {
   currency?: string;
 };
 
+type ErpFileAttachment = {
+  name: string;
+  file_name?: string;
+  file_url?: string;
+  attached_to_doctype?: string;
+  attached_to_name?: string;
+  is_folder?: 0 | 1;
+  creation?: string;
+  modified?: string;
+};
+
 export type ErpProduct = Product & {
   itemCode: string;
   itemGroup: string;
@@ -409,39 +420,39 @@ async function fetchErpItemDoc(
   }
 }
 
-/**
- * Pull ordered image URLs out of the Item Image child table on a doc.
- */
-function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
-  if (!doc) return [];
-
+function extractGalleryImages(
+  doc: Record<string, unknown> | null,
+  primaryImage?: string,
+): string[] {
   const urls: string[] = [];
 
-const looksLikeImage = (v: unknown) => {
-  if (typeof v !== "string") return false;
+  const looksLikeImage = (v: unknown) => {
+    if (typeof v !== "string") return false;
 
-  const value = v.trim();
-  if (!value) return false;
+    const value = v.trim();
+    if (!value) return false;
 
-  // Do not allow videos to be collected as gallery images.
-  if (looksLikeVideoUrl(value)) return false;
+    // Do not allow videos to be collected as gallery images.
+    if (looksLikeVideoUrl(value)) return false;
 
-  const cleanPath = value.split("?")[0].toLowerCase();
+    const cleanPath = value.split("?")[0].toLowerCase();
 
-  return (
-    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
-    value.startsWith("/files/") ||
-    value.startsWith("/private/files/")
-  );
-};
+    return (
+      /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
+      value.startsWith("/files/") ||
+      value.startsWith("/private/files/") ||
+      value.includes("/files/") ||
+      value.includes("/private/files/")
+    );
+  };
 
   const push = (v: unknown) => {
     if (!looksLikeImage(v)) return;
 
-    const url = buildImageUrl(v as string)[0];
+    const built = buildImageUrl(v as string)[0];
 
-    if (url && !urls.includes(url)) {
-      urls.push(url);
+    if (built && !urls.includes(built)) {
+      urls.push(built);
     }
   };
 
@@ -462,53 +473,33 @@ const looksLikeImage = (v: unknown) => {
   const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
     if (ERPNEXT_IMAGE_ORDER_FIELD) {
       const n = toNum(row[ERPNEXT_IMAGE_ORDER_FIELD]);
-
       if (n !== null) return n;
     }
 
     for (const key of Object.keys(row)) {
       if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
         const n = toNum(row[key]);
-
         if (n !== null) return n;
       }
     }
 
     const idx = toNum(row.idx);
-
     return idx !== null ? idx : fallback;
   };
 
-  const tables: Record<string, unknown>[][] = [];
-
-  const preferred = ERPNEXT_IMAGE_TABLE_FIELD
-    ? doc[ERPNEXT_IMAGE_TABLE_FIELD]
-    : null;
-
-  if (Array.isArray(preferred)) {
-    tables.push(preferred as Record<string, unknown>[]);
-  } else {
-    for (const value of Object.values(doc)) {
-      if (
-        Array.isArray(value) &&
-        value.length &&
-        typeof value[0] === "object"
-      ) {
-        tables.push(value as Record<string, unknown>[]);
-      }
-    }
-  }
-
-  for (const rows of tables) {
-    const before = urls.length;
-
+  const collectRows = (rows: Record<string, unknown>[]) => {
     const ordered = rows
-      .map((row, i) => ({ row, i, order: rowOrder(row, i) }))
+      .map((row, i) => ({
+        row,
+        i,
+        order: rowOrder(row, i),
+      }))
       .sort((a, b) => a.order - b.order || a.i - b.i);
 
     for (const { row } of ordered) {
       if (!row || typeof row !== "object") continue;
 
+      // Preferred configured field, usually "image".
       const direct = row[ERPNEXT_IMAGE_ROW_FIELD];
 
       if (looksLikeImage(direct)) {
@@ -516,6 +507,27 @@ const looksLikeImage = (v: unknown) => {
         continue;
       }
 
+      // Common ERPNext / Frappe attachment fields.
+      const commonFields = [
+        "image",
+        "image_url",
+        "file_url",
+        "file",
+        "attachment",
+        "attach",
+        "url",
+        "thumbnail",
+        "website_image",
+      ];
+
+      for (const field of commonFields) {
+        if (looksLikeImage(row[field])) {
+          push(row[field]);
+          break;
+        }
+      }
+
+      // Last fallback: scan all string values in the row.
       for (const v of Object.values(row)) {
         if (looksLikeImage(v)) {
           push(v);
@@ -523,11 +535,146 @@ const looksLikeImage = (v: unknown) => {
         }
       }
     }
+  };
 
-    if (urls.length > before) break;
+  // Always include main ERPNext Item image first.
+  push(primaryImage);
+
+  if (!doc) return urls;
+
+  // Also include image fields directly present on Item.
+  push(doc.image);
+  push(doc.website_image);
+  push(doc.thumbnail);
+  push(doc.image_url);
+
+  const tables: Record<string, unknown>[][] = [];
+
+  // First collect explicitly configured image child table.
+  const preferred = ERPNEXT_IMAGE_TABLE_FIELD
+    ? doc[ERPNEXT_IMAGE_TABLE_FIELD]
+    : null;
+
+  if (
+    Array.isArray(preferred) &&
+    preferred.length &&
+    typeof preferred[0] === "object"
+  ) {
+    tables.push(preferred as Record<string, unknown>[]);
+  }
+
+  // Then collect every other child table / attachment table.
+  // Important: do NOT stop after the first table.
+  // Some ERPNext products expose images through attachments first,
+  // while the actual gallery images are in another child table.
+  for (const value of Object.values(doc)) {
+    if (
+      Array.isArray(value) &&
+      value.length &&
+      typeof value[0] === "object"
+    ) {
+      const rows = value as Record<string, unknown>[];
+
+      if (!tables.includes(rows)) {
+        tables.push(rows);
+      }
+    }
+  }
+
+  for (const rows of tables) {
+    collectRows(rows);
   }
 
   return urls;
+}
+
+async function fetchErpItemAttachments(
+  itemName: string,
+  itemCode?: string,
+): Promise<string[]> {
+  const names = Array.from(
+    new Set([itemName, itemCode].filter(Boolean) as string[]),
+  );
+
+  const urls: string[] = [];
+
+  const looksLikeImage = (v: unknown) => {
+    if (typeof v !== "string") return false;
+
+    const value = v.trim();
+    if (!value) return false;
+    if (looksLikeVideoUrl(value)) return false;
+
+    const cleanPath = value.split("?")[0].toLowerCase();
+
+    return (
+      /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
+      value.startsWith("/files/") ||
+      value.startsWith("/private/files/") ||
+      value.includes("/files/") ||
+      value.includes("/private/files/")
+    );
+  };
+
+  const push = (value?: string) => {
+    if (!looksLikeImage(value)) return;
+
+    const built = buildImageUrl(value)[0];
+
+    if (built && !urls.includes(built)) {
+      urls.push(built);
+    }
+  };
+
+  for (const name of names) {
+    try {
+      const json = await erpFetch<ErpNextListResponse<ErpFileAttachment>>(
+        "/api/resource/File",
+        {
+          fields: JSON.stringify([
+            "name",
+            "file_name",
+            "file_url",
+            "attached_to_doctype",
+            "attached_to_name",
+            "is_folder",
+            "creation",
+            "modified",
+          ]),
+          filters: JSON.stringify([
+            ["File", "attached_to_doctype", "=", "Item"],
+            ["File", "attached_to_name", "=", name],
+            ["File", "is_folder", "=", 0],
+          ]),
+          limit_page_length: "100",
+          order_by: "creation asc",
+        },
+      );
+
+      for (const file of json.data || []) {
+        push(file.file_url);
+      }
+    } catch {
+      // Some ERPNext users may not have File API permission.
+      // In that case, the child table / item image fallback still works.
+    }
+  }
+
+  return urls;
+}
+
+function mergeImageLists(...lists: string[][]): string[] {
+  const merged: string[] = [];
+
+  for (const list of lists) {
+    for (const image of list) {
+      if (image && !merged.includes(image)) {
+        merged.push(image);
+      }
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -654,10 +801,13 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
       batch.map(async (p) => {
         const doc = await fetchErpItemDoc(p.erpName);
 
-        const gallery = extractGalleryImages(doc);
+        const gallery = extractGalleryImages(doc, p.images?.[0]);
+        const attachments = await fetchErpItemAttachments(p.erpName, p.itemCode);
 
-        if (gallery.length > 0) {
-          p.images = gallery;
+        const allImages = mergeImageLists(p.images || [], gallery, attachments);
+
+        if (allImages.length > 0) {
+          p.images = allImages;
         }
 
         const videos = extractGalleryVideos(doc);
@@ -729,16 +879,23 @@ export async function fetchErpProductBySlug(
   slug: string,
 ): Promise<ErpProduct | null> {
   const products = await buildErpProductList();
+
   const product = products.find((p) => p.slug === slug) ?? null;
 
   if (!product) return null;
 
   const doc = await fetchErpItemDoc(product.erpName);
 
-  const gallery = extractGalleryImages(doc);
+  const gallery = extractGalleryImages(doc, product.images?.[0]);
+  const attachments = await fetchErpItemAttachments(
+    product.erpName,
+    product.itemCode,
+  );
 
-  if (gallery.length > 0) {
-    product.images = gallery;
+  const allImages = mergeImageLists(product.images || [], gallery, attachments);
+
+  if (allImages.length > 0) {
+    product.images = allImages;
   }
 
   const videos = extractGalleryVideos(doc);

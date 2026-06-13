@@ -1,89 +1,337 @@
 import productsData from "@/data/products.json";
 import categoriesData from "@/data/categories.json";
-import type { Product, Category, ProductCategory } from "@/types";
 
-/*
- * DATA ACCESS LAYER
- * -----------------
- * Every component fetches data through these functions — never by importing
- * the JSON files directly. This is the single place to swap when moving to
- * ERPNext: replace the function bodies with `fetch()` calls to the ERPNext
- * REST API (see lib/erpnext.ts) and nothing else in the app needs to change.
- *
- * The functions are async on purpose, so the swap to a real API is seamless.
- */
+import type {
+  Product,
+  Category,
+  ProductCategory,
+} from "@/types";
 
-const products = productsData as Product[];
+import {
+  fetchErpProducts,
+  type ErpProduct,
+} from "@/lib/erpnext";
+
+const localProducts = productsData as Product[];
 const categories = categoriesData as Category[];
 
-/** Return every product. */
-export async function getAllProducts(): Promise<Product[]> {
+/*
+ * Small in-memory cache for navbar search.
+ *
+ * The navbar sends a request after the user stops typing.
+ * Without this cache, every keystroke could trigger another
+ * complete ERPNext product request.
+ */
+let cachedErpProducts: ErpProduct[] | null = null;
+let cacheExpiresAt = 0;
+
+const SEARCH_CACHE_DURATION = 60 * 1000;
+
+async function getErpProductsForSearch(): Promise<ErpProduct[]> {
+  const now = Date.now();
+
+  if (cachedErpProducts && now < cacheExpiresAt) {
+    return cachedErpProducts;
+  }
+
+  const products = await fetchErpProducts();
+
+  cachedErpProducts = products;
+  cacheExpiresAt = now + SEARCH_CACHE_DURATION;
+
   return products;
 }
 
-/** Find a single product by its slug. Returns null if not found. */
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  return products.find((p) => p.slug === slug) ?? null;
+/*
+ * Remove HTML, repeated spaces and letter accents so that
+ * product-title searching is more reliable.
+ */
+function normalizeSearchText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "and")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
-/** Products flagged for the homepage Sale section. */
+type SearchableProduct = Product &
+  Partial<{
+    itemCode: string;
+    itemGroup: string;
+    erpName: string;
+    subject: string;
+  }>;
+
+/**
+ * Return every local product.
+ *
+ * This remains unchanged because other older sections of the
+ * website may still depend on the local product fixtures.
+ */
+export async function getAllProducts(): Promise<Product[]> {
+  return localProducts;
+}
+
+/**
+ * Find a local product using its slug.
+ */
+export async function getProductBySlug(
+  slug: string,
+): Promise<Product | null> {
+  return (
+    localProducts.find((product) => product.slug === slug) ??
+    null
+  );
+}
+
+/**
+ * Products flagged for the homepage Sale section.
+ */
 export async function getSaleProducts(): Promise<Product[]> {
-  return products.filter((p) => p.onSale);
+  return localProducts.filter((product) => product.onSale);
 }
 
-/** Products flagged for the homepage Premium section. */
+/**
+ * Products flagged for the homepage Premium section.
+ */
 export async function getPremiumProducts(): Promise<Product[]> {
-  return products.filter((p) => p.isPremium);
+  return localProducts.filter(
+    (product) => product.isPremium,
+  );
 }
 
-/** All products belonging to one category. */
+/**
+ * Local products belonging to one category.
+ */
 export async function getProductsByCategory(
   category: ProductCategory,
 ): Promise<Product[]> {
-  return products.filter((p) => p.category === category);
+  return localProducts.filter(
+    (product) => product.category === category,
+  );
 }
 
-/** Related products from the same category, excluding the current one. */
+/**
+ * Related local products from the same category.
+ */
 export async function getRelatedProducts(
   product: Product,
   limit = 4,
 ): Promise<Product[]> {
-  return products
-    .filter((p) => p.category === product.category && p.slug !== product.slug)
+  return localProducts
+    .filter(
+      (candidate) =>
+        candidate.category === product.category &&
+        candidate.slug !== product.slug,
+    )
     .slice(0, limit);
 }
 
-/** Every category. */
+/**
+ * Return every category.
+ */
 export async function getAllCategories(): Promise<Category[]> {
   return categories;
 }
 
-/** Find a single category by slug. */
+/**
+ * Find a category by slug.
+ */
 export async function getCategoryBySlug(
   slug: string,
 ): Promise<Category | null> {
-  return categories.find((c) => c.slug === slug) ?? null;
-}
-
-/** All product slugs — used by generateStaticParams for static generation. */
-export async function getAllProductSlugs(): Promise<string[]> {
-  return products.map((p) => p.slug);
+  return (
+    categories.find((category) => category.slug === slug) ??
+    null
+  );
 }
 
 /**
- * Search products by name, description and category. Case-insensitive.
- * Every search term must be present (AND match), so "blue card" only
- * matches products containing both words.
+ * Return all local product slugs.
  */
-export async function searchProducts(query: string): Promise<Product[]> {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
+export async function getAllProductSlugs(): Promise<string[]> {
+  return localProducts.map((product) => product.slug);
+}
 
-  const terms = q.split(/\s+/);
+/**
+ * Search live ERPNext products.
+ *
+ * Searchable fields:
+ * - Product title
+ * - Item code
+ * - ERP document name
+ * - Description
+ * - Category
+ * - ERP item group
+ * - Subject
+ * - Material
+ * - Customisation
+ * - Includes
+ * - Product slug
+ */
+export async function searchProducts(
+  query: string,
+): Promise<Product[]> {
+  const normalizedQuery = normalizeSearchText(query);
 
-  return products.filter((p) => {
-    const haystack =
-      `${p.name} ${p.description} ${p.category}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const terms = normalizedQuery
+    .split(" ")
+    .filter(Boolean);
+
+  let searchableProducts: SearchableProduct[];
+
+  try {
+    /*
+     * Search the products currently displayed from ERPNext.
+     *
+     * fetchErpProducts() also loads the gallery images, so cards
+     * appearing on the search-results page continue using the same
+     * main image as the product gallery.
+     */
+    searchableProducts =
+      await getErpProductsForSearch();
+  } catch (error) {
+    /*
+     * Local products are only a fallback so that search does not
+     * completely crash when ERPNext is temporarily unavailable.
+     */
+    console.error(
+      "ERPNext search failed. Using local products as fallback:",
+      error,
+    );
+
+    searchableProducts = localProducts;
+  }
+
+  const matchedProducts = searchableProducts
+    .map((product, originalIndex) => {
+      const title = normalizeSearchText(product.name);
+
+      const itemCode = normalizeSearchText(
+        product.itemCode,
+      );
+
+      const erpName = normalizeSearchText(
+        product.erpName,
+      );
+
+      const subject = normalizeSearchText(
+        product.subject,
+      );
+
+      const itemGroup = normalizeSearchText(
+        product.itemGroup,
+      );
+
+      const haystack = [
+        title,
+        normalizeSearchText(product.slug),
+        normalizeSearchText(product.description),
+        normalizeSearchText(product.category),
+        normalizeSearchText(product.customisation),
+        normalizeSearchText(product.material),
+        normalizeSearchText(product.includes),
+        itemCode,
+        erpName,
+        subject,
+        itemGroup,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      /*
+       * Every entered word must be present somewhere.
+       *
+       * For example:
+       * "floral bride card"
+       * must contain floral, bride and card.
+       */
+      const matches = terms.every((term) =>
+        haystack.includes(term),
+      );
+
+      if (!matches) {
+        return null;
+      }
+
+      /*
+       * Rank title matches above description/category matches.
+       */
+      let score = 0;
+
+      if (title === normalizedQuery) {
+        score += 1000;
+      } else if (title.startsWith(normalizedQuery)) {
+        score += 700;
+      } else if (title.includes(normalizedQuery)) {
+        score += 500;
+      }
+
+      if (itemCode === normalizedQuery) {
+        score += 450;
+      } else if (itemCode.includes(normalizedQuery)) {
+        score += 250;
+      }
+
+      if (erpName === normalizedQuery) {
+        score += 400;
+      } else if (erpName.includes(normalizedQuery)) {
+        score += 200;
+      }
+
+      for (const term of terms) {
+        if (title.startsWith(term)) {
+          score += 100;
+        } else if (title.includes(term)) {
+          score += 60;
+        }
+
+        if (itemCode.includes(term)) {
+          score += 30;
+        }
+
+        if (subject.includes(term)) {
+          score += 20;
+        }
+
+        if (itemGroup.includes(term)) {
+          score += 10;
+        }
+      }
+
+      return {
+        product,
+        score,
+        originalIndex,
+      };
+    })
+    .filter(
+      (
+        result,
+      ): result is {
+        product: SearchableProduct;
+        score: number;
+        originalIndex: number;
+      } => result !== null,
+    );
+
+  matchedProducts.sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+
+    return a.originalIndex - b.originalIndex;
   });
+
+  return matchedProducts.map(
+    ({ product }) => product,
+  );
 }

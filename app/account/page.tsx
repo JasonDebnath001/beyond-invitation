@@ -3,7 +3,11 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 
 export const metadata: Metadata = {
-    title: "My Account – Shahi Cards",
+    title: "My Account – Beyond Invitation",
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 /**

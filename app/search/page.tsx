@@ -9,8 +9,12 @@ interface PageProps {
 }
 
 export const metadata: Metadata = {
-  title: "Search – Shahi Cards",
-  description: "Search wedding invitation cards at Shahi Cards.",
+  title: "Search – Beyond Invitation",
+  description: "Search wedding invitation cards and stationery at Beyond Invitation.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 /**

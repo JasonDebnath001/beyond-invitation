@@ -366,11 +366,6 @@ function buildProductJsonLd(product: ProductLike) {
           value: stripHtml(product.includes),
         }
       : null,
-    {
-      "@type": "PropertyValue",
-      name: "Minimum Order Quantity",
-      value: "50 pieces",
-    },
     discount > 0
       ? {
           "@type": "PropertyValue",
@@ -388,7 +383,7 @@ function buildProductJsonLd(product: ProductLike) {
     description,
     image: images,
     sku: getSku(product),
-    mpn: getSku(product),
+      // mpn property removed
     brand: {
       "@type": "Brand",
       name: BRAND,

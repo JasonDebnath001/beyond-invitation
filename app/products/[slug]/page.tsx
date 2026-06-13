@@ -741,7 +741,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       </ul>
                     </div>
 
-                    <div>
+                    {/* <div>
                       <h3 className="font-semibold text-carbon">2. Air</h3>
 
                       <p className="mt-2">
@@ -771,7 +771,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                           4 to 5 days
                         </li>
                       </ul>
-                    </div>
+                    </div> */}
 
                     <p>
                       Shipping cost is based on weight. Just add products to

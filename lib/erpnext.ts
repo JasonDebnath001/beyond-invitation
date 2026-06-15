@@ -59,14 +59,11 @@ const ERPNEXT_REVALIDATE = Number(
 );
 
 // --- Multi-image gallery: Item Image child table on Item -------------------
-const ERPNEXT_IMAGE_TABLE_FIELD =
-  process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
+const ERPNEXT_IMAGE_TABLE_FIELD = process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
 
-const ERPNEXT_IMAGE_ROW_FIELD =
-  process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
+const ERPNEXT_IMAGE_ROW_FIELD = process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
 
-const ERPNEXT_IMAGE_ORDER_FIELD =
-  process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
+const ERPNEXT_IMAGE_ORDER_FIELD = process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
 
 // --- Multi-video gallery: direct Item field or child table on Item ----------
 // IMPORTANT:
@@ -75,14 +72,11 @@ const ERPNEXT_IMAGE_ORDER_FIELD =
 const ERPNEXT_VIDEO_FIELD =
   process.env.ERPNEXT_VIDEO_FIELD ?? "custom_video_link";
 
-const ERPNEXT_VIDEO_TABLE_FIELD =
-  process.env.ERPNEXT_VIDEO_TABLE_FIELD ?? "";
+const ERPNEXT_VIDEO_TABLE_FIELD = process.env.ERPNEXT_VIDEO_TABLE_FIELD ?? "";
 
-const ERPNEXT_VIDEO_ROW_FIELD =
-  process.env.ERPNEXT_VIDEO_ROW_FIELD ?? "video";
+const ERPNEXT_VIDEO_ROW_FIELD = process.env.ERPNEXT_VIDEO_ROW_FIELD ?? "video";
 
-const ERPNEXT_VIDEO_ORDER_FIELD =
-  process.env.ERPNEXT_VIDEO_ORDER_FIELD ?? "";
+const ERPNEXT_VIDEO_ORDER_FIELD = process.env.ERPNEXT_VIDEO_ORDER_FIELD ?? "";
 
 type ErpNextListResponse<T> = {
   data: T[];
@@ -317,12 +311,6 @@ function cleanTextValue(value: unknown): string {
   return DOMPurify.sanitize(text);
 }
 
-/**
- * Convert a value to plain text.
- *
- * This is used for Website Title because product titles should not contain
- * HTML tags even if someone accidentally enters formatted HTML in ERPNext.
- */
 function cleanPlainTextValue(value: unknown): string {
   if (value === null || value === undefined) return "";
 
@@ -339,9 +327,56 @@ function cleanPlainTextValue(value: unknown): string {
     .trim();
 }
 
-/**
- * Return the first non-empty field from an ERPNext document.
- */
+function normalizeFieldName(fieldName: string): string {
+  return fieldName
+    .toLowerCase()
+    .replace(/^custom_/, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function convertFieldValueToString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+
+  /*
+   * Defensive support in case a translated/custom field is returned
+   * as an object rather than a direct string.
+   */
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+
+    const possibleKeys = [
+      "value",
+      "text",
+      "content",
+      "description",
+      "html",
+      "en",
+      "en-US",
+      "en_US",
+    ];
+
+    for (const key of possibleKeys) {
+      const nestedValue = record[key];
+
+      if (typeof nestedValue === "string" && nestedValue.trim().length > 0) {
+        return nestedValue.trim();
+      }
+    }
+  }
+
+  return "";
+}
+
 function getFirstNonEmptyField(
   source: Record<string, unknown> | null,
   fieldNames: string[],
@@ -349,22 +384,182 @@ function getFirstNonEmptyField(
   if (!source) return "";
 
   for (const fieldName of fieldNames) {
-    const cleanFieldName = fieldName.trim();
+    const cleanedFieldName = fieldName.trim();
 
-    if (!cleanFieldName) continue;
+    if (!cleanedFieldName) continue;
 
-    const value = source[cleanFieldName];
+    const value = convertFieldValueToString(source[cleanedFieldName]);
 
-    if (value === null || value === undefined) continue;
-
-    const text = String(value).trim();
-
-    if (text) {
-      return text;
+    if (value) {
+      return value;
     }
   }
 
   return "";
+}
+
+/**
+ * Find Website Title even when the ERPNext fieldname differs slightly.
+ */
+function findWebsiteTitle(doc: Record<string, unknown> | null): string {
+  if (!doc) return "";
+
+  const directValue = getFirstNonEmptyField(doc, [
+    ERPNEXT_WEBSITE_TITLE_FIELD,
+    "custom_website_title",
+    "website_title",
+    "custom_web_title",
+    "web_title",
+  ]);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  for (const [fieldName, rawValue] of Object.entries(doc)) {
+    const normalized = normalizeFieldName(fieldName);
+
+    const isWebsiteTitle =
+      normalized === "websitetitle" ||
+      normalized === "webtitle" ||
+      (normalized.includes("website") && normalized.includes("title"));
+
+    if (!isWebsiteTitle) continue;
+
+    const value = convertFieldValueToString(rawValue);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Find Website Short Description even when its real fieldname is something
+ * like:
+ *
+ * custom_website_short_description
+ * website_short_description
+ * custom_website_description
+ * custom_web_short_description
+ */
+function findWebsiteShortDescription(
+  doc: Record<string, unknown> | null,
+): string {
+  if (!doc) return "";
+
+  const directValue = getFirstNonEmptyField(doc, [
+    ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD,
+    "custom_website_short_description",
+    "website_short_description",
+    "custom_website_description",
+    "website_description",
+    "custom_web_short_description",
+    "web_short_description",
+    "custom_short_description",
+    "short_description",
+  ]);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  for (const [fieldName, rawValue] of Object.entries(doc)) {
+    const normalized = normalizeFieldName(fieldName);
+
+    const containsDescription = normalized.includes("description");
+
+    const containsWebsiteReference =
+      normalized.includes("website") || normalized.startsWith("web");
+
+    const isWebsiteDescription =
+      containsDescription && containsWebsiteReference;
+
+    if (!isWebsiteDescription) continue;
+
+    const value = convertFieldValueToString(rawValue);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+async function getWebsiteCatalogueContent(
+  doc: Record<string, unknown> | null,
+): Promise<{
+  title: string;
+  description: string;
+}> {
+  if (!doc) {
+    return {
+      title: "",
+      description: "",
+    };
+  }
+
+  let title = findWebsiteTitle(doc);
+  let description = findWebsiteShortDescription(doc);
+
+  /*
+   * G225-17 is a variant of G225.
+   *
+   * If Website Title or Website Short Description is missing from the
+   * variant API response, retrieve it from the template Item.
+   */
+  const variantOf = convertFieldValueToString(doc.variant_of);
+
+  if ((!title || !description) && variantOf) {
+    const templateDoc = await fetchErpItemDoc(variantOf);
+
+    if (templateDoc) {
+      if (!title) {
+        title = findWebsiteTitle(templateDoc);
+      }
+
+      if (!description) {
+        description = findWebsiteShortDescription(templateDoc);
+      }
+    }
+  }
+
+  return {
+    title,
+    description,
+  };
+}
+
+async function applyWebsiteCatalogueContent(
+  product: ErpProduct,
+  doc: Record<string, unknown> | null,
+): Promise<void> {
+  if (!doc) return;
+
+  const websiteContent = await getWebsiteCatalogueContent(doc);
+
+  if (websiteContent.title) {
+    const cleanTitle = cleanPlainTextValue(websiteContent.title);
+
+    if (cleanTitle) {
+      product.name = cleanTitle;
+    }
+  }
+
+  if (websiteContent.description) {
+    const cleanDescription = DOMPurify.sanitize(websiteContent.description, {
+      USE_PROFILES: {
+        html: true,
+      },
+    }).trim();
+
+    if (cleanDescription) {
+      product.description = cleanDescription;
+    }
+  }
 }
 
 /**
@@ -412,60 +607,6 @@ function findFieldByNormalizedName(
   return "";
 }
 
-/**
- * Read Website Title and Website Short Description from the full ERPNext
- * Item document and apply them to the storefront product.
- *
- * Fallbacks:
- *
- * Website Title missing:
- *   Keep the normal ERPNext Item Name.
- *
- * Website Short Description missing:
- *   Keep the normal ERPNext Description.
- */
-function applyWebsiteCatalogueContent(
-  product: ErpProduct,
-  doc: Record<string, unknown> | null,
-): void {
-  if (!doc) return;
-
-  const websiteTitle =
-    getFirstNonEmptyField(doc, [
-      ERPNEXT_WEBSITE_TITLE_FIELD,
-      "custom_website_title",
-      "website_title",
-      "custom_web_title",
-      "web_title",
-    ]) || findFieldByNormalizedName(doc, "website_title");
-
-  const websiteShortDescription =
-    getFirstNonEmptyField(doc, [
-      ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD,
-      "custom_website_short_description",
-      "website_short_description",
-      "custom_short_description",
-      "short_description",
-    ]) || findFieldByNormalizedName(doc, "website_short_description");
-
-  if (websiteTitle) {
-    const cleanWebsiteTitle = cleanPlainTextValue(websiteTitle);
-
-    if (cleanWebsiteTitle) {
-      product.name = cleanWebsiteTitle;
-    }
-  }
-
-  if (websiteShortDescription) {
-    const cleanWebsiteDescription = DOMPurify.sanitize(
-      websiteShortDescription,
-    ).trim();
-
-    if (cleanWebsiteDescription) {
-      product.description = cleanWebsiteDescription;
-    }
-  }
-}
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
 
@@ -740,11 +881,7 @@ function extractGalleryImages(
   // Some ERPNext products expose images through attachments first,
   // while the actual gallery images are in another child table.
   for (const value of Object.values(doc)) {
-    if (
-      Array.isArray(value) &&
-      value.length &&
-      typeof value[0] === "object"
-    ) {
+    if (Array.isArray(value) && value.length && typeof value[0] === "object") {
       const rows = value as Record<string, unknown>[];
 
       if (!tables.includes(rows)) {
@@ -970,26 +1107,19 @@ function extractGalleryVideos(doc: Record<string, unknown> | null): string[] {
  * This function also applies the Website Catalogue title and description
  * from the complete ERPNext Item document.
  */
-async function enrichGalleries(
-  products: ErpProduct[],
-): Promise<ErpProduct[]> {
+async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
   const CONCURRENCY = 8;
 
-  for (let i = 0; i < products.length; i += CONCURRENCY) {
-    const batch = products.slice(i, i + CONCURRENCY);
+  for (let index = 0; index < products.length; index += CONCURRENCY) {
+    const batch = products.slice(index, index + CONCURRENCY);
 
     await Promise.all(
       batch.map(async (product) => {
         const doc = await fetchErpItemDoc(product.erpName);
 
-        // Website Title becomes the storefront product name.
-        // Website Short Description becomes the storefront description.
-        applyWebsiteCatalogueContent(product, doc);
+        await applyWebsiteCatalogueContent(product, doc);
 
-        const gallery = extractGalleryImages(
-          doc,
-          product.images?.[0],
-        );
+        const gallery = extractGalleryImages(doc, product.images?.[0]);
 
         const attachments = await fetchErpItemAttachments(
           product.erpName,
@@ -1076,8 +1206,7 @@ export async function fetchErpProductBySlug(
 ): Promise<ErpProduct | null> {
   const products = await buildErpProductList();
 
-  const product =
-    products.find((candidate) => candidate.slug === slug) ?? null;
+  const product = products.find((candidate) => candidate.slug === slug) ?? null;
 
   if (!product) {
     return null;
@@ -1085,24 +1214,16 @@ export async function fetchErpProductBySlug(
 
   const doc = await fetchErpItemDoc(product.erpName);
 
-  // Apply Website Title and Website Short Description to the product page.
-  applyWebsiteCatalogueContent(product, doc);
+  await applyWebsiteCatalogueContent(product, doc);
 
-  const gallery = extractGalleryImages(
-    doc,
-    product.images?.[0],
-  );
+  const gallery = extractGalleryImages(doc, product.images?.[0]);
 
   const attachments = await fetchErpItemAttachments(
     product.erpName,
     product.itemCode,
   );
 
-  const allImages = mergeImageLists(
-    product.images || [],
-    gallery,
-    attachments,
-  );
+  const allImages = mergeImageLists(product.images || [], gallery, attachments);
 
   if (allImages.length > 0) {
     product.images = allImages;
@@ -1169,8 +1290,9 @@ export async function fetchErpProductsBySubject(
     (item) =>
       item.disabled !== 1 &&
       Number(item[ERPNEXT_WEBSITE_FIELD]) === 1 &&
-      String(item[ERPNEXT_SUBJECT_FIELD] ?? "").trim().toLowerCase() ===
-        target.toLowerCase(),
+      String(item[ERPNEXT_SUBJECT_FIELD] ?? "")
+        .trim()
+        .toLowerCase() === target.toLowerCase(),
   );
 
   const itemCodes = visibleItems

@@ -30,6 +30,29 @@ const ERPNEXT_MATERIAL_FIELD =
 const ERPNEXT_INCLUDES_FIELD =
   process.env.ERPNEXT_INCLUDES_FIELD ?? "custom_includes";
 
+// ---------------------------------------------------------------------------
+// ERPNext Website Catalogue fields
+// ---------------------------------------------------------------------------
+//
+// These must contain the ERPNext fieldnames, not the visible form labels.
+//
+// The code also automatically checks common fieldnames such as:
+// - custom_website_title
+// - website_title
+// - custom_website_short_description
+// - website_short_description
+//
+// Environment variables are optional but recommended when your ERPNext
+// fieldnames are different.
+
+const ERPNEXT_WEBSITE_TITLE_FIELD = cleanEnv(
+  process.env.ERPNEXT_WEBSITE_TITLE_FIELD,
+);
+
+const ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD = cleanEnv(
+  process.env.ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD,
+);
+
 // Caching for ERPNext responses.
 const ERPNEXT_REVALIDATE = Number(
   process.env.ERPNEXT_REVALIDATE_SECONDS ?? "60",
@@ -294,6 +317,155 @@ function cleanTextValue(value: unknown): string {
   return DOMPurify.sanitize(text);
 }
 
+/**
+ * Convert a value to plain text.
+ *
+ * This is used for Website Title because product titles should not contain
+ * HTML tags even if someone accidentally enters formatted HTML in ERPNext.
+ */
+function cleanPlainTextValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  const text = String(value).trim();
+
+  if (!text) return "";
+
+  return DOMPurify.sanitize(text, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+  })
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Return the first non-empty field from an ERPNext document.
+ */
+function getFirstNonEmptyField(
+  source: Record<string, unknown> | null,
+  fieldNames: string[],
+): string {
+  if (!source) return "";
+
+  for (const fieldName of fieldNames) {
+    const cleanFieldName = fieldName.trim();
+
+    if (!cleanFieldName) continue;
+
+    const value = source[cleanFieldName];
+
+    if (value === null || value === undefined) continue;
+
+    const text = String(value).trim();
+
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Fallback field detection.
+ *
+ * ERPNext custom fields normally have a "custom_" prefix. This function
+ * allows both of these to work:
+ *
+ * custom_website_title
+ * website_title
+ *
+ * and:
+ *
+ * custom_website_short_description
+ * website_short_description
+ */
+function findFieldByNormalizedName(
+  source: Record<string, unknown> | null,
+  expectedName: string,
+): string {
+  if (!source) return "";
+
+  const normalizedExpectedName = expectedName
+    .toLowerCase()
+    .replace(/^custom_/, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+  for (const [fieldName, value] of Object.entries(source)) {
+    if (value === null || value === undefined) continue;
+
+    const normalizedFieldName = fieldName
+      .toLowerCase()
+      .replace(/^custom_/, "")
+      .replace(/[^a-z0-9]+/g, "");
+
+    if (normalizedFieldName !== normalizedExpectedName) continue;
+
+    const text = String(value).trim();
+
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Read Website Title and Website Short Description from the full ERPNext
+ * Item document and apply them to the storefront product.
+ *
+ * Fallbacks:
+ *
+ * Website Title missing:
+ *   Keep the normal ERPNext Item Name.
+ *
+ * Website Short Description missing:
+ *   Keep the normal ERPNext Description.
+ */
+function applyWebsiteCatalogueContent(
+  product: ErpProduct,
+  doc: Record<string, unknown> | null,
+): void {
+  if (!doc) return;
+
+  const websiteTitle =
+    getFirstNonEmptyField(doc, [
+      ERPNEXT_WEBSITE_TITLE_FIELD,
+      "custom_website_title",
+      "website_title",
+      "custom_web_title",
+      "web_title",
+    ]) || findFieldByNormalizedName(doc, "website_title");
+
+  const websiteShortDescription =
+    getFirstNonEmptyField(doc, [
+      ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD,
+      "custom_website_short_description",
+      "website_short_description",
+      "custom_short_description",
+      "short_description",
+    ]) || findFieldByNormalizedName(doc, "website_short_description");
+
+  if (websiteTitle) {
+    const cleanWebsiteTitle = cleanPlainTextValue(websiteTitle);
+
+    if (cleanWebsiteTitle) {
+      product.name = cleanWebsiteTitle;
+    }
+  }
+
+  if (websiteShortDescription) {
+    const cleanWebsiteDescription = DOMPurify.sanitize(
+      websiteShortDescription,
+    ).trim();
+
+    if (cleanWebsiteDescription) {
+      product.description = cleanWebsiteDescription;
+    }
+  }
+}
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
 
@@ -791,29 +963,53 @@ function extractGalleryVideos(doc: Record<string, unknown> | null): string[] {
 /**
  * Replace each product's images/videos with its full ordered gallery, if present.
  */
-async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
+/**
+ * Replace each product's images/videos with its full ordered gallery,
+ * if present.
+ *
+ * This function also applies the Website Catalogue title and description
+ * from the complete ERPNext Item document.
+ */
+async function enrichGalleries(
+  products: ErpProduct[],
+): Promise<ErpProduct[]> {
   const CONCURRENCY = 8;
 
   for (let i = 0; i < products.length; i += CONCURRENCY) {
     const batch = products.slice(i, i + CONCURRENCY);
 
     await Promise.all(
-      batch.map(async (p) => {
-        const doc = await fetchErpItemDoc(p.erpName);
+      batch.map(async (product) => {
+        const doc = await fetchErpItemDoc(product.erpName);
 
-        const gallery = extractGalleryImages(doc, p.images?.[0]);
-        const attachments = await fetchErpItemAttachments(p.erpName, p.itemCode);
+        // Website Title becomes the storefront product name.
+        // Website Short Description becomes the storefront description.
+        applyWebsiteCatalogueContent(product, doc);
 
-        const allImages = mergeImageLists(p.images || [], gallery, attachments);
+        const gallery = extractGalleryImages(
+          doc,
+          product.images?.[0],
+        );
+
+        const attachments = await fetchErpItemAttachments(
+          product.erpName,
+          product.itemCode,
+        );
+
+        const allImages = mergeImageLists(
+          product.images || [],
+          gallery,
+          attachments,
+        );
 
         if (allImages.length > 0) {
-          p.images = allImages;
+          product.images = allImages;
         }
 
         const videos = extractGalleryVideos(doc);
 
         if (videos.length > 0) {
-          p.videos = videos;
+          product.videos = videos;
         }
       }),
     );
@@ -880,19 +1076,33 @@ export async function fetchErpProductBySlug(
 ): Promise<ErpProduct | null> {
   const products = await buildErpProductList();
 
-  const product = products.find((p) => p.slug === slug) ?? null;
+  const product =
+    products.find((candidate) => candidate.slug === slug) ?? null;
 
-  if (!product) return null;
+  if (!product) {
+    return null;
+  }
 
   const doc = await fetchErpItemDoc(product.erpName);
 
-  const gallery = extractGalleryImages(doc, product.images?.[0]);
+  // Apply Website Title and Website Short Description to the product page.
+  applyWebsiteCatalogueContent(product, doc);
+
+  const gallery = extractGalleryImages(
+    doc,
+    product.images?.[0],
+  );
+
   const attachments = await fetchErpItemAttachments(
     product.erpName,
     product.itemCode,
   );
 
-  const allImages = mergeImageLists(product.images || [], gallery, attachments);
+  const allImages = mergeImageLists(
+    product.images || [],
+    gallery,
+    attachments,
+  );
 
   if (allImages.length > 0) {
     product.images = allImages;

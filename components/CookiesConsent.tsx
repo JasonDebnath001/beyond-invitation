@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 const COOKIE_NAME = "beyond_invitation_cookie_consent";
 const COOKIE_VALUE = "accepted";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // One year
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") {

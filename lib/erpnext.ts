@@ -12,6 +12,10 @@ const ERPNEXT_API_SECRET = cleanEnv(process.env.ERPNEXT_API_SECRET);
 const ERPNEXT_PRICE_LIST =
   cleanEnv(process.env.ERPNEXT_PRICE_LIST) || "Standard Selling";
 
+const ERPNEXT_PRODUCT_PRICE_FIELD =
+  cleanEnv(process.env.ERPNEXT_PRODUCT_PRICE_FIELD) ||
+  "custom_price";
+
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
 const ERPNEXT_WEBSITE_FIELD =
   process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
@@ -676,16 +680,77 @@ async function fetchItemPrices(itemCodes: string[]) {
   return priceMap;
 }
 
+function parseProductPrice(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const cleanedValue = value
+      .replace(/,/g, "")
+      .replace(/[^\d.-]/g, "")
+      .trim();
+
+    if (!cleanedValue) {
+      return null;
+    }
+
+    const parsedValue = Number(cleanedValue);
+
+    return Number.isFinite(parsedValue)
+      ? parsedValue
+      : null;
+  }
+
+  return null;
+}
+
+function getCustomProductPrice(
+  item: Record<string, unknown>,
+): number | null {
+  const configuredPrice = parseProductPrice(
+    item[ERPNEXT_PRODUCT_PRICE_FIELD],
+  );
+
+  if (configuredPrice !== null) {
+    return configuredPrice;
+  }
+
+  /*
+   * Extra fallbacks in case the ERPNext fieldname is
+   * "custom_price" or simply "price".
+   */
+  const customPrice = parseProductPrice(
+    item.custom_price,
+  );
+
+  if (customPrice !== null) {
+    return customPrice;
+  }
+
+  return parseProductPrice(item.price);
+}
+
 function mapErpItemToProduct(
   item: ErpItem,
   priceMap: Map<string, number>,
 ): ErpProduct {
-  const itemCode = item.item_code || item.name;
-  const priceFromItemPrice = priceMap.get(itemCode);
+  const itemCode =
+    item.item_code || item.name;
 
-  const price = Number(
-    priceFromItemPrice || item.standard_rate || item.valuation_rate || 0,
-  );
+  const customFieldPrice =
+    getCustomProductPrice(item);
+
+  const oldErpPrice =
+    priceMap.get(itemCode) ??
+    Number(item.standard_rate || 0) ??
+    Number(item.valuation_rate || 0);
+
+  /*
+   * Custom Price field is now the primary source.
+   * The old ERP price is used only when custom_price is empty.
+   */
+ const price = customFieldPrice ?? 0;
 
   const mrp = price;
 
@@ -693,22 +758,47 @@ function mapErpItemToProduct(
     erpName: item.name,
     itemCode,
     itemGroup: item.item_group ?? "",
-    subject: cleanTextValue(item[ERPNEXT_SUBJECT_FIELD]),
+
+    subject: cleanTextValue(
+      item[ERPNEXT_SUBJECT_FIELD],
+    ),
 
     slug: normalizeSlug(itemCode),
-    name: item.item_name || itemCode,
+
+    name:
+      item.item_name ||
+      itemCode,
+
     price,
     mrp,
+
     images: buildImageUrl(item.image),
+
     emoji: "",
-    category: normalizeCategory(item.item_group),
+
+    category: normalizeCategory(
+      item.item_group,
+    ),
+
     badge: undefined,
 
-    description: DOMPurify.sanitize(String(item.description || "")),
+    description: DOMPurify.sanitize(
+      String(item.description || ""),
+    ),
 
-    customisation: cleanTextValue(item[ERPNEXT_CUSTOMISATION_FIELD]),
-    material: cleanTextValue(item[ERPNEXT_MATERIAL_FIELD]),
-    includes: cleanTextValue(item[ERPNEXT_INCLUDES_FIELD]),
+    customisation: cleanTextValue(
+      item[
+        ERPNEXT_CUSTOMISATION_FIELD
+      ],
+    ),
+
+    material: cleanTextValue(
+      item[ERPNEXT_MATERIAL_FIELD],
+    ),
+
+    includes: cleanTextValue(
+      item[ERPNEXT_INCLUDES_FIELD],
+    ),
 
     onSale: false,
     isPremium: false,
@@ -1170,6 +1260,7 @@ export async function buildErpProductList(): Promise<ErpProduct[]> {
         ERPNEXT_CUSTOMISATION_FIELD,
         ERPNEXT_MATERIAL_FIELD,
         ERPNEXT_INCLUDES_FIELD,
+        ERPNEXT_PRODUCT_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
@@ -1273,6 +1364,7 @@ export async function fetchErpProductsBySubject(
         ERPNEXT_CUSTOMISATION_FIELD,
         ERPNEXT_MATERIAL_FIELD,
         ERPNEXT_INCLUDES_FIELD,
+        ERPNEXT_PRODUCT_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),

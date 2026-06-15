@@ -4,77 +4,53 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { Product } from "@/types";
+import {
+  getProductQuantityStep,
+  MIN_ORDER_QUANTITY,
+} from "@/lib/product-quantity";
+
 import { useCart } from "./CartProvider";
-
-const MIN_QTY = 50;
-const WEDDING_CARD_QTY_STEP = 25;
-const SHAGUN_ENVELOPE_QTY_STEP = 50;
-
-type ProductWithItemGroup = Product & {
-  itemGroup?: string;
-};
-
-function isShagunEnvelope(product: ProductWithItemGroup): boolean {
-  const itemGroup = (product.itemGroup ?? "").trim().toLowerCase();
-
-  // Preferred check for products coming from ERPNext.
-  if (itemGroup) {
-    return (
-      itemGroup.includes("shagun") ||
-      itemGroup.includes("sagun")
-    );
-  }
-
-  // Fallback for local products or older product data.
-  const productText = `${product.name} ${product.slug}`.toLowerCase();
-
-  return (
-    productText.includes("shagun") ||
-    productText.includes("sagun")
-  );
-}
 
 export default function ProductBuyBox({
   product,
 }: {
-  product: ProductWithItemGroup;
+  product: Product;
 }) {
   const { addItem } = useCart();
   const router = useRouter();
 
-  const quantityStep = isShagunEnvelope(product)
-    ? SHAGUN_ENVELOPE_QTY_STEP
-    : WEDDING_CARD_QTY_STEP;
+  const quantityStep = getProductQuantityStep(product);
 
-  const [qty, setQty] = useState(MIN_QTY);
+  const [qty, setQty] = useState(MIN_ORDER_QUANTITY);
   const [added, setAdded] = useState(false);
   const timeout = useRef<number | null>(null);
 
-  // Reset quantity when navigating between different products.
   useEffect(() => {
-    setQty(MIN_QTY);
+    setQty(MIN_ORDER_QUANTITY);
   }, [product.slug]);
 
   useEffect(() => {
     return () => {
-      if (timeout.current) {
-        clearTimeout(timeout.current);
+      if (timeout.current !== null) {
+        window.clearTimeout(timeout.current);
       }
     };
   }, []);
 
   function addToCart() {
-    for (let i = 0; i < qty; i++) {
-      addItem(product);
-    }
+    /*
+     * Add the complete selected quantity in one action.
+     * Do not call addItem inside a loop.
+     */
+    addItem(product, qty);
   }
 
   function handleAdd() {
     addToCart();
     setAdded(true);
 
-    if (timeout.current) {
-      clearTimeout(timeout.current);
+    if (timeout.current !== null) {
+      window.clearTimeout(timeout.current);
     }
 
     timeout.current = window.setTimeout(() => {
@@ -89,13 +65,18 @@ export default function ProductBuyBox({
   }
 
   function decreaseQuantity() {
-    setQty((currentQty) =>
-      Math.max(MIN_QTY, currentQty - quantityStep),
+    setQty((currentQuantity) =>
+      Math.max(
+        MIN_ORDER_QUANTITY,
+        currentQuantity - quantityStep,
+      ),
     );
   }
 
   function increaseQuantity() {
-    setQty((currentQty) => currentQty + quantityStep);
+    setQty(
+      (currentQuantity) => currentQuantity + quantityStep,
+    );
   }
 
   return (
@@ -109,7 +90,7 @@ export default function ProductBuyBox({
           type="button"
           onClick={decreaseQuantity}
           aria-label={`Decrease quantity by ${quantityStep}`}
-          disabled={qty <= MIN_QTY}
+          disabled={qty <= MIN_ORDER_QUANTITY}
           className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
         >
           −

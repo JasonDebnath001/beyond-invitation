@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import {
-  MIN_ORDER_QUANTITY,
+  MIN_QTY,
   useCart,
   type CartItem,
 } from "@/components/CartProvider";
@@ -19,47 +19,47 @@ export default function CartPage() {
     totalPrice,
   } = useCart();
 
-  const [failedImages, setFailedImages] =
-    useState<Record<string, boolean>>({});
+  const [
+    failedImages,
+    setFailedImages,
+  ] = useState<
+    Record<string, boolean>
+  >({});
 
-  function formatPrice(value: number) {
-    return value.toLocaleString("en-IN", {
-      maximumFractionDigits: 2,
-    });
+  function formatPrice(
+    value: number,
+  ) {
+    return value.toLocaleString(
+      "en-IN",
+      {
+        maximumFractionDigits: 2,
+      },
+    );
   }
 
-  function decreaseQuantity(item: CartItem) {
+  function decreaseQuantity(
+    item: CartItem,
+  ) {
     const nextQuantity =
-      item.quantity - item.quantityStep;
+      item.quantity -
+      item.quantityStep;
 
     setQuantity(
       item.slug,
       Math.max(
-        MIN_ORDER_QUANTITY,
+        MIN_QTY,
         nextQuantity,
       ),
     );
   }
 
-  function increaseQuantity(item: CartItem) {
-    /*
-     * Handles products that may have been added through an older
-     * "Add to Cart" button with quantity 1.
-     *
-     * The first increase moves them to the minimum quantity of 50.
-     */
-    if (item.quantity < MIN_ORDER_QUANTITY) {
-      setQuantity(
-        item.slug,
-        MIN_ORDER_QUANTITY,
-      );
-
-      return;
-    }
-
+  function increaseQuantity(
+    item: CartItem,
+  ) {
     setQuantity(
       item.slug,
-      item.quantity + item.quantityStep,
+      item.quantity +
+        item.quantityStep,
     );
   }
 
@@ -72,8 +72,9 @@ export default function CartPage() {
           </h1>
 
           <p className="mt-3 text-sm text-ink-light">
-            Browse our collection and add some
-            beautiful invitation cards.
+            Browse our collection and
+            add some beautiful
+            invitation cards.
           </p>
 
           <Link
@@ -112,7 +113,9 @@ export default function CartPage() {
             >
               <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-pale">
                 {item.image &&
-                !failedImages[item.slug] ? (
+                !failedImages[
+                  item.slug
+                ] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.image}
@@ -121,7 +124,8 @@ export default function CartPage() {
                       setFailedImages(
                         (previous) => ({
                           ...previous,
-                          [item.slug]: true,
+                          [item.slug]:
+                            true,
                         }),
                       );
                     }}
@@ -141,18 +145,19 @@ export default function CartPage() {
                   </h3>
 
                   <p className="mt-1 text-sm text-ink-light">
-                    ₹{formatPrice(item.price)} / pc
-                  </p>
-
-                  <p className="mt-1 text-xs text-ink-light">
-                    Quantity changes by{" "}
-                    {item.quantityStep}
+                    ₹
+                    {formatPrice(
+                      item.price,
+                    )}{" "}
+                    / pc
                   </p>
 
                   <button
                     type="button"
                     onClick={() =>
-                      removeItem(item.slug)
+                      removeItem(
+                        item.slug,
+                      )
                     }
                     className="mt-4 text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
                   >
@@ -165,12 +170,14 @@ export default function CartPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        decreaseQuantity(item)
+                        decreaseQuantity(
+                          item,
+                        )
                       }
                       aria-label={`Decrease quantity by ${item.quantityStep}`}
                       disabled={
                         item.quantity <=
-                        MIN_ORDER_QUANTITY
+                        MIN_QTY
                       }
                       className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
                     >
@@ -184,7 +191,9 @@ export default function CartPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        increaseQuantity(item)
+                        increaseQuantity(
+                          item,
+                        )
                       }
                       aria-label={`Increase quantity by ${item.quantityStep}`}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale"
@@ -222,11 +231,15 @@ export default function CartPage() {
           <div className="mt-5 space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-ink-light">
-                Subtotal ({totalItems} items)
+                Subtotal (
+                {totalItems} items)
               </span>
 
               <span className="font-medium">
-                ₹{formatPrice(totalPrice)}
+                ₹
+                {formatPrice(
+                  totalPrice,
+                )}
               </span>
             </div>
 
@@ -244,7 +257,10 @@ export default function CartPage() {
               <span>Total</span>
 
               <span>
-                ₹{formatPrice(totalPrice)}
+                ₹
+                {formatPrice(
+                  totalPrice,
+                )}
               </span>
             </div>
           </div>
@@ -257,7 +273,7 @@ export default function CartPage() {
           </Link>
 
           <Link
-            href="/collections/wedding"
+            href="/collections/wedding-card"
             className="mt-3 flex w-full items-center justify-center rounded-full border border-gold/30 px-5 py-3 text-sm font-semibold text-maroon transition hover:bg-gold-pale"
           >
             Continue Shopping

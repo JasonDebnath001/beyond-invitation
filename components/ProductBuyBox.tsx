@@ -1,46 +1,92 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
 
 import type { Product } from "@/types";
-import {
-  getProductQuantityStep,
-  MIN_ORDER_QUANTITY,
-} from "@/lib/product-quantity";
 
-import { useCart } from "./CartProvider";
+import {
+  getQuantityStepFromSubject,
+  MIN_QTY,
+  useCart,
+} from "./CartProvider";
+
+type ProductBuyBoxProduct = Product & {
+  itemCode?: string;
+  subject?: string;
+};
 
 export default function ProductBuyBox({
   product,
 }: {
-  product: Product;
+  product: ProductBuyBoxProduct;
 }) {
   const { addItem } = useCart();
   const router = useRouter();
 
-  const quantityStep = getProductQuantityStep(product);
+  /**
+   * Subject = Shagun Envelopes → 50
+   * Hindu/Muslim/Christian/anything else → 25
+   */
+  const quantityStep =
+    getQuantityStepFromSubject(
+      product.subject,
+    );
 
-  const [qty, setQty] = useState(MIN_ORDER_QUANTITY);
-  const [added, setAdded] = useState(false);
-  const timeout = useRef<number | null>(null);
+  const [qty, setQty] =
+    useState(MIN_QTY);
 
+  const [added, setAdded] =
+    useState(false);
+
+  const timeout =
+    useRef<number | null>(null);
+
+  /**
+   * Reset the quantity when moving from one
+   * product page to another.
+   */
   useEffect(() => {
-    setQty(MIN_ORDER_QUANTITY);
+    setQty(MIN_QTY);
   }, [product.slug]);
 
   useEffect(() => {
     return () => {
       if (timeout.current !== null) {
-        window.clearTimeout(timeout.current);
+        window.clearTimeout(
+          timeout.current,
+        );
       }
     };
   }, []);
 
+  function decreaseQuantity() {
+    setQty((currentQuantity) =>
+      Math.max(
+        MIN_QTY,
+        currentQuantity -
+          quantityStep,
+      ),
+    );
+  }
+
+  function increaseQuantity() {
+    setQty(
+      (currentQuantity) =>
+        currentQuantity +
+        quantityStep,
+    );
+  }
+
   function addToCart() {
-    /*
-     * Add the complete selected quantity in one action.
-     * Do not call addItem inside a loop.
+    /**
+     * Add the selected quantity in one dispatch.
+     * Do not call addItem 50 or 100 times.
      */
     addItem(product, qty);
   }
@@ -50,33 +96,21 @@ export default function ProductBuyBox({
     setAdded(true);
 
     if (timeout.current !== null) {
-      window.clearTimeout(timeout.current);
+      window.clearTimeout(
+        timeout.current,
+      );
     }
 
-    timeout.current = window.setTimeout(() => {
-      setAdded(false);
-      timeout.current = null;
-    }, 1600);
+    timeout.current =
+      window.setTimeout(() => {
+        setAdded(false);
+        timeout.current = null;
+      }, 1600);
   }
 
   function handleBuyNow() {
     addToCart();
     router.push("/cart");
-  }
-
-  function decreaseQuantity() {
-    setQty((currentQuantity) =>
-      Math.max(
-        MIN_ORDER_QUANTITY,
-        currentQuantity - quantityStep,
-      ),
-    );
-  }
-
-  function increaseQuantity() {
-    setQty(
-      (currentQuantity) => currentQuantity + quantityStep,
-    );
   }
 
   return (
@@ -90,7 +124,7 @@ export default function ProductBuyBox({
           type="button"
           onClick={decreaseQuantity}
           aria-label={`Decrease quantity by ${quantityStep}`}
-          disabled={qty <= MIN_ORDER_QUANTITY}
+          disabled={qty <= MIN_QTY}
           className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
         >
           −
@@ -116,7 +150,9 @@ export default function ProductBuyBox({
           onClick={handleAdd}
           className="rounded-full bg-carbon px-6 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-gold hover:text-carbon"
         >
-          {added ? "✓ Added to Cart" : "Add to Cart"}
+          {added
+            ? "✓ Added to Cart"
+            : "Add to Cart"}
         </button>
 
         <button

@@ -11,68 +11,32 @@ import {
 
 import type { Product } from "@/types";
 
-/*
- * QUANTITY RULES
- * --------------
- * Shagun/Sagun Envelopes: increment/decrement by 50
- * Wedding Cards and everything else: increment/decrement by 25
- */
-export const MIN_ORDER_QUANTITY = 50;
+export const MIN_QTY = 50;
 
 export type QuantityStep = 25 | 50;
 
-type CartProduct = Product & {
+export type CartProduct = Product & {
   itemCode?: string;
-  itemGroup?: string;
+  subject?: string;
 };
 
-/*
- * Converts text into a predictable lowercase format.
- */
-function normalizeText(value?: string): string {
-  return (value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/*
- * Detects the correct quantity step.
+/**
+ * Quantity rules based only on the ERPNext Subject field:
  *
- * ERPNext itemGroup is checked first.
- * Product name, slug and item code are included as fallbacks.
+ * Subject = "Shagun Envelopes" → step 50
+ * Every other subject → step 25
  */
-export function getProductQuantityStep(
-  product: {
-    name: string;
-    slug: string;
-    itemCode?: string;
-    itemGroup?: string;
-  },
+export function getQuantityStepFromSubject(
+  subject?: string,
 ): QuantityStep {
-  const itemGroup = normalizeText(product.itemGroup);
+  const normalizedSubject = (subject ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 
   if (
-    itemGroup.includes("shagun") ||
-    itemGroup.includes("sagun")
-  ) {
-    return 50;
-  }
-
-  const fallbackText = normalizeText(
-    [
-      product.name,
-      product.slug,
-      product.itemCode,
-    ]
-      .filter(Boolean)
-      .join(" "),
-  );
-
-  if (
-    fallbackText.includes("shagun") ||
-    fallbackText.includes("sagun")
+    normalizedSubject === "shagun envelopes" ||
+    normalizedSubject === "shagun envelope"
   ) {
     return 50;
   }
@@ -80,21 +44,10 @@ export function getProductQuantityStep(
   return 25;
 }
 
-/*
- * CART STATE
- * ----------
- * Global cart via React Context.
- *
- * The provider is wrapped around the application in layout.tsx so the
- * navbar, product pages and cart page use the same cart.
- *
- * The cart is persisted in localStorage.
- */
-
 export interface CartItem {
   slug: string;
   itemCode: string;
-  itemGroup?: string;
+  subject: string;
   name: string;
   price: number;
   image: string;
@@ -130,14 +83,18 @@ type CartAction =
       items: CartItem[];
     };
 
-const STORAGE_KEY = "beyond-invitation-cart";
+/**
+ * New storage key prevents previously stored cart items—which did not
+ * contain the Subject field—from continuing to use the wrong step.
+ */
+const STORAGE_KEY = "beyond-invitation-cart-v2";
 
 function sanitizeQuantity(quantity: number): number {
   if (!Number.isFinite(quantity)) {
-    return 1;
+    return MIN_QTY;
   }
 
-  return Math.max(1, Math.floor(quantity));
+  return Math.max(MIN_QTY, Math.floor(quantity));
 }
 
 function cartReducer(
@@ -150,16 +107,17 @@ function cartReducer(
         action.quantity,
       );
 
-      const quantityStep = getProductQuantityStep(
-        action.product,
-      );
+      const subject = action.product.subject ?? "";
 
-      const existing = state.items.find(
+      const quantityStep =
+        getQuantityStepFromSubject(subject);
+
+      const existingItem = state.items.find(
         (item) =>
           item.slug === action.product.slug,
       );
 
-      if (existing) {
+      if (existingItem) {
         return {
           items: state.items.map((item) =>
             item.slug === action.product.slug
@@ -168,12 +126,13 @@ function cartReducer(
                   itemCode:
                     action.product.itemCode ??
                     item.itemCode,
-                  itemGroup:
-                    action.product.itemGroup ??
-                    item.itemGroup,
-                  quantity:
-                    item.quantity + quantityToAdd,
+                  subject:
+                    action.product.subject ??
+                    item.subject,
                   quantityStep,
+                  quantity:
+                    item.quantity +
+                    quantityToAdd,
                 }
               : item,
           ),
@@ -187,8 +146,7 @@ function cartReducer(
             slug: action.product.slug,
             itemCode:
               action.product.itemCode ?? "",
-            itemGroup:
-              action.product.itemGroup ?? "",
+            subject,
             name: action.product.name,
             price: action.product.price,
             image:
@@ -204,26 +162,16 @@ function cartReducer(
     case "REMOVE": {
       return {
         items: state.items.filter(
-          (item) => item.slug !== action.slug,
+          (item) =>
+            item.slug !== action.slug,
         ),
       };
     }
 
     case "SET_QTY": {
-      const nextQuantity = Math.floor(
+      const nextQuantity = sanitizeQuantity(
         action.quantity,
       );
-
-      if (
-        !Number.isFinite(nextQuantity) ||
-        nextQuantity < 1
-      ) {
-        return {
-          items: state.items.filter(
-            (item) => item.slug !== action.slug,
-          ),
-        };
-      }
 
       return {
         items: state.items.map((item) =>
@@ -244,28 +192,29 @@ function cartReducer(
     }
 
     case "HYDRATE": {
-      /*
-       * Older localStorage cart items will not have itemGroup or
-       * quantityStep. Infer the step from the information available.
-       */
-      const hydratedItems = action.items.map(
-        (item) => ({
-          ...item,
-          itemCode: item.itemCode ?? "",
-          itemGroup: item.itemGroup ?? "",
-          quantity: sanitizeQuantity(
-            Number(item.quantity),
-          ),
-          quantityStep:
-            item.quantityStep === 50 ||
-            item.quantityStep === 25
-              ? item.quantityStep
-              : getProductQuantityStep(item),
-        }),
-      );
-
       return {
-        items: hydratedItems,
+        items: action.items.map((item) => {
+          const subject =
+            item.subject ?? "";
+
+          return {
+            ...item,
+            itemCode: item.itemCode ?? "",
+            subject,
+            quantity: sanitizeQuantity(
+              Number(item.quantity),
+            ),
+
+            /**
+             * Always calculate it again from Subject.
+             * Do not trust an older stored quantityStep.
+             */
+            quantityStep:
+              getQuantityStepFromSubject(
+                subject,
+              ),
+          };
+        }),
       };
     }
 
@@ -312,45 +261,33 @@ export function CartProvider({
     },
   );
 
-  /*
-   * Skip the first persistence operation so an empty initial cart
-   * does not overwrite the saved localStorage cart before hydration.
-   */
   const isFirstPersist = useRef(true);
 
-  /*
-   * Load the saved cart after the component mounts.
-   */
   useEffect(() => {
     try {
-      const stored =
+      const storedCart =
         localStorage.getItem(STORAGE_KEY);
 
-      if (!stored) {
+      if (!storedCart) {
         return;
       }
 
-      const parsed = JSON.parse(stored);
+      const parsedCart =
+        JSON.parse(storedCart);
 
-      if (!Array.isArray(parsed)) {
+      if (!Array.isArray(parsedCart)) {
         return;
       }
 
       dispatch({
         type: "HYDRATE",
-        items: parsed as CartItem[],
+        items: parsedCart as CartItem[],
       });
     } catch {
-      /*
-       * Ignore corrupt JSON, unavailable storage or private-mode
-       * localStorage errors.
-       */
+      // Ignore invalid or unavailable localStorage.
     }
   }, []);
 
-  /*
-   * Save the cart whenever it changes.
-   */
   useEffect(() => {
     if (isFirstPersist.current) {
       isFirstPersist.current = false;
@@ -363,35 +300,34 @@ export function CartProvider({
         JSON.stringify(state.items),
       );
     } catch {
-      /*
-       * Ignore quota and private-mode storage errors.
-       */
+      // Ignore quota or private-mode errors.
     }
   }, [state.items]);
 
   const totalItems = state.items.reduce(
-    (sum, item) => sum + item.quantity,
+    (sum, item) =>
+      sum + item.quantity,
     0,
   );
 
   const totalPrice = state.items.reduce(
     (sum, item) =>
-      sum + item.price * item.quantity,
+      sum +
+      item.price * item.quantity,
     0,
   );
 
   const value: CartContextValue = {
     items: state.items,
 
-    /*
-     * quantity defaults to 1 to remain compatible with the existing
-     * ProductBuyBox implementation, which currently calls addItem()
-     * repeatedly.
-     *
-     * It also supports addItem(product, 50) when the ProductBuyBox
-     * is later changed to add the entire quantity in one operation.
+    /**
+     * Default quantity is 50 because that is the minimum
+     * order quantity used by ProductBuyBox.
      */
-    addItem: (product, quantity = 1) => {
+    addItem: (
+      product,
+      quantity = MIN_QTY,
+    ) => {
       dispatch({
         type: "ADD",
         product,
@@ -406,7 +342,10 @@ export function CartProvider({
       });
     },
 
-    setQuantity: (slug, quantity) => {
+    setQuantity: (
+      slug,
+      quantity,
+    ) => {
       dispatch({
         type: "SET_QTY",
         slug,
@@ -432,10 +371,6 @@ export function CartProvider({
   );
 }
 
-/*
- * Hook to read and mutate the cart.
- * Must be used inside <CartProvider>.
- */
 export function useCart(): CartContextValue {
   const context = useContext(CartContext);
 

@@ -36,7 +36,7 @@ export default async function ShagunEnvelopesPage() {
     <CollectionPageShell
       eyebrow="Premium Collection"
       title="Shagun Envelopes"
-      description="Premium envelopes for weddings, gifting, festive celebrations and special occasions — fetched live from ERPNext."
+      description="Premium envelopes for weddings, gifting, festive celebrations and special occasions."
       products={products}
       errorMessage={errorMessage}
       emptyTitle="No Shagun Envelopes found"

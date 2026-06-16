@@ -150,10 +150,6 @@ export default function CollectionPageShell({
                   Choose your favourite design
                 </h2>
               </div>
-
-              <p className="text-sm text-ink-light">
-                Fresh products fetched live from ERPNext.
-              </p>
             </div>
 
             <FilterableProductGrid products={products} />

@@ -42,7 +42,7 @@ export default async function WeddingCardPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-light">
-                Browse all wedding card designs fetched live from ERPNext.
+                Browse all wedding card designs.
               </p>
             </div>
 

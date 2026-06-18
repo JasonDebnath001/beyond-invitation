@@ -832,13 +832,58 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       value={productDetailValue(product.material)}
                     />
 
-                    <SpecRow
-                      label="Includes"
-                      value={productDetailValue(product.includes)}
-                    />
-                  </ul>
-                </Accordion>
-              </div>
+                  <p>
+                    <span className="font-medium text-carbon">Phone - </span>
+                    <a
+                      href="tel:+917044815488"
+                      className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
+                    >
+                      +91 7044815488
+                    </a>
+                  </p>
+                </div>
+              </Accordion>
+
+              <Accordion title="Dimensions">
+                <ul className="space-y-2 text-[14px] text-ink-mid">
+                  <SpecRow label="Height" value="9.5 cm" />
+                  <SpecRow label="Width" value="18 cm" />
+                  <SpecRow label="Weight" value="326 g" />
+                </ul>
+              </Accordion>
+
+              <Accordion title="Return Policy">
+                <p className="text-[14px] leading-relaxed text-ink-mid">
+                  We hope you love your order! However, we do not accept returns
+                  unless there is an error from our end.
+                </p>
+              </Accordion>
+
+              <Accordion title="Product Details">
+                <ul className="space-y-2 text-[14px] text-ink-mid">
+                  <SpecRow
+                    label="Category"
+                    value={<span className="capitalize">{categoryLabel}</span>}
+                  />
+
+                  {subject && <SpecRow label="Tradition" value={subject} />}
+
+                  <SpecRow
+                    label="Customisation"
+                    value={productDetailValue(product.customisation)}
+                  />
+
+                  <SpecRow
+                    label="Material"
+                    value={productDetailValue(product.material)}
+                  />
+
+                  <SpecRow
+                    label="Includes"
+                    value={productDetailValue(product.includes)}
+                  />
+                </ul>
+              </Accordion>
             </div>
           </div>
 

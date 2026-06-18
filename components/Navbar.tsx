@@ -21,11 +21,25 @@ type NavItem = {
 
 const navMenu: NavItem[] = [
   {
-    label: "Wedding Card",
+    label: "Wedding Cards",
+    href: "/wedding-cards",
     dropdown: [
-      { label: "Hindu Wedding Cards", href: "/collections/wedding-card-hindu" },
-      { label: "Muslim Wedding Cards", href: "/collections/wedding-card-muslim" },
-      { label: "Christian Wedding Cards", href: "/collections/wedding-card-christian" },
+      {
+        label: "All Wedding Cards",
+        href: "/wedding-cards",
+      },
+      {
+        label: "Hindu Wedding Cards",
+        href: "/collections/wedding-card-hindu",
+      },
+      {
+        label: "Muslim Wedding Cards",
+        href: "/collections/wedding-card-muslim",
+      },
+      {
+        label: "Christian Wedding Cards",
+        href: "/collections/wedding-card-christian",
+      },
     ],
   },
   {
@@ -40,9 +54,18 @@ const navMenu: NavItem[] = [
     label: "Rakhi",
     href: "/collections/rakhi",
     dropdown: [
-      { label: "Cards", href: "/collections/rakhi-cards" },
-      { label: "Boxes", href: "/collections/rakhi-boxes" },
-      { label: "Tag", href: "/collections/rakhi-tag" },
+      {
+        label: "Cards",
+        href: "/collections/rakhi-cards",
+      },
+      {
+        label: "Boxes",
+        href: "/collections/rakhi-boxes",
+      },
+      {
+        label: "Tag",
+        href: "/collections/rakhi-tag",
+      },
     ],
   },
 ];

@@ -28,31 +28,34 @@ const siteUrl = getSiteUrl();
 
 const siteName = SITE_NAME;
 
-const title = `${SITE_NAME} | Wedding Cards, Shagun Envelopes & Invitation Printing in Kolkata`;
+const title =
+  "Wedding Cards in Kolkata | Wedding Invitation Cards Online India - Beyond Invitation";
 
 const description =
-  "Shop premium wedding cards, shagun envelopes, shagun boxes, rakhi packaging, and custom invitation stationery from Beyond Invitation in Kolkata.";
-
+  "Shop premium wedding cards in Kolkata from Beyond Invitation. Explore Indian wedding invitation cards, designer wedding cards, custom invitation printing, shagun envelopes and wedding stationery with pan-India delivery.";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
   keywords: [
-    "Beyond Invitation",
+    "wedding cards",
+    "wedding card",
     "wedding cards Kolkata",
+    "wedding invitation cards",
     "wedding invitation cards Kolkata",
-    "invitation printing Kolkata",
-    "custom wedding invitations",
+    "wedding cards online India",
+    "Indian wedding cards",
+    "designer wedding cards",
     "premium wedding cards",
+    "custom wedding invitations",
+    "invitation printing Kolkata",
     "Hindu wedding cards",
     "Muslim wedding cards",
     "Christian wedding cards",
     "shagun envelopes",
     "shagun boxes",
     "rakhi packaging",
-    "rakhi cards",
-    "rakhi boxes",
-    "Indian wedding invitations",
+    "Beyond Invitation",
   ],
   alternates: {
     canonical: "/",
@@ -140,13 +143,13 @@ export default async function HomePage() {
         : "Unknown ERPNext product fetch error";
   }
 
-const normalProducts = getNormalProducts(erpProducts);
+  const normalProducts = getNormalProducts(erpProducts);
 
-// Only for JSON-LD / SEO preview list
-const featuredProducts = normalProducts.slice(0, 10);
+  // Only for JSON-LD / SEO preview list
+  const featuredProducts = normalProducts.slice(0, 10);
 
-// Use this for homepage sections so Load More has all products available
-const homepageProducts = normalProducts;
+  // Use this for homepage sections so Load More has all products available
+  const homepageProducts = normalProducts;
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",

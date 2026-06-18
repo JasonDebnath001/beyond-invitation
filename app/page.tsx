@@ -140,8 +140,13 @@ export default async function HomePage() {
         : "Unknown ERPNext product fetch error";
   }
 
-  const normalProducts = getNormalProducts(erpProducts);
-  const featuredProducts = normalProducts.slice(0, 8);
+const normalProducts = getNormalProducts(erpProducts);
+
+// Only for JSON-LD / SEO preview list
+const featuredProducts = normalProducts.slice(0, 10);
+
+// Use this for homepage sections so Load More has all products available
+const homepageProducts = normalProducts;
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
@@ -243,7 +248,7 @@ export default async function HomePage() {
           <ProductSection
             label="Fresh from our catalogue"
             title="Trendy Collection"
-            products={normalProducts}
+            products={homepageProducts}
             viewAllHref="/collections/wedding"
             viewAllText="View All Products"
           />
@@ -253,7 +258,7 @@ export default async function HomePage() {
           <ProductSection
             label="Exclusive & elegant"
             title="Premium Invitations"
-            products={normalProducts}
+            products={homepageProducts}
             viewAllHref="/collections/luxe"
             viewAllText="View All Premium Cards"
             shaded

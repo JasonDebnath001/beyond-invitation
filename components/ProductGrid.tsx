@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import type { Product } from "@/types";
 import ProductCard from "./ProductCard";
+
+const PRODUCTS_PER_LOAD = 10;
 
 interface ProductGridProps {
   products: Product[];
@@ -10,14 +15,14 @@ interface ProductGridProps {
 export function ProductGrid({ products }: ProductGridProps) {
   if (products.length === 0) {
     return (
-      <p className="border border-dashed border-neutral-200 py-16 text-center text-[14px] text-neutral-400">
+      <p className="py-10 text-center text-sm text-ink-mid">
         No products found.
       </p>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-x-5 gap-y-10 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {products.map((product) => (
         <ProductCard key={product.slug} product={product} />
       ))}
@@ -31,11 +36,12 @@ interface ProductSectionProps {
   products: Product[];
   viewAllHref?: string;
   viewAllText?: string;
+
   /** Apply the soft off-white background band */
   shaded?: boolean;
 }
 
-/** A full homepage section: heading + grid + optional "view all" link. */
+/** A full homepage section: heading + grid + optional load more + view all link. */
 export function ProductSection({
   label,
   title,
@@ -44,45 +50,66 @@ export function ProductSection({
   viewAllText = "View All",
   shaded = false,
 }: ProductSectionProps) {
+  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_LOAD);
+
+  const displayedProducts = useMemo(() => {
+    return products.slice(0, visibleCount);
+  }, [products, visibleCount]);
+
+  const hasMoreProducts = visibleCount < products.length;
+
+  function handleLoadMore() {
+    setVisibleCount((currentCount) =>
+      Math.min(currentCount + PRODUCTS_PER_LOAD, products.length),
+    );
+  }
+
   return (
-    <section className={`py-20 md:py-24 ${shaded ? "bg-paper" : "bg-white"}`}>
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="mb-12 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+    <section className={shaded ? "bg-cream/60 py-14 md:py-20" : "py-14 md:py-20"}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-4 md:mb-10 md:flex-row md:items-end md:justify-between">
           <div>
-            <span className="block text-[11px] font-semibold uppercase tracking-[0.3em] text-neutral-400">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-gold">
               {label}
-            </span>
-            <h2 className="mt-3 font-display text-[30px] font-medium leading-tight tracking-[-0.01em] text-carbon md:text-[42px]">
+            </p>
+
+            <h2 className="font-serif text-3xl font-semibold text-ink md:text-4xl">
               {title}
             </h2>
-            <div className="mt-5 h-px w-14 bg-carbon" />
           </div>
 
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="group hidden shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon sm:inline-flex"
+              className="hidden text-sm font-semibold text-maroon underline-offset-4 hover:underline md:inline-flex"
             >
-              {viewAllText}
-              <span className="transition-transform group-hover:translate-x-1">
-                &#8594;
-              </span>
+              {viewAllText} →
             </Link>
           )}
         </div>
 
-        <ProductGrid products={products} />
+        <ProductGrid products={displayedProducts} />
 
-        {viewAllHref && (
-          <div className="mt-12 text-center sm:hidden">
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          {hasMoreProducts && (
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              className="rounded-full border border-maroon bg-maroon px-8 py-3 text-sm font-semibold text-gold-light shadow-sm transition hover:bg-maroon-dark focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2"
+            >
+              Load More
+            </button>
+          )}
+
+          {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="inline-flex items-center gap-2 border border-carbon px-8 py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon transition hover:bg-carbon hover:text-white"
+              className="text-sm font-semibold text-maroon underline-offset-4 hover:underline md:hidden"
             >
-              {viewAllText} &#8594;
+              {viewAllText} →
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </section>
   );

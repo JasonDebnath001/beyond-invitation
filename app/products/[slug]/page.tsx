@@ -833,8 +833,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
                 <Accordion title="Dimensions">
                   <ul className="space-y-2 text-[14px] text-ink-mid">
-                    <SpecRow label="Height" value="27 cm" />
-                    <SpecRow label="Width" value="20.5 cm" />
+                    <SpecRow label="Height" value="9.5 cm" />
+                    <SpecRow label="Width" value="18 cm" />
                     <SpecRow label="Weight" value="326 g" />
                   </ul>
                 </Accordion>

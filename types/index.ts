@@ -39,6 +39,8 @@ export interface Product {
 
   /** Whether the product appears in the homepage "Premium" section */
   isPremium?: boolean;
+  itemCode?: string;
+  itemGroup?: string;
 }
 
 export type ProductCategory =

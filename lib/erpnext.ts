@@ -12,6 +12,10 @@ const ERPNEXT_API_SECRET = cleanEnv(process.env.ERPNEXT_API_SECRET);
 const ERPNEXT_PRICE_LIST =
   cleanEnv(process.env.ERPNEXT_PRICE_LIST) || "Standard Selling";
 
+const ERPNEXT_PRODUCT_PRICE_FIELD =
+  cleanEnv(process.env.ERPNEXT_PRODUCT_PRICE_FIELD) ||
+  "custom_price";
+
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
 const ERPNEXT_WEBSITE_FIELD =
   process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
@@ -30,20 +34,40 @@ const ERPNEXT_MATERIAL_FIELD =
 const ERPNEXT_INCLUDES_FIELD =
   process.env.ERPNEXT_INCLUDES_FIELD ?? "custom_includes";
 
+// ---------------------------------------------------------------------------
+// ERPNext Website Catalogue fields
+// ---------------------------------------------------------------------------
+//
+// These must contain the ERPNext fieldnames, not the visible form labels.
+//
+// The code also automatically checks common fieldnames such as:
+// - custom_website_title
+// - website_title
+// - custom_website_short_description
+// - website_short_description
+//
+// Environment variables are optional but recommended when your ERPNext
+// fieldnames are different.
+
+const ERPNEXT_WEBSITE_TITLE_FIELD = cleanEnv(
+  process.env.ERPNEXT_WEBSITE_TITLE_FIELD,
+);
+
+const ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD = cleanEnv(
+  process.env.ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD,
+);
+
 // Caching for ERPNext responses.
 const ERPNEXT_REVALIDATE = Number(
   process.env.ERPNEXT_REVALIDATE_SECONDS ?? "60",
 );
 
 // --- Multi-image gallery: Item Image child table on Item -------------------
-const ERPNEXT_IMAGE_TABLE_FIELD =
-  process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
+const ERPNEXT_IMAGE_TABLE_FIELD = process.env.ERPNEXT_IMAGE_TABLE_FIELD ?? "";
 
-const ERPNEXT_IMAGE_ROW_FIELD =
-  process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
+const ERPNEXT_IMAGE_ROW_FIELD = process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
 
-const ERPNEXT_IMAGE_ORDER_FIELD =
-  process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
+const ERPNEXT_IMAGE_ORDER_FIELD = process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
 
 // --- Multi-video gallery: direct Item field or child table on Item ----------
 // IMPORTANT:
@@ -52,14 +76,11 @@ const ERPNEXT_IMAGE_ORDER_FIELD =
 const ERPNEXT_VIDEO_FIELD =
   process.env.ERPNEXT_VIDEO_FIELD ?? "custom_video_link";
 
-const ERPNEXT_VIDEO_TABLE_FIELD =
-  process.env.ERPNEXT_VIDEO_TABLE_FIELD ?? "";
+const ERPNEXT_VIDEO_TABLE_FIELD = process.env.ERPNEXT_VIDEO_TABLE_FIELD ?? "";
 
-const ERPNEXT_VIDEO_ROW_FIELD =
-  process.env.ERPNEXT_VIDEO_ROW_FIELD ?? "video";
+const ERPNEXT_VIDEO_ROW_FIELD = process.env.ERPNEXT_VIDEO_ROW_FIELD ?? "video";
 
-const ERPNEXT_VIDEO_ORDER_FIELD =
-  process.env.ERPNEXT_VIDEO_ORDER_FIELD ?? "";
+const ERPNEXT_VIDEO_ORDER_FIELD = process.env.ERPNEXT_VIDEO_ORDER_FIELD ?? "";
 
 type ErpNextListResponse<T> = {
   data: T[];
@@ -88,6 +109,17 @@ type ErpItemPrice = {
   price_list: string;
   price_list_rate: number;
   currency?: string;
+};
+
+type ErpFileAttachment = {
+  name: string;
+  file_name?: string;
+  file_url?: string;
+  attached_to_doctype?: string;
+  attached_to_name?: string;
+  is_folder?: 0 | 1;
+  creation?: string;
+  modified?: string;
 };
 
 export type ErpProduct = Product & {
@@ -283,6 +315,302 @@ function cleanTextValue(value: unknown): string {
   return DOMPurify.sanitize(text);
 }
 
+function cleanPlainTextValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  const text = String(value).trim();
+
+  if (!text) return "";
+
+  return DOMPurify.sanitize(text, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+  })
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeFieldName(fieldName: string): string {
+  return fieldName
+    .toLowerCase()
+    .replace(/^custom_/, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function convertFieldValueToString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+
+  /*
+   * Defensive support in case a translated/custom field is returned
+   * as an object rather than a direct string.
+   */
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+
+    const possibleKeys = [
+      "value",
+      "text",
+      "content",
+      "description",
+      "html",
+      "en",
+      "en-US",
+      "en_US",
+    ];
+
+    for (const key of possibleKeys) {
+      const nestedValue = record[key];
+
+      if (typeof nestedValue === "string" && nestedValue.trim().length > 0) {
+        return nestedValue.trim();
+      }
+    }
+  }
+
+  return "";
+}
+
+function getFirstNonEmptyField(
+  source: Record<string, unknown> | null,
+  fieldNames: string[],
+): string {
+  if (!source) return "";
+
+  for (const fieldName of fieldNames) {
+    const cleanedFieldName = fieldName.trim();
+
+    if (!cleanedFieldName) continue;
+
+    const value = convertFieldValueToString(source[cleanedFieldName]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Find Website Title even when the ERPNext fieldname differs slightly.
+ */
+function findWebsiteTitle(doc: Record<string, unknown> | null): string {
+  if (!doc) return "";
+
+  const directValue = getFirstNonEmptyField(doc, [
+    ERPNEXT_WEBSITE_TITLE_FIELD,
+    "custom_website_title",
+    "website_title",
+    "custom_web_title",
+    "web_title",
+  ]);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  for (const [fieldName, rawValue] of Object.entries(doc)) {
+    const normalized = normalizeFieldName(fieldName);
+
+    const isWebsiteTitle =
+      normalized === "websitetitle" ||
+      normalized === "webtitle" ||
+      (normalized.includes("website") && normalized.includes("title"));
+
+    if (!isWebsiteTitle) continue;
+
+    const value = convertFieldValueToString(rawValue);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Find Website Short Description even when its real fieldname is something
+ * like:
+ *
+ * custom_website_short_description
+ * website_short_description
+ * custom_website_description
+ * custom_web_short_description
+ */
+function findWebsiteShortDescription(
+  doc: Record<string, unknown> | null,
+): string {
+  if (!doc) return "";
+
+  const directValue = getFirstNonEmptyField(doc, [
+    ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD,
+    "custom_website_short_description",
+    "website_short_description",
+    "custom_website_description",
+    "website_description",
+    "custom_web_short_description",
+    "web_short_description",
+    "custom_short_description",
+    "short_description",
+  ]);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  for (const [fieldName, rawValue] of Object.entries(doc)) {
+    const normalized = normalizeFieldName(fieldName);
+
+    const containsDescription = normalized.includes("description");
+
+    const containsWebsiteReference =
+      normalized.includes("website") || normalized.startsWith("web");
+
+    const isWebsiteDescription =
+      containsDescription && containsWebsiteReference;
+
+    if (!isWebsiteDescription) continue;
+
+    const value = convertFieldValueToString(rawValue);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+async function getWebsiteCatalogueContent(
+  doc: Record<string, unknown> | null,
+): Promise<{
+  title: string;
+  description: string;
+}> {
+  if (!doc) {
+    return {
+      title: "",
+      description: "",
+    };
+  }
+
+  let title = findWebsiteTitle(doc);
+  let description = findWebsiteShortDescription(doc);
+
+  /*
+   * G225-17 is a variant of G225.
+   *
+   * If Website Title or Website Short Description is missing from the
+   * variant API response, retrieve it from the template Item.
+   */
+  const variantOf = convertFieldValueToString(doc.variant_of);
+
+  if ((!title || !description) && variantOf) {
+    const templateDoc = await fetchErpItemDoc(variantOf);
+
+    if (templateDoc) {
+      if (!title) {
+        title = findWebsiteTitle(templateDoc);
+      }
+
+      if (!description) {
+        description = findWebsiteShortDescription(templateDoc);
+      }
+    }
+  }
+
+  return {
+    title,
+    description,
+  };
+}
+
+async function applyWebsiteCatalogueContent(
+  product: ErpProduct,
+  doc: Record<string, unknown> | null,
+): Promise<void> {
+  if (!doc) return;
+
+  const websiteContent = await getWebsiteCatalogueContent(doc);
+
+  if (websiteContent.title) {
+    const cleanTitle = cleanPlainTextValue(websiteContent.title);
+
+    if (cleanTitle) {
+      product.name = cleanTitle;
+    }
+  }
+
+  if (websiteContent.description) {
+    const cleanDescription = DOMPurify.sanitize(websiteContent.description, {
+      USE_PROFILES: {
+        html: true,
+      },
+    }).trim();
+
+    if (cleanDescription) {
+      product.description = cleanDescription;
+    }
+  }
+}
+
+/**
+ * Fallback field detection.
+ *
+ * ERPNext custom fields normally have a "custom_" prefix. This function
+ * allows both of these to work:
+ *
+ * custom_website_title
+ * website_title
+ *
+ * and:
+ *
+ * custom_website_short_description
+ * website_short_description
+ */
+function findFieldByNormalizedName(
+  source: Record<string, unknown> | null,
+  expectedName: string,
+): string {
+  if (!source) return "";
+
+  const normalizedExpectedName = expectedName
+    .toLowerCase()
+    .replace(/^custom_/, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+  for (const [fieldName, value] of Object.entries(source)) {
+    if (value === null || value === undefined) continue;
+
+    const normalizedFieldName = fieldName
+      .toLowerCase()
+      .replace(/^custom_/, "")
+      .replace(/[^a-z0-9]+/g, "");
+
+    if (normalizedFieldName !== normalizedExpectedName) continue;
+
+    const text = String(value).trim();
+
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
 
@@ -352,16 +680,77 @@ async function fetchItemPrices(itemCodes: string[]) {
   return priceMap;
 }
 
+function parseProductPrice(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const cleanedValue = value
+      .replace(/,/g, "")
+      .replace(/[^\d.-]/g, "")
+      .trim();
+
+    if (!cleanedValue) {
+      return null;
+    }
+
+    const parsedValue = Number(cleanedValue);
+
+    return Number.isFinite(parsedValue)
+      ? parsedValue
+      : null;
+  }
+
+  return null;
+}
+
+function getCustomProductPrice(
+  item: Record<string, unknown>,
+): number | null {
+  const configuredPrice = parseProductPrice(
+    item[ERPNEXT_PRODUCT_PRICE_FIELD],
+  );
+
+  if (configuredPrice !== null) {
+    return configuredPrice;
+  }
+
+  /*
+   * Extra fallbacks in case the ERPNext fieldname is
+   * "custom_price" or simply "price".
+   */
+  const customPrice = parseProductPrice(
+    item.custom_price,
+  );
+
+  if (customPrice !== null) {
+    return customPrice;
+  }
+
+  return parseProductPrice(item.price);
+}
+
 function mapErpItemToProduct(
   item: ErpItem,
   priceMap: Map<string, number>,
 ): ErpProduct {
-  const itemCode = item.item_code || item.name;
-  const priceFromItemPrice = priceMap.get(itemCode);
+  const itemCode =
+    item.item_code || item.name;
 
-  const price = Number(
-    priceFromItemPrice || item.standard_rate || item.valuation_rate || 0,
-  );
+  const customFieldPrice =
+    getCustomProductPrice(item);
+
+  const oldErpPrice =
+    priceMap.get(itemCode) ??
+    Number(item.standard_rate || 0) ??
+    Number(item.valuation_rate || 0);
+
+  /*
+   * Custom Price field is now the primary source.
+   * The old ERP price is used only when custom_price is empty.
+   */
+ const price = customFieldPrice ?? 0;
 
   const mrp = price;
 
@@ -369,22 +758,47 @@ function mapErpItemToProduct(
     erpName: item.name,
     itemCode,
     itemGroup: item.item_group ?? "",
-    subject: cleanTextValue(item[ERPNEXT_SUBJECT_FIELD]),
+
+    subject: cleanTextValue(
+      item[ERPNEXT_SUBJECT_FIELD],
+    ),
 
     slug: normalizeSlug(itemCode),
-    name: item.item_name || itemCode,
+
+    name:
+      item.item_name ||
+      itemCode,
+
     price,
     mrp,
+
     images: buildImageUrl(item.image),
+
     emoji: "",
-    category: normalizeCategory(item.item_group),
+
+    category: normalizeCategory(
+      item.item_group,
+    ),
+
     badge: undefined,
 
-    description: DOMPurify.sanitize(String(item.description || "")),
+    description: DOMPurify.sanitize(
+      String(item.description || ""),
+    ),
 
-    customisation: cleanTextValue(item[ERPNEXT_CUSTOMISATION_FIELD]),
-    material: cleanTextValue(item[ERPNEXT_MATERIAL_FIELD]),
-    includes: cleanTextValue(item[ERPNEXT_INCLUDES_FIELD]),
+    customisation: cleanTextValue(
+      item[
+        ERPNEXT_CUSTOMISATION_FIELD
+      ],
+    ),
+
+    material: cleanTextValue(
+      item[ERPNEXT_MATERIAL_FIELD],
+    ),
+
+    includes: cleanTextValue(
+      item[ERPNEXT_INCLUDES_FIELD],
+    ),
 
     onSale: false,
     isPremium: false,
@@ -409,39 +823,39 @@ async function fetchErpItemDoc(
   }
 }
 
-/**
- * Pull ordered image URLs out of the Item Image child table on a doc.
- */
-function extractGalleryImages(doc: Record<string, unknown> | null): string[] {
-  if (!doc) return [];
-
+function extractGalleryImages(
+  doc: Record<string, unknown> | null,
+  primaryImage?: string,
+): string[] {
   const urls: string[] = [];
 
-const looksLikeImage = (v: unknown) => {
-  if (typeof v !== "string") return false;
+  const looksLikeImage = (v: unknown) => {
+    if (typeof v !== "string") return false;
 
-  const value = v.trim();
-  if (!value) return false;
+    const value = v.trim();
+    if (!value) return false;
 
-  // Do not allow videos to be collected as gallery images.
-  if (looksLikeVideoUrl(value)) return false;
+    // Do not allow videos to be collected as gallery images.
+    if (looksLikeVideoUrl(value)) return false;
 
-  const cleanPath = value.split("?")[0].toLowerCase();
+    const cleanPath = value.split("?")[0].toLowerCase();
 
-  return (
-    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
-    value.startsWith("/files/") ||
-    value.startsWith("/private/files/")
-  );
-};
+    return (
+      /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
+      value.startsWith("/files/") ||
+      value.startsWith("/private/files/") ||
+      value.includes("/files/") ||
+      value.includes("/private/files/")
+    );
+  };
 
   const push = (v: unknown) => {
     if (!looksLikeImage(v)) return;
 
-    const url = buildImageUrl(v as string)[0];
+    const built = buildImageUrl(v as string)[0];
 
-    if (url && !urls.includes(url)) {
-      urls.push(url);
+    if (built && !urls.includes(built)) {
+      urls.push(built);
     }
   };
 
@@ -462,53 +876,33 @@ const looksLikeImage = (v: unknown) => {
   const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
     if (ERPNEXT_IMAGE_ORDER_FIELD) {
       const n = toNum(row[ERPNEXT_IMAGE_ORDER_FIELD]);
-
       if (n !== null) return n;
     }
 
     for (const key of Object.keys(row)) {
       if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
         const n = toNum(row[key]);
-
         if (n !== null) return n;
       }
     }
 
     const idx = toNum(row.idx);
-
     return idx !== null ? idx : fallback;
   };
 
-  const tables: Record<string, unknown>[][] = [];
-
-  const preferred = ERPNEXT_IMAGE_TABLE_FIELD
-    ? doc[ERPNEXT_IMAGE_TABLE_FIELD]
-    : null;
-
-  if (Array.isArray(preferred)) {
-    tables.push(preferred as Record<string, unknown>[]);
-  } else {
-    for (const value of Object.values(doc)) {
-      if (
-        Array.isArray(value) &&
-        value.length &&
-        typeof value[0] === "object"
-      ) {
-        tables.push(value as Record<string, unknown>[]);
-      }
-    }
-  }
-
-  for (const rows of tables) {
-    const before = urls.length;
-
+  const collectRows = (rows: Record<string, unknown>[]) => {
     const ordered = rows
-      .map((row, i) => ({ row, i, order: rowOrder(row, i) }))
+      .map((row, i) => ({
+        row,
+        i,
+        order: rowOrder(row, i),
+      }))
       .sort((a, b) => a.order - b.order || a.i - b.i);
 
     for (const { row } of ordered) {
       if (!row || typeof row !== "object") continue;
 
+      // Preferred configured field, usually "image".
       const direct = row[ERPNEXT_IMAGE_ROW_FIELD];
 
       if (looksLikeImage(direct)) {
@@ -516,6 +910,27 @@ const looksLikeImage = (v: unknown) => {
         continue;
       }
 
+      // Common ERPNext / Frappe attachment fields.
+      const commonFields = [
+        "image",
+        "image_url",
+        "file_url",
+        "file",
+        "attachment",
+        "attach",
+        "url",
+        "thumbnail",
+        "website_image",
+      ];
+
+      for (const field of commonFields) {
+        if (looksLikeImage(row[field])) {
+          push(row[field]);
+          break;
+        }
+      }
+
+      // Last fallback: scan all string values in the row.
       for (const v of Object.values(row)) {
         if (looksLikeImage(v)) {
           push(v);
@@ -523,11 +938,142 @@ const looksLikeImage = (v: unknown) => {
         }
       }
     }
+  };
 
-    if (urls.length > before) break;
+  // Always include main ERPNext Item image first.
+  push(primaryImage);
+
+  if (!doc) return urls;
+
+  // Also include image fields directly present on Item.
+  push(doc.image);
+  push(doc.website_image);
+  push(doc.thumbnail);
+  push(doc.image_url);
+
+  const tables: Record<string, unknown>[][] = [];
+
+  // First collect explicitly configured image child table.
+  const preferred = ERPNEXT_IMAGE_TABLE_FIELD
+    ? doc[ERPNEXT_IMAGE_TABLE_FIELD]
+    : null;
+
+  if (
+    Array.isArray(preferred) &&
+    preferred.length &&
+    typeof preferred[0] === "object"
+  ) {
+    tables.push(preferred as Record<string, unknown>[]);
+  }
+
+  // Then collect every other child table / attachment table.
+  // Important: do NOT stop after the first table.
+  // Some ERPNext products expose images through attachments first,
+  // while the actual gallery images are in another child table.
+  for (const value of Object.values(doc)) {
+    if (Array.isArray(value) && value.length && typeof value[0] === "object") {
+      const rows = value as Record<string, unknown>[];
+
+      if (!tables.includes(rows)) {
+        tables.push(rows);
+      }
+    }
+  }
+
+  for (const rows of tables) {
+    collectRows(rows);
   }
 
   return urls;
+}
+
+async function fetchErpItemAttachments(
+  itemName: string,
+  itemCode?: string,
+): Promise<string[]> {
+  const names = Array.from(
+    new Set([itemName, itemCode].filter(Boolean) as string[]),
+  );
+
+  const urls: string[] = [];
+
+  const looksLikeImage = (v: unknown) => {
+    if (typeof v !== "string") return false;
+
+    const value = v.trim();
+    if (!value) return false;
+    if (looksLikeVideoUrl(value)) return false;
+
+    const cleanPath = value.split("?")[0].toLowerCase();
+
+    return (
+      /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
+      value.startsWith("/files/") ||
+      value.startsWith("/private/files/") ||
+      value.includes("/files/") ||
+      value.includes("/private/files/")
+    );
+  };
+
+  const push = (value?: string) => {
+    if (!looksLikeImage(value)) return;
+
+    const built = buildImageUrl(value)[0];
+
+    if (built && !urls.includes(built)) {
+      urls.push(built);
+    }
+  };
+
+  for (const name of names) {
+    try {
+      const json = await erpFetch<ErpNextListResponse<ErpFileAttachment>>(
+        "/api/resource/File",
+        {
+          fields: JSON.stringify([
+            "name",
+            "file_name",
+            "file_url",
+            "attached_to_doctype",
+            "attached_to_name",
+            "is_folder",
+            "creation",
+            "modified",
+          ]),
+          filters: JSON.stringify([
+            ["File", "attached_to_doctype", "=", "Item"],
+            ["File", "attached_to_name", "=", name],
+            ["File", "is_folder", "=", 0],
+          ]),
+          limit_page_length: "100",
+          order_by: "creation asc",
+        },
+      );
+
+      for (const file of json.data || []) {
+        push(file.file_url);
+      }
+    } catch {
+      // Some ERPNext users may not have File API permission.
+      // In that case, the child table / item image fallback still works.
+    }
+  }
+
+  return urls;
+}
+
+function mergeImageLists(...lists: string[][]): string[] {
+  const merged: string[] = [];
+
+  for (const list of lists) {
+    for (const image of list) {
+      if (image && !merged.includes(image)) {
+        merged.push(image);
+      }
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -644,26 +1190,46 @@ function extractGalleryVideos(doc: Record<string, unknown> | null): string[] {
 /**
  * Replace each product's images/videos with its full ordered gallery, if present.
  */
+/**
+ * Replace each product's images/videos with its full ordered gallery,
+ * if present.
+ *
+ * This function also applies the Website Catalogue title and description
+ * from the complete ERPNext Item document.
+ */
 async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
   const CONCURRENCY = 8;
 
-  for (let i = 0; i < products.length; i += CONCURRENCY) {
-    const batch = products.slice(i, i + CONCURRENCY);
+  for (let index = 0; index < products.length; index += CONCURRENCY) {
+    const batch = products.slice(index, index + CONCURRENCY);
 
     await Promise.all(
-      batch.map(async (p) => {
-        const doc = await fetchErpItemDoc(p.erpName);
+      batch.map(async (product) => {
+        const doc = await fetchErpItemDoc(product.erpName);
 
-        const gallery = extractGalleryImages(doc);
+        await applyWebsiteCatalogueContent(product, doc);
 
-        if (gallery.length > 0) {
-          p.images = gallery;
+        const gallery = extractGalleryImages(doc, product.images?.[0]);
+
+        const attachments = await fetchErpItemAttachments(
+          product.erpName,
+          product.itemCode,
+        );
+
+        const allImages = mergeImageLists(
+          product.images || [],
+          gallery,
+          attachments,
+        );
+
+        if (allImages.length > 0) {
+          product.images = allImages;
         }
 
         const videos = extractGalleryVideos(doc);
 
         if (videos.length > 0) {
-          p.videos = videos;
+          product.videos = videos;
         }
       }),
     );
@@ -694,6 +1260,7 @@ export async function buildErpProductList(): Promise<ErpProduct[]> {
         ERPNEXT_CUSTOMISATION_FIELD,
         ERPNEXT_MATERIAL_FIELD,
         ERPNEXT_INCLUDES_FIELD,
+        ERPNEXT_PRODUCT_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
@@ -729,16 +1296,28 @@ export async function fetchErpProductBySlug(
   slug: string,
 ): Promise<ErpProduct | null> {
   const products = await buildErpProductList();
-  const product = products.find((p) => p.slug === slug) ?? null;
 
-  if (!product) return null;
+  const product = products.find((candidate) => candidate.slug === slug) ?? null;
+
+  if (!product) {
+    return null;
+  }
 
   const doc = await fetchErpItemDoc(product.erpName);
 
-  const gallery = extractGalleryImages(doc);
+  await applyWebsiteCatalogueContent(product, doc);
 
-  if (gallery.length > 0) {
-    product.images = gallery;
+  const gallery = extractGalleryImages(doc, product.images?.[0]);
+
+  const attachments = await fetchErpItemAttachments(
+    product.erpName,
+    product.itemCode,
+  );
+
+  const allImages = mergeImageLists(product.images || [], gallery, attachments);
+
+  if (allImages.length > 0) {
+    product.images = allImages;
   }
 
   const videos = extractGalleryVideos(doc);
@@ -785,6 +1364,7 @@ export async function fetchErpProductsBySubject(
         ERPNEXT_CUSTOMISATION_FIELD,
         ERPNEXT_MATERIAL_FIELD,
         ERPNEXT_INCLUDES_FIELD,
+        ERPNEXT_PRODUCT_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
@@ -802,8 +1382,9 @@ export async function fetchErpProductsBySubject(
     (item) =>
       item.disabled !== 1 &&
       Number(item[ERPNEXT_WEBSITE_FIELD]) === 1 &&
-      String(item[ERPNEXT_SUBJECT_FIELD] ?? "").trim().toLowerCase() ===
-        target.toLowerCase(),
+      String(item[ERPNEXT_SUBJECT_FIELD] ?? "")
+        .trim()
+        .toLowerCase() === target.toLowerCase(),
   );
 
   const itemCodes = visibleItems

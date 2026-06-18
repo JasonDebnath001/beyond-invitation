@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useCart } from "@/components/CartProvider";
+
+import {
+  MIN_QTY,
+  useCart,
+  type CartItem,
+} from "@/components/CartProvider";
 
 export default function CartPage() {
   const {
@@ -14,12 +19,48 @@ export default function CartPage() {
     totalPrice,
   } = useCart();
 
-  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const [
+    failedImages,
+    setFailedImages,
+  ] = useState<
+    Record<string, boolean>
+  >({});
 
-  function formatPrice(value: number) {
-    return value.toLocaleString("en-IN", {
-      maximumFractionDigits: 2,
-    });
+  function formatPrice(
+    value: number,
+  ) {
+    return value.toLocaleString(
+      "en-IN",
+      {
+        maximumFractionDigits: 2,
+      },
+    );
+  }
+
+  function decreaseQuantity(
+    item: CartItem,
+  ) {
+    const nextQuantity =
+      item.quantity -
+      item.quantityStep;
+
+    setQuantity(
+      item.slug,
+      Math.max(
+        MIN_QTY,
+        nextQuantity,
+      ),
+    );
+  }
+
+  function increaseQuantity(
+    item: CartItem,
+  ) {
+    setQuantity(
+      item.slug,
+      item.quantity +
+        item.quantityStep,
+    );
   }
 
   if (items.length === 0) {
@@ -31,7 +72,9 @@ export default function CartPage() {
           </h1>
 
           <p className="mt-3 text-sm text-ink-light">
-            Browse our collection and add some beautiful invitation cards.
+            Browse our collection and
+            add some beautiful
+            invitation cards.
           </p>
 
           <Link
@@ -51,8 +94,13 @@ export default function CartPage() {
         <h1 className="font-serif text-4xl font-semibold text-maroon">
           Shopping Cart
         </h1>
+
         <p className="mt-2 text-sm text-ink-light">
-          {totalItems} {totalItems === 1 ? "item" : "items"} in your cart
+          {totalItems}{" "}
+          {totalItems === 1
+            ? "item"
+            : "items"}{" "}
+          in your cart
         </p>
       </div>
 
@@ -64,21 +112,29 @@ export default function CartPage() {
               className="flex gap-4 rounded-3xl border border-gold/20 bg-white p-4 shadow-sm"
             >
               <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-pale">
-                {item.image && !failedImages[item.slug] ? (
+                {item.image &&
+                !failedImages[
+                  item.slug
+                ] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.image}
                     alt={item.name}
-                    onError={() =>
-                      setFailedImages((prev) => ({
-                        ...prev,
-                        [item.slug]: true,
-                      }))
-                    }
+                    onError={() => {
+                      setFailedImages(
+                        (previous) => ({
+                          ...previous,
+                          [item.slug]:
+                            true,
+                        }),
+                      );
+                    }}
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="text-3xl">{item.emoji || "💌"}</span>
+                  <span className="text-3xl">
+                    {item.emoji || ""}
+                  </span>
                 )}
               </div>
 
@@ -89,12 +145,20 @@ export default function CartPage() {
                   </h3>
 
                   <p className="mt-1 text-sm text-ink-light">
-                    ₹{formatPrice(item.price)} / pc
+                    ₹
+                    {formatPrice(
+                      item.price,
+                    )}{" "}
+                    / pc
                   </p>
 
                   <button
                     type="button"
-                    onClick={() => removeItem(item.slug)}
+                    onClick={() =>
+                      removeItem(
+                        item.slug,
+                      )
+                    }
                     className="mt-4 text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
                   >
                     Remove
@@ -105,21 +169,33 @@ export default function CartPage() {
                   <div className="flex items-center rounded-full border border-gold/30 bg-white p-1">
                     <button
                       type="button"
-                      onClick={() => setQuantity(item.slug, item.quantity - 1)}
-                      aria-label="Decrease quantity"
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale"
+                      onClick={() =>
+                        decreaseQuantity(
+                          item,
+                        )
+                      }
+                      aria-label={`Decrease quantity by ${item.quantityStep}`}
+                      disabled={
+                        item.quantity <=
+                        MIN_QTY
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       −
                     </button>
 
-                    <span className="min-w-10 text-center text-sm font-semibold">
+                    <span className="min-w-12 text-center text-sm font-semibold">
                       {item.quantity}
                     </span>
 
                     <button
                       type="button"
-                      onClick={() => setQuantity(item.slug, item.quantity + 1)}
-                      aria-label="Increase quantity"
+                      onClick={() =>
+                        increaseQuantity(
+                          item,
+                        )
+                      }
+                      aria-label={`Increase quantity by ${item.quantityStep}`}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale"
                     >
                       +
@@ -127,7 +203,11 @@ export default function CartPage() {
                   </div>
 
                   <p className="text-base font-semibold text-maroon">
-                    ₹{formatPrice(item.price * item.quantity)}
+                    ₹
+                    {formatPrice(
+                      item.price *
+                        item.quantity,
+                    )}
                   </p>
                 </div>
               </div>
@@ -150,18 +230,38 @@ export default function CartPage() {
 
           <div className="mt-5 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-ink-light">Subtotal ({totalItems} items)</span>
-              <span className="font-medium">₹{formatPrice(totalPrice)}</span>
+              <span className="text-ink-light">
+                Subtotal (
+                {totalItems} items)
+              </span>
+
+              <span className="font-medium">
+                ₹
+                {formatPrice(
+                  totalPrice,
+                )}
+              </span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-ink-light">Shipping</span>
-              <span className="font-medium">Free</span>
+              <span className="text-ink-light">
+                Shipping
+              </span>
+
+              <span className="font-medium">
+                Free
+              </span>
             </div>
 
             <div className="flex justify-between border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
               <span>Total</span>
-              <span>₹{formatPrice(totalPrice)}</span>
+
+              <span>
+                ₹
+                {formatPrice(
+                  totalPrice,
+                )}
+              </span>
             </div>
           </div>
 
@@ -173,7 +273,7 @@ export default function CartPage() {
           </Link>
 
           <Link
-            href="/collections/wedding"
+            href="/collections/wedding-card"
             className="mt-3 flex w-full items-center justify-center rounded-full border border-gold/30 px-5 py-3 text-sm font-semibold text-maroon transition hover:bg-gold-pale"
           >
             Continue Shopping

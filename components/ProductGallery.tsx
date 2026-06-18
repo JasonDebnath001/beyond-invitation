@@ -12,30 +12,47 @@ interface ProductGalleryProps {
 
 type GalleryItem =
   | {
-    type: "image";
-    src: string;
-  }
+      type: "image";
+      src: string;
+    }
   | {
-    type: "video";
-    src: string;
-  };
+      type: "video";
+      src: string;
+    };
+
+interface ZoomPosition {
+  x: number;
+  y: number;
+}
+
+interface ImageSize {
+  width: number;
+  height: number;
+}
 
 function getImageSrc(img: string) {
   if (!img) return "";
 
   const value = img.trim();
+
   if (!value) return "";
 
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
 
-  if (value.startsWith("/files/") || value.startsWith("/private/files/")) {
+  if (
+    value.startsWith("/files/") ||
+    value.startsWith("/private/files/")
+  ) {
     const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
+
     return erpUrl ? `${erpUrl}${value}` : value;
   }
 
-  if (value.startsWith("/")) return value;
+  if (value.startsWith("/")) {
+    return value;
+  }
 
   return `/products/${value}`;
 }
@@ -52,7 +69,6 @@ function isYoutubeUrl(src: string) {
 function toYoutubeEmbedUrl(src: string) {
   try {
     const url = new URL(src);
-
     let id = "";
 
     if (url.hostname.includes("youtube.com")) {
@@ -73,9 +89,12 @@ function toYoutubeEmbedUrl(src: string) {
       id = url.pathname.replace("/", "");
     }
 
-    if (!id) return src;
+    if (!id) {
+      return src;
+    }
 
     const embed = new URL(`https://www.youtube.com/embed/${id}`);
+
     embed.searchParams.set("rel", "0");
     embed.searchParams.set("modestbranding", "1");
     embed.searchParams.set("playsinline", "1");
@@ -100,6 +119,7 @@ function toVimeoEmbedUrl(src: string) {
 
     if (url.hostname.includes("vimeo.com")) {
       const id = url.pathname.split("/").filter(Boolean)[0];
+
       return id ? `https://player.vimeo.com/video/${id}` : src;
     }
 
@@ -110,8 +130,14 @@ function toVimeoEmbedUrl(src: string) {
 }
 
 function getVideoSrc(src: string) {
-  if (isYoutubeUrl(src)) return toYoutubeEmbedUrl(src);
-  if (isVimeoUrl(src)) return toVimeoEmbedUrl(src);
+  if (isYoutubeUrl(src)) {
+    return toYoutubeEmbedUrl(src);
+  }
+
+  if (isVimeoUrl(src)) {
+    return toVimeoEmbedUrl(src);
+  }
+
   return src;
 }
 
@@ -132,9 +158,14 @@ function isVideoLikeUrl(src: string) {
 
 function isImageLikeUrl(src: string) {
   const value = src.trim();
-  if (!value) return false;
 
-  if (isVideoLikeUrl(value)) return false;
+  if (!value) {
+    return false;
+  }
+
+  if (isVideoLikeUrl(value)) {
+    return false;
+  }
 
   const cleanPath = value.split("?")[0].toLowerCase();
 
@@ -176,6 +207,8 @@ function withAutoplayParams(src: string) {
   }
 }
 
+const ZOOM_SCALE = 2;
+
 export default function ProductGallery({
   images,
   videos = [],
@@ -184,31 +217,60 @@ export default function ProductGallery({
   badge,
 }: ProductGalleryProps) {
   const media: GalleryItem[] = useMemo(() => {
-    const cleanImages = cleanMediaList(images).filter(isImageLikeUrl);
+    /*
+     * Reverse the image list.
+     *
+     * Example:
+     * Original: Image 1, Image 2, Image 3
+     * Gallery:  Image 3, Image 2, Image 1
+     *
+     * Because active starts at index 0, Image 3 becomes:
+     * 1. The default main image.
+     * 2. The first thumbnail.
+     */
+    const cleanImages = cleanMediaList(images)
+      .filter(isImageLikeUrl)
+      .reverse();
+
     const cleanVideos = cleanMediaList(videos).filter((src) =>
       isVideoLikeUrl(src),
     );
 
     return [
-      ...cleanImages.map((src) => ({ type: "image" as const, src })),
-      ...cleanVideos.map((src) => ({ type: "video" as const, src })),
+      ...cleanImages.map((src) => ({
+        type: "image" as const,
+        src,
+      })),
+      ...cleanVideos.map((src) => ({
+        type: "video" as const,
+        src,
+      })),
     ];
   }, [images, videos]);
 
   const [active, setActive] = useState(0);
+
   const [failed, setFailed] = useState<Record<number, boolean>>({});
+
   const [zoomVisible, setZoomVisible] = useState(false);
+
   const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
     x: 50,
     y: 50,
   });
-  const [imageSizes, setImageSizes] = useState<Record<number, ImageSize>>({});
+
+  const [imageSizes, setImageSizes] = useState<
+    Record<number, ImageSize>
+  >({});
 
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   const total = media.length;
   const hasMedia = total > 0;
-  const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
+
+  const activeItem = hasMedia
+    ? media[Math.min(active, total - 1)]
+    : null;
 
   const activeSrc =
     activeItem?.type === "image"
@@ -217,47 +279,53 @@ export default function ProductGallery({
         ? getVideoSrc(activeItem.src)
         : "";
 
-  const isActiveVideo = activeItem?.type === "video";
-
   const go = useCallback(
     (delta: number) => {
-      if (total === 0) return;
+      if (total === 0) {
+        return;
+      }
+
       setZoomVisible(false);
-      setActive((current) => (current + delta + total) % total);
+
+      setActive((current) => {
+        return (current + delta + total) % total;
+      });
     },
     [total],
   );
 
-  function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
       go(-1);
     }
 
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
       go(1);
     }
   }
 
-  function markFailed(i: number) {
+  function markFailed(index: number) {
     setFailed((current) => ({
       ...current,
-      [i]: true,
+      [index]: true,
     }));
   }
 
-  function saveImageSize(i: number, img: HTMLImageElement) {
+  function saveImageSize(index: number, image: HTMLImageElement) {
     setImageSizes((current) => ({
       ...current,
-      [i]: {
-        width: img.naturalWidth,
-        height: img.naturalHeight,
+      [index]: {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
       },
     }));
   }
 
-  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+  function handleMouseMove(
+    event: React.MouseEvent<HTMLDivElement>,
+  ) {
     if (activeItem?.type !== "image") {
       setZoomVisible(false);
       return;
@@ -266,7 +334,12 @@ export default function ProductGallery({
     const stage = stageRef.current;
     const imageSize = imageSizes[active];
 
-    if (!stage || !imageSize || failed[active] || !activeSrc) {
+    if (
+      !stage ||
+      !imageSize ||
+      failed[active] ||
+      !activeSrc
+    ) {
       setZoomVisible(false);
       return;
     }
@@ -281,6 +354,7 @@ export default function ProductGallery({
 
     let renderedWidth = containerWidth;
     let renderedHeight = containerHeight;
+
     let offsetX = 0;
     let offsetY = 0;
 
@@ -294,8 +368,8 @@ export default function ProductGallery({
       offsetX = (containerWidth - renderedWidth) / 2;
     }
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
 
     const imageX = mouseX - offsetX;
     const imageY = mouseY - offsetY;
@@ -327,7 +401,9 @@ export default function ProductGallery({
   }
 
   function renderThumbnails(isDesktop = false) {
-    if (total <= 1) return null;
+    if (total <= 1) {
+      return null;
+    }
 
     return (
       <div
@@ -337,31 +413,35 @@ export default function ProductGallery({
             : "flex gap-3 overflow-x-auto pb-2 lg:hidden"
         }
       >
-        {media.map((item, i) => {
-          const isActive = i === active;
+        {media.map((item, index) => {
+          const isActive = index === active;
+
           const src =
-            item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
+            item.type === "image"
+              ? getImageSrc(item.src)
+              : getVideoSrc(item.src);
 
           return (
             <button
-              key={`${item.type}-${item.src}-${i}`}
+              key={`${item.type}-${item.src}-${index}`}
               type="button"
               onClick={() => {
                 setZoomVisible(false);
-                setActive(i);
+                setActive(index);
               }}
-              aria-label={`View ${item.type} ${i + 1}`}
+              aria-label={`View ${item.type} ${index + 1}`}
               aria-current={isActive}
-              className={`relative aspect-square h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[70px] sm:w-[70px] lg:h-24 lg:w-24 ${isActive
-                ? "border-carbon ring-1 ring-carbon"
-                : "border-gold/25 hover:border-gold"
-                }`}
+              className={`relative aspect-square h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[70px] sm:w-[70px] lg:h-24 lg:w-24 ${
+                isActive
+                  ? "border-carbon ring-1 ring-carbon"
+                  : "border-gold/25 hover:border-gold"
+              }`}
             >
               {item.type === "video" ? (
                 <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
                   ▶
                 </div>
-              ) : failed[i] || !src ? (
+              ) : failed[index] || !src ? (
                 <div className="flex h-full w-full items-center justify-center text-lg">
                   {emoji}
                 </div>
@@ -369,8 +449,8 @@ export default function ProductGallery({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={src}
-                  alt={`${alt} thumbnail ${i + 1}`}
-                  onError={() => markFailed(i)}
+                  alt={`${alt} thumbnail ${index + 1}`}
+                  onError={() => markFailed(index)}
                   className="h-full w-full object-contain p-1"
                 />
               )}
@@ -408,9 +488,12 @@ export default function ProductGallery({
                   <img
                     src={activeSrc}
                     alt={alt}
-                    onLoad={(event) =>
-                      saveImageSize(active, event.currentTarget)
-                    }
+                    onLoad={(event) => {
+                      saveImageSize(
+                        active,
+                        event.currentTarget,
+                      );
+                    }}
                     onError={() => markFailed(active)}
                     className="h-full w-full object-contain p-3"
                   />
@@ -430,7 +513,7 @@ export default function ProductGallery({
                   autoPlay
                   muted
                   playsInline
-                  className="h-full w-full object-contain bg-black"
+                  className="h-full w-full bg-black object-contain"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-carbon text-white">

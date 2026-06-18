@@ -1,44 +1,111 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
+
 import type { Product } from "@/types";
-import { useCart } from "./CartProvider";
 
-const MIN_QTY = 50;
-const QTY_STEP = 25;
+import {
+  getQuantityStepFromSubject,
+  MIN_QTY,
+  useCart,
+} from "./CartProvider";
 
-export default function ProductBuyBox({ product }: { product: Product }) {
+type ProductBuyBoxProduct = Product & {
+  itemCode?: string;
+  subject?: string;
+};
+
+export default function ProductBuyBox({
+  product,
+}: {
+  product: ProductBuyBoxProduct;
+}) {
   const { addItem } = useCart();
   const router = useRouter();
 
-  const [qty, setQty] = useState(MIN_QTY);
-  const [added, setAdded] = useState(false);
-  const timeout = useRef<number | null>(null);
+  /**
+   * Subject = Shagun Envelopes → 50
+   * Hindu/Muslim/Christian/anything else → 25
+   */
+  const quantityStep =
+    getQuantityStepFromSubject(
+      product.subject,
+    );
 
-  useEffect(
-    () => () => {
-      if (timeout.current) clearTimeout(timeout.current);
-    },
-    [],
-  );
+  const [qty, setQty] =
+    useState(MIN_QTY);
+
+  const [added, setAdded] =
+    useState(false);
+
+  const timeout =
+    useRef<number | null>(null);
+
+  /**
+   * Reset the quantity when moving from one
+   * product page to another.
+   */
+  useEffect(() => {
+    setQty(MIN_QTY);
+  }, [product.slug]);
+
+  useEffect(() => {
+    return () => {
+      if (timeout.current !== null) {
+        window.clearTimeout(
+          timeout.current,
+        );
+      }
+    };
+  }, []);
+
+  function decreaseQuantity() {
+    setQty((currentQuantity) =>
+      Math.max(
+        MIN_QTY,
+        currentQuantity -
+          quantityStep,
+      ),
+    );
+  }
+
+  function increaseQuantity() {
+    setQty(
+      (currentQuantity) =>
+        currentQuantity +
+        quantityStep,
+    );
+  }
 
   function addToCart() {
-    for (let i = 0; i < qty; i++) {
-      addItem(product);
-    }
+    /**
+     * Add the selected quantity in one dispatch.
+     * Do not call addItem 50 or 100 times.
+     */
+    addItem(product, qty);
   }
 
   function handleAdd() {
     addToCart();
     setAdded(true);
 
-    if (timeout.current) clearTimeout(timeout.current);
+    if (timeout.current !== null) {
+      window.clearTimeout(
+        timeout.current,
+      );
+    }
 
-    timeout.current = window.setTimeout(() => {
-      setAdded(false);
-      timeout.current = null;
-    }, 1600);
+    timeout.current =
+      window.setTimeout(() => {
+        setAdded(false);
+        timeout.current = null;
+      }, 1600);
   }
 
   function handleBuyNow() {
@@ -48,25 +115,29 @@ export default function ProductBuyBox({ product }: { product: Product }) {
 
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold text-carbon">Quantity</p>
+      <p className="mb-2 text-sm font-semibold text-carbon">
+        Quantity
+      </p>
 
       <div className="mb-6 flex w-fit items-center overflow-hidden rounded-full border border-gold/40 bg-white">
         <button
           type="button"
-          onClick={() => setQty((q) => Math.max(MIN_QTY, q - QTY_STEP))}
-          aria-label="Decrease quantity"
+          onClick={decreaseQuantity}
+          aria-label={`Decrease quantity by ${quantityStep}`}
           disabled={qty <= MIN_QTY}
           className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
         >
           −
         </button>
 
-        <span className="w-16 text-center text-sm font-semibold">{qty}</span>
+        <span className="w-16 text-center text-sm font-semibold">
+          {qty}
+        </span>
 
         <button
           type="button"
-          onClick={() => setQty((q) => q + QTY_STEP)}
-          aria-label="Increase quantity"
+          onClick={increaseQuantity}
+          aria-label={`Increase quantity by ${quantityStep}`}
           className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale"
         >
           ＋
@@ -79,7 +150,9 @@ export default function ProductBuyBox({ product }: { product: Product }) {
           onClick={handleAdd}
           className="rounded-full bg-carbon px-6 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-gold hover:text-carbon"
         >
-          {added ? "✓ Added to Cart" : "Add to Cart"}
+          {added
+            ? "✓ Added to Cart"
+            : "Add to Cart"}
         </button>
 
         <button

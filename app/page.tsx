@@ -3,6 +3,9 @@
 import type { Metadata } from "next";
 import { getAllCategories } from "@/lib/products";
 import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
+import JsonLd from "@/components/seo/JsonLd";
+import { getSiteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site-config";
+import { absoluteUrl } from "@/lib/seo";
 
 import {
   CelebrationGrid,
@@ -21,12 +24,11 @@ import InstagramReels from "@/components/InstagramReels";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const siteUrl = "https://www.beyondinvitation.co.in";
+const siteUrl = getSiteUrl();
 
-const siteName = "Beyond Invitation";
+const siteName = SITE_NAME;
 
-const title =
-  "Beyond Invitation | Wedding Cards, Shagun Envelopes & Invitation Printing in Kolkata";
+const title = `${SITE_NAME} | Wedding Cards, Shagun Envelopes & Invitation Printing in Kolkata`;
 
 const description =
   "Shop premium wedding cards, shagun envelopes, shagun boxes, rakhi packaging, and custom invitation stationery from Beyond Invitation in Kolkata.";
@@ -64,10 +66,10 @@ export const metadata: Metadata = {
     locale: "en_IN",
     images: [
       {
-        url: "/logo.png",
+        url: absoluteUrl(DEFAULT_OG_IMAGE) || "/logo.png",
         width: 1200,
         height: 630,
-        alt: "Beyond Invitation wedding cards and invitation stationery",
+        alt: `${SITE_NAME} wedding cards and invitation stationery`,
       },
     ],
   },
@@ -119,16 +121,7 @@ function getAbsoluteImageUrl(image?: string) {
   return `${siteUrl}/${image}`;
 }
 
-function JsonLdScript({ data }: { data: Record<string, unknown> }) {
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{
-        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
-      }}
-    />
-  );
-}
+// Reusable JSON-LD component imported above
 
 export default async function HomePage() {
   const categories = await getAllCategories();
@@ -217,10 +210,10 @@ export default async function HomePage() {
 
   return (
     <>
-      <JsonLdScript data={localBusinessJsonLd} />
-      <JsonLdScript data={websiteJsonLd} />
+      <JsonLd data={localBusinessJsonLd} />
+      <JsonLd data={websiteJsonLd} />
       {!erpError && featuredProducts.length > 0 ? (
-        <JsonLdScript data={productListJsonLd} />
+        <JsonLd data={productListJsonLd} />
       ) : null}
 
       <HeroCarousel />

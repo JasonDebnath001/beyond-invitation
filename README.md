@@ -38,7 +38,7 @@ This repository is a production-ready e-commerce shell for Indian wedding invita
 ## Repository layout
 
 ```text
-shahi-cards/
+beyond-invitation/
 ├── app/
 │   ├── account/page.tsx                 Account page protected by Clerk
 │   ├── api/

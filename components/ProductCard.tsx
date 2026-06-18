@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
+
 import AddToCartButton from "./AddToCartButton";
 import WishlistButton from "./WishlistButton";
 
@@ -14,34 +16,127 @@ interface ProductCardProps {
 function getImageSrc(img: string) {
   if (!img) return "";
 
-  if (img.startsWith("http://") || img.startsWith("https://")) {
-    return img;
+  const value = img.trim();
+
+  if (!value) return "";
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
   }
 
-  if (img.startsWith("/files/") || img.startsWith("/private/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-    return erpUrl ? `${erpUrl}${img}` : img;
+  if (
+    value.startsWith("/files/") ||
+    value.startsWith("/private/files/")
+  ) {
+    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(
+      /\/$/,
+      "",
+    );
+
+    return erpUrl ? `${erpUrl}${value}` : value;
   }
 
-  if (img.startsWith("/")) {
-    return img;
+  if (value.startsWith("/")) {
+    return value;
   }
 
-  return `/products/${img}`;
+  return `/products/${value}`;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+function isYoutubeUrl(src: string) {
+  return (
+    src.includes("youtube.com/embed/") ||
+    src.includes("youtube.com/watch") ||
+    src.includes("youtube.com/shorts/") ||
+    src.includes("youtu.be/")
+  );
+}
+
+function isVimeoUrl(src: string) {
+  return src.includes("vimeo.com/");
+}
+
+function isDirectVideo(src: string) {
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(
+    src.split("?")[0],
+  );
+}
+
+function isVideoLikeUrl(src: string) {
+  return (
+    isYoutubeUrl(src) ||
+    isVimeoUrl(src) ||
+    isDirectVideo(src)
+  );
+}
+
+function isImageLikeUrl(src: string) {
+  const value = src.trim();
+
+  if (!value) {
+    return false;
+  }
+
+  if (isVideoLikeUrl(value)) {
+    return false;
+  }
+
+  const cleanPath = value.split("?")[0].toLowerCase();
+
+  return (
+    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
+    value.startsWith("/files/") ||
+    value.startsWith("/private/files/") ||
+    value.startsWith("/") ||
+    !value.startsWith("http")
+  );
+}
+
+function getMainProductImage(images: string[] | undefined) {
+  /*
+   * ProductGallery does the following:
+   *
+   * 1. Removes empty image paths.
+   * 2. Removes duplicate images.
+   * 3. Removes videos from the image list.
+   * 4. Reverses the image order.
+   *
+   * Therefore, the last valid ERPNext image becomes the
+   * default main image in the product gallery.
+   *
+   * Product cards use the same logic here.
+   */
+  const cleanImages = Array.from(
+    new Set(
+      (images ?? [])
+        .map((image) => image?.trim())
+        .filter((image): image is string => Boolean(image)),
+    ),
+  )
+    .filter(isImageLikeUrl)
+    .reverse();
+
+  return cleanImages[0] ?? "";
+}
+
+export default function ProductCard({
+  product,
+}: ProductCardProps) {
   const [failed, setFailed] = useState(false);
 
   const discount = discountPercent(product);
-  const isSaleCard = product.badge === "SALE" || product.onSale === true;
+
+  const isSaleCard =
+    product.badge === "SALE" || product.onSale === true;
 
   const badge =
     product.badge ??
-    (!isSaleCard && discount > 0 ? `${discount}% OFF` : undefined);
+    (!isSaleCard && discount > 0
+      ? `${discount}% OFF`
+      : undefined);
 
-  const firstImage = product.images?.[0];
-  const src = firstImage ? getImageSrc(firstImage) : "";
+  const mainImage = getMainProductImage(product.images);
+  const src = mainImage ? getImageSrc(mainImage) : "";
   const showImage = Boolean(src && !failed);
 
   return (
@@ -79,7 +174,10 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       <div className="border-t border-carbon/5 bg-white p-4 sm:p-5">
-        <Link href={`/products/${product.slug}`} className="block">
+        <Link
+          href={`/products/${product.slug}`}
+          className="block"
+        >
           <h3 className="line-clamp-2 min-h-[42px] text-[15px] font-semibold leading-snug text-[#85172b] transition-colors group-hover:text-carbon">
             {product.name}
           </h3>

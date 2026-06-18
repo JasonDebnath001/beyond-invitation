@@ -4,6 +4,10 @@ import { BRAND } from "@/components/siteConfig";
 
 export const metadata: Metadata = {
   title: `Order Confirmed – ${BRAND}`,
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 interface PageProps {

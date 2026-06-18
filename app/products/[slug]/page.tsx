@@ -548,6 +548,39 @@ function JsonLdScript({
   );
 }
 
+function SpecRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <li className="flex gap-4 border-b border-gold/10 pb-2 last:border-b-0">
+      <span className="w-32 shrink-0 text-ink-light">{label}</span>
+      <span className="text-ink">{value}</span>
+    </li>
+  );
+}
+
+function Accordion({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group rounded-2xl border border-gold/15 bg-white shadow-sm transition hover:border-gold/30">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-display text-[17px] font-semibold text-carbon marker:hidden sm:px-6 [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/25 text-gold transition-transform duration-200 group-open:rotate-45">
+          ＋
+        </span>
+      </summary>
+
+      <div className="border-t border-gold/10 px-5 py-5 sm:px-6">
+        {children}
+      </div>
+    </details>
+  );
+}
+
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const product = await resolveProduct(slug);
@@ -831,6 +864,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       label="Material"
                       value={productDetailValue(product.material)}
                     />
+                  </ul>
 
                   <p>
                     <span className="font-medium text-carbon">Phone - </span>
@@ -841,49 +875,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       +91 7044815488
                     </a>
                   </p>
-                </div>
-              </Accordion>
-
-              <Accordion title="Dimensions">
-                <ul className="space-y-2 text-[14px] text-ink-mid">
-                  <SpecRow label="Height" value="9.5 cm" />
-                  <SpecRow label="Width" value="18 cm" />
-                  <SpecRow label="Weight" value="326 g" />
-                </ul>
-              </Accordion>
-
-              <Accordion title="Return Policy">
-                <p className="text-[14px] leading-relaxed text-ink-mid">
-                  We hope you love your order! However, we do not accept returns
-                  unless there is an error from our end.
-                </p>
-              </Accordion>
-
-              <Accordion title="Product Details">
-                <ul className="space-y-2 text-[14px] text-ink-mid">
-                  <SpecRow
-                    label="Category"
-                    value={<span className="capitalize">{categoryLabel}</span>}
-                  />
-
-                  {subject && <SpecRow label="Tradition" value={subject} />}
-
-                  <SpecRow
-                    label="Customisation"
-                    value={productDetailValue(product.customisation)}
-                  />
-
-                  <SpecRow
-                    label="Material"
-                    value={productDetailValue(product.material)}
-                  />
-
-                  <SpecRow
-                    label="Includes"
-                    value={productDetailValue(product.includes)}
-                  />
-                </ul>
-              </Accordion>
+                </Accordion>
+              </div>
             </div>
           </div>
 
@@ -917,38 +910,5 @@ export default async function ProductDetailPage({ params }: PageProps) {
         </div>
       </div>
     </>
-  );
-}
-
-function SpecRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <li className="flex gap-4 border-b border-gold/10 pb-2 last:border-b-0">
-      <span className="w-32 shrink-0 text-ink-light">{label}</span>
-      <span className="text-ink">{value}</span>
-    </li>
-  );
-}
-
-function Accordion({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <details className="group rounded-2xl border border-gold/15 bg-white shadow-sm transition hover:border-gold/30">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-display text-[17px] font-semibold text-carbon marker:hidden sm:px-6 [&::-webkit-details-marker]:hidden">
-        <span>{title}</span>
-
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/25 text-gold transition-transform duration-200 group-open:rotate-45">
-          ＋
-        </span>
-      </summary>
-
-      <div className="border-t border-gold/10 px-5 py-5 sm:px-6">
-        {children}
-      </div>
-    </details>
   );
 }

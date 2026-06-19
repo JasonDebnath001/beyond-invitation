@@ -9,7 +9,7 @@ import CollectionPageShell from "@/components/CollectionPageShell";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const SUBJECT = "Hindu";
+const SUBJECTS = ["Hindu Wedding Card", "Wedding Card"];
 
 export const metadata: Metadata = {
   title: "Hindu Wedding Cards – Beyond Invitation",
@@ -22,7 +22,7 @@ export default async function HinduWeddingCardPage() {
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsBySubject(SUBJECT);
+    products = await fetchErpProductsBySubject(SUBJECTS);
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -37,9 +37,9 @@ export default async function HinduWeddingCardPage() {
       description="Sacred motifs, auspicious hues and heirloom craftsmanship — invitations thoughtfully designed to announce a Hindu wedding with grace."
       products={products}
       errorMessage={errorMessage}
-      emptyTitle="No Hindu cards just yet"
-      emptyDescription="There are no items with Subject set to Hindu and Show on Website enabled in ERPNext right now. Once they are tagged, they will appear here automatically."
-      subjectLabel={SUBJECT}
+      emptyTitle="No Hindu wedding cards just yet"
+      emptyDescription="There are no items with Subject set to Hindu Wedding Card or Wedding Card and Show on Website enabled in ERPNext right now. Once they are tagged, they will appear here automatically."
+      subjectLabel="Hindu Wedding Card + Wedding Card"
       accentIcon="ॐ"
       breadcrumb={[
         { label: "Home", href: "/" },

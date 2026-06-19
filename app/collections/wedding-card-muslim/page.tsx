@@ -9,12 +9,12 @@ import CollectionPageShell from "@/components/CollectionPageShell";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const SUBJECT = "Muslim";
+const SUBJECTS = ["Muslim Wedding Card", "Wedding Card"];
 
 export const metadata: Metadata = {
   title: "Muslim Wedding Cards – Beyond Invitation",
   description:
-    "A curated collection of Muslim wedding invitation cards — elegant calligraphy, intricate geometry and refined craftsmanship for the nikah and walima.",
+    "A curated collection of Muslim wedding invitation cards — elegant layouts, refined details and graceful designs for nikah and wedding celebrations.",
 };
 
 export default async function MuslimWeddingCardPage() {
@@ -22,7 +22,7 @@ export default async function MuslimWeddingCardPage() {
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsBySubject(SUBJECT);
+    products = await fetchErpProductsBySubject(SUBJECTS);
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -34,12 +34,12 @@ export default async function MuslimWeddingCardPage() {
     <CollectionPageShell
       eyebrow="Wedding Card Collection"
       title="Muslim Wedding Cards"
-      description="Elegant calligraphy, intricate geometry and refined craftsmanship — invitations thoughtfully designed for the nikah, walima and special celebrations."
+      description="Elegant layouts, refined details and graceful invitation designs — crafted for nikah, walima and Muslim wedding celebrations."
       products={products}
       errorMessage={errorMessage}
-      emptyTitle="No Muslim cards just yet"
-      emptyDescription="There are no items with Subject set to Muslim and Show on Website enabled in ERPNext right now. Once they are tagged, they will appear here automatically."
-      subjectLabel={SUBJECT}
+      emptyTitle="No Muslim wedding cards just yet"
+      emptyDescription="There are no items with Subject set to Muslim Wedding Card or Wedding Card and Show on Website enabled in ERPNext right now. Once they are tagged, they will appear here automatically."
+      subjectLabel="Muslim Wedding Card + Wedding Card"
       accentIcon="☾"
       breadcrumb={[
         { label: "Home", href: "/" },

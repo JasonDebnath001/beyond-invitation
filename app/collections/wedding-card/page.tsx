@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
+import {
+  fetchErpProductsBySubject,
+  type ErpProduct,
+} from "@/lib/erpnext";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const SUBJECTS = [
+  "Wedding Card",
+  "Hindu Wedding Card",
+  "Muslim Wedding Card",
+  "Christian Wedding Card",
+];
+
 export const metadata: Metadata = {
   title: "Wedding Cards – Beyond Invitation",
   description:
-    "Browse all wedding card designs available at Beyond Invitation.",
+    "Browse all wedding card designs available at Beyond Invitation, including Hindu, Muslim, Christian and general wedding invitation cards.",
 };
 
 export default async function WeddingCardPage() {
@@ -17,7 +27,7 @@ export default async function WeddingCardPage() {
   let errorMessage = "";
 
   try {
-    products = await fetchErpProducts();
+    products = await fetchErpProductsBySubject(SUBJECTS);
   } catch (error) {
     console.error("ERPNext Wedding Card fetch failed:", error);
 
@@ -42,7 +52,8 @@ export default async function WeddingCardPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-light">
-                Browse all wedding card designs.
+                Browse all Hindu, Muslim, Christian and general wedding card
+                designs.
               </p>
             </div>
 
@@ -74,12 +85,13 @@ export default async function WeddingCardPage() {
         ) : products.length === 0 ? (
           <div className="rounded-2xl border border-gold/20 bg-paper p-8 text-center">
             <h2 className="font-serif text-2xl font-semibold text-maroon">
-              No products found
+              No wedding cards found
             </h2>
 
             <p className="mt-2 text-sm text-ink-light">
-              ERPNext connected successfully, but no visible products were
-              found.
+              ERPNext connected successfully, but no visible products were found
+              with Subject set to Wedding Card, Hindu Wedding Card, Muslim
+              Wedding Card or Christian Wedding Card.
             </p>
           </div>
         ) : (

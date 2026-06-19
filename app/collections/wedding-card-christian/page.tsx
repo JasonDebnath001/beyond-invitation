@@ -9,12 +9,12 @@ import CollectionPageShell from "@/components/CollectionPageShell";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const SUBJECT = "Christian";
+const SUBJECTS = ["Christian Wedding Card", "Wedding Card"];
 
 export const metadata: Metadata = {
   title: "Christian Wedding Cards – Beyond Invitation",
   description:
-    "A curated collection of Christian wedding invitation cards — graceful florals, classic typography and refined craftsmanship for the ceremony and reception.",
+    "A curated collection of Christian wedding invitation cards — elegant church wedding invites, graceful typography and timeless printed designs.",
 };
 
 export default async function ChristianWeddingCardPage() {
@@ -22,7 +22,7 @@ export default async function ChristianWeddingCardPage() {
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsBySubject(SUBJECT);
+    products = await fetchErpProductsBySubject(SUBJECTS);
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -34,12 +34,12 @@ export default async function ChristianWeddingCardPage() {
     <CollectionPageShell
       eyebrow="Wedding Card Collection"
       title="Christian Wedding Cards"
-      description="Graceful florals, classic typography and refined craftsmanship — invitations thoughtfully designed for the church ceremony and reception."
+      description="Elegant church wedding invitations, graceful typography and timeless printed designs — crafted to announce Christian weddings with warmth and beauty."
       products={products}
       errorMessage={errorMessage}
-      emptyTitle="No Christian cards just yet"
-      emptyDescription="There are no items with Subject set to Christian and Show on Website enabled in ERPNext right now. Once they are tagged, they will appear here automatically."
-      subjectLabel={SUBJECT}
+      emptyTitle="No Christian wedding cards just yet"
+      emptyDescription="There are no items with Subject set to Christian Wedding Card or Wedding Card and Show on Website enabled in ERPNext right now. Once they are tagged, they will appear here automatically."
+      subjectLabel="Christian Wedding Card + Wedding Card"
       accentIcon="✝"
       breadcrumb={[
         { label: "Home", href: "/" },

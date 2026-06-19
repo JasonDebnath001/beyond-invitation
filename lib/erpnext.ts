@@ -1356,11 +1356,30 @@ export async function fetchErpProductsByCategory(
  * AND that have "Show on Website" enabled.
  */
 export async function fetchErpProductsBySubject(
-  subject: string,
+  subject: string | string[],
 ): Promise<ErpProduct[]> {
   requireErpConfig();
 
-  const target = subject.trim();
+  const subjects = Array.from(
+    new Set(
+      (Array.isArray(subject) ? subject : [subject])
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (subjects.length === 0) {
+    return [];
+  }
+
+  const normalizedSubjects = new Set(
+    subjects.map((value) => value.toLowerCase()),
+  );
+
+  const subjectFilter =
+    subjects.length === 1
+      ? ["Item", ERPNEXT_SUBJECT_FIELD, "=", subjects[0]]
+      : ["Item", ERPNEXT_SUBJECT_FIELD, "in", subjects];
 
   const itemResponse = await erpFetch<ErpNextListResponse<ErpItem>>(
     "/api/resource/Item",
@@ -1375,31 +1394,30 @@ export async function fetchErpProductsBySubject(
         "disabled",
         ERPNEXT_WEBSITE_FIELD,
         ERPNEXT_SUBJECT_FIELD,
-        ERPNEXT_CUSTOMISATION_FIELD,
-        ERPNEXT_MATERIAL_FIELD,
-        ERPNEXT_INCLUDES_FIELD,
-        ERPNEXT_PRODUCT_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
       filters: JSON.stringify([
         ["Item", "disabled", "=", 0],
         ["Item", ERPNEXT_WEBSITE_FIELD, "=", 1],
-        ["Item", ERPNEXT_SUBJECT_FIELD, "=", target],
+        subjectFilter,
       ]),
       limit_page_length: "200",
       order_by: "modified desc",
     },
   );
 
-  const visibleItems = itemResponse.data.filter(
-    (item) =>
+  const visibleItems = itemResponse.data.filter((item) => {
+    const productSubject = String(item[ERPNEXT_SUBJECT_FIELD] ?? "")
+      .trim()
+      .toLowerCase();
+
+    return (
       item.disabled !== 1 &&
       Number(item[ERPNEXT_WEBSITE_FIELD]) === 1 &&
-      String(item[ERPNEXT_SUBJECT_FIELD] ?? "")
-        .trim()
-        .toLowerCase() === target.toLowerCase(),
-  );
+      normalizedSubjects.has(productSubject)
+    );
+  });
 
   const itemCodes = visibleItems
     .map((item) => item.item_code || item.name)

@@ -30,6 +30,16 @@ interface ImageSize {
   height: number;
 }
 
+function isPrivateFileUrl(src?: string) {
+  if (!src) return false;
+
+  const value = src.trim().toLowerCase();
+
+  return (
+    value.startsWith("/private/files/") || value.includes("/private/files/")
+  );
+}
+
 function getImageSrc(img: string) {
   if (!img) return "";
 
@@ -37,16 +47,17 @@ function getImageSrc(img: string) {
 
   if (!value) return "";
 
+  // Do not render private ERPNext files on public product pages.
+  if (isPrivateFileUrl(value)) {
+    return "";
+  }
+
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
 
-  if (
-    value.startsWith("/files/") ||
-    value.startsWith("/private/files/")
-  ) {
+  if (value.startsWith("/files/")) {
     const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-
     return erpUrl ? `${erpUrl}${value}` : value;
   }
 
@@ -94,7 +105,6 @@ function toYoutubeEmbedUrl(src: string) {
     }
 
     const embed = new URL(`https://www.youtube.com/embed/${id}`);
-
     embed.searchParams.set("rel", "0");
     embed.searchParams.set("modestbranding", "1");
     embed.searchParams.set("playsinline", "1");
@@ -119,7 +129,6 @@ function toVimeoEmbedUrl(src: string) {
 
     if (url.hostname.includes("vimeo.com")) {
       const id = url.pathname.split("/").filter(Boolean)[0];
-
       return id ? `https://player.vimeo.com/video/${id}` : src;
     }
 
@@ -163,6 +172,11 @@ function isImageLikeUrl(src: string) {
     return false;
   }
 
+  // Do not show ERPNext private files in product gallery.
+  if (isPrivateFileUrl(value)) {
+    return false;
+  }
+
   if (isVideoLikeUrl(value)) {
     return false;
   }
@@ -172,7 +186,6 @@ function isImageLikeUrl(src: string) {
   return (
     /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
     value.startsWith("/files/") ||
-    value.startsWith("/private/files/") ||
     value.startsWith("/") ||
     !value.startsWith("http")
   );
@@ -183,7 +196,8 @@ function cleanMediaList(list: string[]) {
     new Set(
       list
         .map((src) => src?.trim())
-        .filter((src): src is string => Boolean(src)),
+        .filter((src): src is string => Boolean(src))
+        .filter((src) => !isPrivateFileUrl(src)),
     ),
   );
 }
@@ -200,9 +214,7 @@ function withAutoplayParams(src: string) {
     return url.toString();
   } catch {
     return (
-      src +
-      (src.includes("?") ? "&" : "?") +
-      "autoplay=1&mute=1&playsinline=1"
+      src + (src.includes("?") ? "&" : "?") + "autoplay=1&mute=1&playsinline=1"
     );
   }
 }
@@ -222,15 +234,13 @@ export default function ProductGallery({
      *
      * Example:
      * Original: Image 1, Image 2, Image 3
-     * Gallery:  Image 3, Image 2, Image 1
+     * Gallery: Image 3, Image 2, Image 1
      *
      * Because active starts at index 0, Image 3 becomes:
      * 1. The default main image.
      * 2. The first thumbnail.
      */
-    const cleanImages = cleanMediaList(images)
-      .filter(isImageLikeUrl)
-      .reverse();
+    const cleanImages = cleanMediaList(images).filter(isImageLikeUrl).reverse();
 
     const cleanVideos = cleanMediaList(videos).filter((src) =>
       isVideoLikeUrl(src),
@@ -249,28 +259,19 @@ export default function ProductGallery({
   }, [images, videos]);
 
   const [active, setActive] = useState(0);
-
   const [failed, setFailed] = useState<Record<number, boolean>>({});
-
   const [zoomVisible, setZoomVisible] = useState(false);
-
   const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
     x: 50,
     y: 50,
   });
-
-  const [imageSizes, setImageSizes] = useState<
-    Record<number, ImageSize>
-  >({});
+  const [imageSizes, setImageSizes] = useState<Record<number, ImageSize>>({});
 
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   const total = media.length;
   const hasMedia = total > 0;
-
-  const activeItem = hasMedia
-    ? media[Math.min(active, total - 1)]
-    : null;
+  const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
 
   const activeSrc =
     activeItem?.type === "image"
@@ -323,9 +324,7 @@ export default function ProductGallery({
     }));
   }
 
-  function handleMouseMove(
-    event: React.MouseEvent<HTMLDivElement>,
-  ) {
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
     if (activeItem?.type !== "image") {
       setZoomVisible(false);
       return;
@@ -334,12 +333,7 @@ export default function ProductGallery({
     const stage = stageRef.current;
     const imageSize = imageSizes[active];
 
-    if (
-      !stage ||
-      !imageSize ||
-      failed[active] ||
-      !activeSrc
-    ) {
+    if (!stage || !imageSize || failed[active] || !activeSrc) {
       setZoomVisible(false);
       return;
     }
@@ -348,13 +342,11 @@ export default function ProductGallery({
 
     const containerWidth = rect.width;
     const containerHeight = rect.height;
-
     const imageAspect = imageSize.width / imageSize.height;
     const containerAspect = containerWidth / containerHeight;
 
     let renderedWidth = containerWidth;
     let renderedHeight = containerHeight;
-
     let offsetX = 0;
     let offsetY = 0;
 
@@ -409,13 +401,12 @@ export default function ProductGallery({
       <div
         className={
           isDesktop
-            ? "hidden w-24 shrink-0 flex-col gap-3 lg:flex"
-            : "flex gap-3 overflow-x-auto pb-2 lg:hidden"
+            ? "hidden lg:flex lg:w-24 lg:flex-col lg:gap-3"
+            : "mt-4 flex gap-3 overflow-x-auto pb-1 lg:hidden"
         }
       >
         {media.map((item, index) => {
           const isActive = index === active;
-
           const src =
             item.type === "image"
               ? getImageSrc(item.src)
@@ -438,13 +429,13 @@ export default function ProductGallery({
               }`}
             >
               {item.type === "video" ? (
-                <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
+                <span className="flex h-full w-full items-center justify-center bg-carbon text-lg text-white">
                   ▶
-                </div>
+                </span>
               ) : failed[index] || !src ? (
-                <div className="flex h-full w-full items-center justify-center text-lg">
+                <span className="flex h-full w-full items-center justify-center text-2xl">
                   {emoji}
-                </div>
+                </span>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -462,19 +453,19 @@ export default function ProductGallery({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-4">
-        {renderThumbnails(true)}
+    <div
+      className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)]"
+      onKeyDown={onKeyDown}
+    >
+      {renderThumbnails(true)}
 
+      <div className="min-w-0">
         <div
           ref={stageRef}
-          role="region"
           tabIndex={0}
-          aria-label={`${alt} media gallery`}
-          onKeyDown={onKeyDown}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className="group relative aspect-square min-w-0 flex-1 overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-card outline-none"
+          className="group relative flex aspect-square items-center justify-center overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-sm outline-none"
         >
           {hasMedia && activeItem ? (
             <>
@@ -489,10 +480,7 @@ export default function ProductGallery({
                     src={activeSrc}
                     alt={alt}
                     onLoad={(event) => {
-                      saveImageSize(
-                        active,
-                        event.currentTarget,
-                      );
+                      saveImageSize(active, event.currentTarget);
                     }}
                     onError={() => markFailed(active)}
                     className="h-full w-full object-contain p-3"
@@ -513,19 +501,17 @@ export default function ProductGallery({
                   autoPlay
                   muted
                   playsInline
-                  className="h-full w-full bg-black object-contain"
+                  className="h-full w-full object-contain"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-carbon text-white">
-                  <a
-                    href={activeSrc}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-carbon"
-                  >
-                    Open product video
-                  </a>
-                </div>
+                <a
+                  href={activeSrc}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Open product video
+                </a>
               )}
             </>
           ) : (
@@ -539,21 +525,21 @@ export default function ProductGallery({
             activeSrc &&
             !failed[active] && (
               <div
-                className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] bg-no-repeat md:block"
+                className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-white bg-no-repeat shadow-xl lg:block"
                 style={{
-                  backgroundImage: `url(${activeSrc})`,
+                  backgroundImage: `url("${activeSrc}")`,
                   backgroundSize: `${ZOOM_SCALE * 100}%`,
                   backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
                 }}
               >
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
+                <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs font-semibold text-white">
                   Move mouse to zoom
-                </div>
+                </span>
               </div>
             )}
 
           {badge && (
-            <span className="absolute left-5 top-5 z-30 rounded-full bg-gold px-4 py-2 text-xs font-bold uppercase tracking-[0.3em] text-white">
+            <span className="absolute left-4 top-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-carbon shadow-sm">
               {badge}
             </span>
           )}
@@ -578,15 +564,15 @@ export default function ProductGallery({
                 →
               </button>
 
-              <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow">
+              <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow-sm">
                 {active + 1} / {total}
               </span>
             </>
           )}
         </div>
-      </div>
 
-      {renderThumbnails(false)}
+        {renderThumbnails(false)}
+      </div>
     </div>
   );
 }

@@ -13,8 +13,7 @@ const ERPNEXT_PRICE_LIST =
   cleanEnv(process.env.ERPNEXT_PRICE_LIST) || "Standard Selling";
 
 const ERPNEXT_PRODUCT_PRICE_FIELD =
-  cleanEnv(process.env.ERPNEXT_PRODUCT_PRICE_FIELD) ||
-  "custom_price";
+  cleanEnv(process.env.ERPNEXT_PRODUCT_PRICE_FIELD) || "custom_price";
 
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
 const ERPNEXT_WEBSITE_FIELD =
@@ -118,6 +117,7 @@ type ErpFileAttachment = {
   attached_to_doctype?: string;
   attached_to_name?: string;
   is_folder?: 0 | 1;
+  is_private?: 0 | 1 | boolean | string;
   creation?: string;
   modified?: string;
 };
@@ -187,12 +187,42 @@ function normalizeCategory(itemGroup?: string): ProductCategory {
   return "wedding";
 }
 
+function isTruthyErpFlag(value: unknown) {
+  return value === 1 || value === true || value === "1" || value === "true";
+}
+
+function isPrivateFileUrl(value: unknown) {
+  if (typeof value !== "string") return false;
+
+  const clean = value.trim().toLowerCase();
+
+  return (
+    clean.startsWith("/private/files/") || clean.includes("/private/files/")
+  );
+}
+
+function isPrivateFileRecord(row: Record<string, unknown>) {
+  return (
+    isTruthyErpFlag(row.is_private) ||
+    isTruthyErpFlag(row.isPrivate) ||
+    isPrivateFileUrl(row.file_url) ||
+    isPrivateFileUrl(row.file) ||
+    isPrivateFileUrl(row.image) ||
+    isPrivateFileUrl(row.image_url) ||
+    isPrivateFileUrl(row.attachment) ||
+    isPrivateFileUrl(row.attach) ||
+    isPrivateFileUrl(row.url)
+  );
+}
+
 function buildImageUrl(image?: string): string[] {
   if (!image) return [];
 
   const cleanImage = image.trim();
-
   if (!cleanImage) return [];
+
+  // Never expose ERPNext private files on the public website.
+  if (isPrivateFileUrl(cleanImage)) return [];
 
   if (cleanImage.startsWith("http://") || cleanImage.startsWith("https://")) {
     return [encodeURI(cleanImage)];
@@ -697,20 +727,14 @@ function parseProductPrice(value: unknown): number | null {
 
     const parsedValue = Number(cleanedValue);
 
-    return Number.isFinite(parsedValue)
-      ? parsedValue
-      : null;
+    return Number.isFinite(parsedValue) ? parsedValue : null;
   }
 
   return null;
 }
 
-function getCustomProductPrice(
-  item: Record<string, unknown>,
-): number | null {
-  const configuredPrice = parseProductPrice(
-    item[ERPNEXT_PRODUCT_PRICE_FIELD],
-  );
+function getCustomProductPrice(item: Record<string, unknown>): number | null {
+  const configuredPrice = parseProductPrice(item[ERPNEXT_PRODUCT_PRICE_FIELD]);
 
   if (configuredPrice !== null) {
     return configuredPrice;
@@ -720,9 +744,7 @@ function getCustomProductPrice(
    * Extra fallbacks in case the ERPNext fieldname is
    * "custom_price" or simply "price".
    */
-  const customPrice = parseProductPrice(
-    item.custom_price,
-  );
+  const customPrice = parseProductPrice(item.custom_price);
 
   if (customPrice !== null) {
     return customPrice;
@@ -735,11 +757,9 @@ function mapErpItemToProduct(
   item: ErpItem,
   priceMap: Map<string, number>,
 ): ErpProduct {
-  const itemCode =
-    item.item_code || item.name;
+  const itemCode = item.item_code || item.name;
 
-  const customFieldPrice =
-    getCustomProductPrice(item);
+  const customFieldPrice = getCustomProductPrice(item);
 
   const oldErpPrice =
     priceMap.get(itemCode) ??
@@ -750,7 +770,7 @@ function mapErpItemToProduct(
    * Custom Price field is now the primary source.
    * The old ERP price is used only when custom_price is empty.
    */
- const price = customFieldPrice ?? 0;
+  const price = customFieldPrice ?? 0;
 
   const mrp = price;
 
@@ -759,15 +779,11 @@ function mapErpItemToProduct(
     itemCode,
     itemGroup: item.item_group ?? "",
 
-    subject: cleanTextValue(
-      item[ERPNEXT_SUBJECT_FIELD],
-    ),
+    subject: cleanTextValue(item[ERPNEXT_SUBJECT_FIELD]),
 
     slug: normalizeSlug(itemCode),
 
-    name:
-      item.item_name ||
-      itemCode,
+    name: item.item_name || itemCode,
 
     price,
     mrp,
@@ -776,29 +792,17 @@ function mapErpItemToProduct(
 
     emoji: "",
 
-    category: normalizeCategory(
-      item.item_group,
-    ),
+    category: normalizeCategory(item.item_group),
 
     badge: undefined,
 
-    description: DOMPurify.sanitize(
-      String(item.description || ""),
-    ),
+    description: DOMPurify.sanitize(String(item.description || "")),
 
-    customisation: cleanTextValue(
-      item[
-        ERPNEXT_CUSTOMISATION_FIELD
-      ],
-    ),
+    customisation: cleanTextValue(item[ERPNEXT_CUSTOMISATION_FIELD]),
 
-    material: cleanTextValue(
-      item[ERPNEXT_MATERIAL_FIELD],
-    ),
+    material: cleanTextValue(item[ERPNEXT_MATERIAL_FIELD]),
 
-    includes: cleanTextValue(
-      item[ERPNEXT_INCLUDES_FIELD],
-    ),
+    includes: cleanTextValue(item[ERPNEXT_INCLUDES_FIELD]),
 
     onSale: false,
     isPremium: false,
@@ -835,6 +839,9 @@ function extractGalleryImages(
     const value = v.trim();
     if (!value) return false;
 
+    // Do not allow private ERPNext files.
+    if (isPrivateFileUrl(value)) return false;
+
     // Do not allow videos to be collected as gallery images.
     if (looksLikeVideoUrl(value)) return false;
 
@@ -843,9 +850,7 @@ function extractGalleryImages(
     return (
       /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
       value.startsWith("/files/") ||
-      value.startsWith("/private/files/") ||
-      value.includes("/files/") ||
-      value.includes("/private/files/")
+      value.includes("/files/")
     );
   };
 
@@ -900,6 +905,7 @@ function extractGalleryImages(
       .sort((a, b) => a.order - b.order || a.i - b.i);
 
     for (const { row } of ordered) {
+      if (isPrivateFileRecord(row)) continue;
       if (!row || typeof row !== "object") continue;
 
       // Preferred configured field, usually "image".
@@ -1002,6 +1008,10 @@ async function fetchErpItemAttachments(
 
     const value = v.trim();
     if (!value) return false;
+
+    // Do not allow private ERPNext files.
+    if (isPrivateFileUrl(value)) return false;
+
     if (looksLikeVideoUrl(value)) return false;
 
     const cleanPath = value.split("?")[0].toLowerCase();
@@ -1009,9 +1019,7 @@ async function fetchErpItemAttachments(
     return (
       /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
       value.startsWith("/files/") ||
-      value.startsWith("/private/files/") ||
-      value.includes("/files/") ||
-      value.includes("/private/files/")
+      value.includes("/files/")
     );
   };
 
@@ -1037,6 +1045,7 @@ async function fetchErpItemAttachments(
             "attached_to_doctype",
             "attached_to_name",
             "is_folder",
+            "is_private",
             "creation",
             "modified",
           ]),
@@ -1044,6 +1053,7 @@ async function fetchErpItemAttachments(
             ["File", "attached_to_doctype", "=", "Item"],
             ["File", "attached_to_name", "=", name],
             ["File", "is_folder", "=", 0],
+            ["File", "is_private", "=", 0],
           ]),
           limit_page_length: "100",
           order_by: "creation asc",
@@ -1051,6 +1061,7 @@ async function fetchErpItemAttachments(
       );
 
       for (const file of json.data || []) {
+        if (isPrivateFileRecord(file as Record<string, unknown>)) continue;
         push(file.file_url);
       }
     } catch {
@@ -1067,7 +1078,10 @@ function mergeImageLists(...lists: string[][]): string[] {
 
   for (const list of lists) {
     for (const image of list) {
-      if (image && !merged.includes(image)) {
+      if (!image) continue;
+      if (isPrivateFileUrl(image)) continue;
+
+      if (!merged.includes(image)) {
         merged.push(image);
       }
     }

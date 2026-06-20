@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 
 interface ProductGalleryProps {
   images: string[];
@@ -32,6 +33,37 @@ interface ImageSize {
 
 const ZOOM_SCALE = 2;
 
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i;
+const VIDEO_EXTENSIONS = /\.(mp4|webm|ogg|mov|m4v)$/i;
+
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function getCleanPath(src: string) {
+  return safeDecode(src.trim()).split("?")[0].split("#")[0].toLowerCase();
+}
+
+function hasImageExtension(src: string) {
+  return IMAGE_EXTENSIONS.test(getCleanPath(src));
+}
+
+function hasVideoExtension(src: string) {
+  const cleanPath = getCleanPath(src);
+
+  if (VIDEO_EXTENSIONS.test(cleanPath)) {
+    return true;
+  }
+
+  const decoded = safeDecode(src.trim()).toLowerCase();
+
+  return /\.(mp4|webm|ogg|mov|m4v)(?:$|[?#&/])/i.test(decoded);
+}
+
 function isPrivateFileUrl(src?: string) {
   if (!src) return false;
 
@@ -42,10 +74,11 @@ function isPrivateFileUrl(src?: string) {
   );
 }
 
-function getImageSrc(img: string) {
-  if (!img) return "";
+function getPublicFileSrc(src: string) {
+  if (!src) return "";
 
-  const value = img.trim();
+  const value = src.trim();
+
   if (!value) return "";
 
   if (isPrivateFileUrl(value)) {
@@ -58,6 +91,7 @@ function getImageSrc(img: string) {
 
   if (value.startsWith("/files/")) {
     const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
+
     return erpUrl ? `${erpUrl}${value}` : value;
   }
 
@@ -66,6 +100,10 @@ function getImageSrc(img: string) {
   }
 
   return `/products/${value}`;
+}
+
+function getImageSrc(img: string) {
+  return getPublicFileSrc(img);
 }
 
 function getYoutubeVideoId(src: string) {
@@ -121,6 +159,9 @@ function toYoutubeEmbedUrl(src: string) {
   embed.searchParams.set("rel", "0");
   embed.searchParams.set("loop", "1");
   embed.searchParams.set("playlist", id);
+  embed.searchParams.set("modestbranding", "1");
+  embed.searchParams.set("disablekb", "1");
+  embed.searchParams.set("fs", "0");
 
   return embed.toString();
 }
@@ -139,6 +180,8 @@ function toVimeoEmbedUrl(src: string) {
       url.searchParams.set("background", "1");
       url.searchParams.set("controls", "0");
       url.searchParams.set("playsinline", "1");
+      url.searchParams.set("loop", "1");
+
       return url.toString();
     }
 
@@ -156,6 +199,7 @@ function toVimeoEmbedUrl(src: string) {
       embed.searchParams.set("background", "1");
       embed.searchParams.set("controls", "0");
       embed.searchParams.set("playsinline", "1");
+      embed.searchParams.set("loop", "1");
 
       return embed.toString();
     }
@@ -167,6 +211,8 @@ function toVimeoEmbedUrl(src: string) {
 }
 
 function getVideoSrc(src: string) {
+  if (!src) return "";
+
   if (isYoutubeUrl(src)) {
     return toYoutubeEmbedUrl(src);
   }
@@ -175,22 +221,47 @@ function getVideoSrc(src: string) {
     return toVimeoEmbedUrl(src);
   }
 
-  return src;
+  return getPublicFileSrc(src);
+}
+
+function withAutoplayParams(src: string) {
+  try {
+    const url = new URL(src);
+
+    url.searchParams.set("autoplay", "1");
+    url.searchParams.set("mute", "1");
+    url.searchParams.set("muted", "1");
+    url.searchParams.set("playsinline", "1");
+    url.searchParams.set("controls", "0");
+    url.searchParams.set("loop", "1");
+
+    return url.toString();
+  } catch {
+    return (
+      src +
+      (src.includes("?") ? "&" : "?") +
+      "autoplay=1&mute=1&muted=1&playsinline=1&controls=0&loop=1"
+    );
+  }
 }
 
 function isEmbeddableVideo(src: string) {
   return (
-    src.includes("youtube.com/embed/") ||
-    src.includes("player.vimeo.com/video/")
+    src.includes("youtube.com/embed/") || src.includes("player.vimeo.com/video/")
   );
 }
 
 function isDirectVideo(src: string) {
-  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(src.split("?")[0]);
+  return hasVideoExtension(src);
 }
 
 function isVideoLikeUrl(src: string) {
-  return isYoutubeUrl(src) || isVimeoUrl(src) || isDirectVideo(src);
+  return (
+    isYoutubeUrl(src) ||
+    isVimeoUrl(src) ||
+    isDirectVideo(src) ||
+    hasVideoExtension(src)
+  );
 }
 
 function isImageLikeUrl(src: string) {
@@ -208,14 +279,26 @@ function isImageLikeUrl(src: string) {
     return false;
   }
 
-  const cleanPath = value.split("?")[0].toLowerCase();
+  if (hasImageExtension(value)) {
+    return true;
+  }
 
-  return (
-    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
-    value.startsWith("/files/") ||
-    value.startsWith("/") ||
-    !value.startsWith("http")
-  );
+  /*
+    ERPNext public image uploads usually live under /files/.
+    Keep /files/ items as images only after video detection has already rejected video files.
+  */
+  if (value.startsWith("/files/") || value.includes("/files/")) {
+    return true;
+  }
+
+  /*
+    Local product images can be passed as filenames without extensions from static data.
+  */
+  if (!value.startsWith("http")) {
+    return true;
+  }
+
+  return false;
 }
 
 function cleanMediaList(list: string[] = []) {
@@ -229,6 +312,35 @@ function cleanMediaList(list: string[] = []) {
   );
 }
 
+function canonicalMediaKey(src: string) {
+  const trimmed = src.trim();
+
+  const youtubeId = getYoutubeVideoId(trimmed);
+
+  if (youtubeId) {
+    return `youtube:${youtubeId}`;
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (url.hostname.includes("vimeo.com")) {
+      const parts = url.pathname.split("/").filter(Boolean);
+      const id = parts[parts.length - 1];
+
+      if (id) {
+        return `vimeo:${id}`;
+      }
+    }
+
+    return safeDecode(url.toString())
+      .replace(/\/$/, "")
+      .toLowerCase();
+  } catch {
+    return safeDecode(trimmed).replace(/\/$/, "").toLowerCase();
+  }
+}
+
 export default function ProductGallery({
   images,
   videos = [],
@@ -237,14 +349,20 @@ export default function ProductGallery({
   badge,
 }: ProductGalleryProps) {
   const media: GalleryItem[] = useMemo(() => {
-    const cleanImages = cleanMediaList(images).filter(isImageLikeUrl).reverse();
     const cleanVideos = cleanMediaList(videos).filter(isVideoLikeUrl);
+    const videoKeys = new Set(cleanVideos.map(canonicalMediaKey));
+
+    const cleanImages = cleanMediaList(images)
+      .filter((src) => !videoKeys.has(canonicalMediaKey(src)))
+      .filter(isImageLikeUrl)
+      .reverse();
 
     return [
       ...cleanImages.map((src) => ({
         type: "image" as const,
         src,
       })),
+
       ...cleanVideos.map((src) => ({
         type: "video" as const,
         src,
@@ -289,7 +407,7 @@ export default function ProductGallery({
     [total],
   );
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       go(-1);
@@ -318,7 +436,7 @@ export default function ProductGallery({
     }));
   }
 
-  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
     if (activeItem?.type !== "image") {
       setZoomVisible(false);
       return;
@@ -336,6 +454,7 @@ export default function ProductGallery({
 
     const containerWidth = rect.width;
     const containerHeight = rect.height;
+
     const imageAspect = imageSize.width / imageSize.height;
     const containerAspect = containerWidth / containerHeight;
 
@@ -386,19 +505,24 @@ export default function ProductGallery({
     setZoomVisible(false);
   }
 
-  function renderThumbnails() {
+  function renderThumbnails(isDesktop = false) {
     if (total <= 1) {
       return null;
     }
 
     return (
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+      <div
+        className={
+          isDesktop
+            ? "hidden xl:grid xl:w-20 xl:grid-cols-1 xl:content-start xl:gap-3 2xl:w-24"
+            : "mt-3 grid grid-cols-4 gap-2 sm:mt-4 sm:grid-cols-6 sm:gap-3 md:grid-cols-8 xl:hidden"
+        }
+      >
         {media.map((item, index) => {
           const isActive = index === active;
+
           const src =
-            item.type === "image"
-              ? getImageSrc(item.src)
-              : getVideoSrc(item.src);
+            item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
 
           return (
             <button
@@ -410,18 +534,18 @@ export default function ProductGallery({
               }}
               aria-label={`View ${item.type} ${index + 1}`}
               aria-current={isActive}
-              className={`relative aspect-square h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[76px] sm:w-[76px] ${
+              className={`relative aspect-square w-full overflow-hidden rounded-xl border bg-ivory transition ${
                 isActive
                   ? "border-carbon ring-1 ring-carbon"
                   : "border-gold/25 hover:border-gold"
               }`}
             >
               {item.type === "video" ? (
-                <span className="flex h-full w-full items-center justify-center bg-carbon text-xl text-white">
+                <span className="flex h-full w-full items-center justify-center bg-carbon text-base text-white sm:text-lg">
                   ▶
                 </span>
               ) : failed[index] || !src ? (
-                <span className="flex h-full w-full items-center justify-center text-xl">
+                <span className="flex h-full w-full items-center justify-center text-xl sm:text-2xl">
                   {emoji}
                 </span>
               ) : (
@@ -441,126 +565,127 @@ export default function ProductGallery({
   }
 
   return (
-    <section
-      className="w-full"
+    <div
+      className="grid min-w-0 gap-3 sm:gap-4 xl:grid-cols-[80px_minmax(0,1fr)] 2xl:grid-cols-[96px_minmax(0,1fr)]"
       onKeyDown={onKeyDown}
-      tabIndex={0}
-      aria-label="Product media gallery"
     >
-      <div
-        ref={stageRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="group relative aspect-square overflow-hidden rounded-3xl border border-gold/20 bg-ivory shadow-sm outline-none"
-      >
-        {hasMedia && activeItem ? (
-          <>
-            {activeItem.type === "image" ? (
-              failed[active] || !activeSrc ? (
-                <div className="flex h-full w-full items-center justify-center text-6xl">
-                  {emoji}
-                </div>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={activeSrc}
-                  alt={alt}
-                  onLoad={(event) => {
-                    saveImageSize(active, event.currentTarget);
-                  }}
-                  onError={() => markFailed(active)}
-                  className="h-full w-full object-contain p-3"
-                />
-              )
-            ) : isEmbeddableVideo(activeSrc) ? (
-              <iframe
-                key={activeSrc}
-                src={activeSrc}
-                title={`${alt} product video`}
-                className="h-full w-full"
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            ) : isDirectVideo(activeSrc) ? (
-              <video
-                key={activeSrc}
-                src={activeSrc}
-                className="h-full w-full object-contain"
-                autoPlay
-                muted
-                loop
-                playsInline
-                controls={false}
-              />
-            ) : (
-              <a
-                href={activeSrc}
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-full w-full items-center justify-center text-sm font-semibold text-carbon underline"
-              >
-                Open product video
-              </a>
-            )}
-          </>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-6xl">
-            {emoji}
-          </div>
-        )}
+      {renderThumbnails(true)}
 
-        {activeItem?.type === "image" &&
-          zoomVisible &&
-          activeSrc &&
-          !failed[active] && (
-            <div
-              className="pointer-events-none absolute inset-0 z-20 hidden bg-white bg-no-repeat md:block"
-              style={{
-                backgroundImage: `url(${activeSrc})`,
-                backgroundSize: `${ZOOM_SCALE * 100}%`,
-                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-              }}
-            >
-              <span className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-carbon shadow">
-                Move mouse to zoom
-              </span>
+      <div className="min-w-0 overflow-hidden">
+        <div
+          ref={stageRef}
+          tabIndex={0}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          className="group relative flex aspect-square min-h-[280px] items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-ivory shadow-sm outline-none sm:min-h-[420px] sm:rounded-[2rem] xl:min-h-0"
+        >
+          {hasMedia && activeItem ? (
+            <>
+              {activeItem.type === "image" ? (
+                failed[active] || !activeSrc ? (
+                  <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">
+                    {emoji}
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={activeSrc}
+                    alt={alt}
+                    onLoad={(event) => {
+                      saveImageSize(active, event.currentTarget);
+                    }}
+                    onError={() => markFailed(active)}
+                    className="h-full w-full object-contain p-2 sm:p-3"
+                  />
+                )
+              ) : isEmbeddableVideo(activeSrc) ? (
+                <iframe
+                  src={withAutoplayParams(activeSrc)}
+                  title={`${alt} video`}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full border-0"
+                />
+              ) : isDirectVideo(activeSrc) ? (
+                <video
+                  src={activeSrc}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <a
+                  href={activeSrc}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Open product video
+                </a>
+              )}
+            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">
+              {emoji}
             </div>
           )}
 
-        {badge && (
-          <span className="absolute left-4 top-4 z-30 rounded-full bg-carbon px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
-            {badge}
-          </span>
-        )}
+          {activeItem?.type === "image" &&
+            zoomVisible &&
+            activeSrc &&
+            !failed[active] && (
+              <div
+                className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-white bg-no-repeat shadow-xl lg:block"
+                style={{
+                  backgroundImage: `url("${activeSrc}")`,
+                  backgroundSize: `${ZOOM_SCALE * 100}%`,
+                  backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                }}
+              >
+                <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs font-semibold text-white">
+                  Move mouse to zoom
+                </span>
+              </div>
+            )}
 
-        {total > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() => go(-1)}
-              aria-label="Previous media"
-              className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-            >
-              ←
-            </button>
-
-            <button
-              type="button"
-              onClick={() => go(1)}
-              aria-label="Next media"
-              className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-            >
-              →
-            </button>
-
-            <span className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-carbon shadow">
-              {active + 1} / {total}
+          {badge && (
+            <span className="absolute left-4 top-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-carbon shadow-sm">
+              {badge}
             </span>
-          </>
-        )}
-      </div>
+          )}
 
-      {renderThumbnails()}
-    </section>
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                aria-label="Previous media"
+                className="absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white sm:h-10 sm:w-10 md:opacity-0 md:group-hover:opacity-100"
+              >
+                ←
+              </button>
+
+              <button
+                type="button"
+                onClick={() => go(1)}
+                aria-label="Next media"
+                className="absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white sm:h-10 sm:w-10 md:opacity-0 md:group-hover:opacity-100"
+              >
+                →
+              </button>
+
+              <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow-sm">
+                {active + 1} / {total}
+              </span>
+            </>
+          )}
+        </div>
+
+        {renderThumbnails(false)}
+      </div>
+    </div>
   );
 }

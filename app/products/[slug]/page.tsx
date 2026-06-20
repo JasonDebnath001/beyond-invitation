@@ -583,6 +583,7 @@ function Accordion({
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
+
   const product = await resolveProduct(slug);
 
   if (!product) notFound();
@@ -607,9 +608,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
       <JsonLdScript data={relatedJsonLd} />
 
       <div className="bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 md:py-12">
+        <div className="mx-auto max-w-7xl overflow-hidden px-4 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:py-12">
           {/* Breadcrumb */}
-          <nav className="mb-6 flex items-center gap-1.5 overflow-hidden text-[12px] text-ink-light sm:mb-8 sm:text-[12.5px]">
+          <nav className="mb-5 flex min-w-0 items-center gap-1.5 overflow-hidden text-[11.5px] text-ink-light sm:mb-8 sm:text-[12.5px]">
             <Link
               href="/"
               className="shrink-0 whitespace-nowrap transition-colors hover:text-carbon"
@@ -628,13 +629,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <span className="shrink-0 text-gold">/</span>
 
-            <span className="truncate text-ink">{product.name}</span>
+            <span className="min-w-0 truncate text-ink">{product.name}</span>
           </nav>
 
           {/* Product layout */}
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-14">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] xl:items-start xl:gap-10 2xl:gap-14">
             {/* Left: Gallery */}
-            <div className="lg:sticky lg:top-24 lg:self-start">
+            <div className="min-w-0 xl:sticky xl:top-24 xl:self-start">
               <ProductGallery
                 images={product.images || []}
                 videos={product.videos}
@@ -645,9 +646,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
 
             {/* Right: Product information */}
-            <div className="flex flex-col">
-              {/* Non-collapsible name + price section */}
-              <section className="rounded-2xl border border-gold/15 bg-white p-5 shadow-sm sm:p-6">
+            <div className="min-w-0 flex flex-col">
+              {/* Product name + price */}
+              <section className="min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
                 <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
                   <span className="capitalize">{categoryLabel}</span>
 
@@ -659,18 +660,18 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   )}
                 </div>
 
-                <h1 className="mt-3 font-display text-3xl font-semibold leading-[1.12] text-carbon md:text-[40px]">
+                <h1 className="mt-3 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[36px] 2xl:text-[40px]">
                   {product.name}
                 </h1>
 
-                <div className="mt-4 flex items-center gap-3 text-[13px] text-ink-mid">
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-[13px] text-ink-mid">
                   <span className="tracking-[0.15em] text-gold">★★★★★</span>
                   <span className="h-3 w-px bg-gold/30" />
                   <span>Handcrafted to order</span>
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-end gap-3">
-                  <span className="font-display text-[34px] font-bold leading-none text-carbon">
+                  <span className="font-display text-[30px] font-bold leading-none text-carbon sm:text-[34px]">
                     ₹{product.price.toLocaleString("en-IN")}
                   </span>
 
@@ -696,8 +697,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 <ProductBuyBox product={product} />
               </section>
 
-              {/* Non-collapsible Description */}
-              <section className="mt-5 rounded-2xl border border-gold/15 bg-white p-5 shadow-sm sm:p-6">
+              {/* Description */}
+              <section className="mt-5 min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="font-display text-[17px] font-semibold text-carbon">
                   Description
                 </h2>
@@ -706,13 +707,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   {product.description ? (
                     hasHtml(product.description) ? (
                       <div
-                        className="space-y-3 [&_li]:ml-4 [&_li]:list-disc"
+                        className="max-w-full space-y-3 overflow-hidden break-words [&_img]:max-w-full [&_li]:ml-4 [&_li]:list-disc [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
                         dangerouslySetInnerHTML={{
                           __html: product.description,
                         }}
                       />
                     ) : (
-                      <p className="whitespace-pre-line">
+                      <p className="whitespace-pre-line break-words">
                         {product.description}
                       </p>
                     )
@@ -723,7 +724,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </section>
 
               {/* Collapsible sections */}
-              <div className="mt-5 space-y-3">
+              <div className="mt-5 min-w-0 space-y-3">
                 <Accordion title="Printing">
                   <p className="text-[14px] leading-relaxed text-ink-mid">
                     Printing charges is not included in the above price. The
@@ -769,38 +770,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       </ul>
                     </div>
 
-                    {/* <div>
-                      <h3 className="font-semibold text-carbon">2. Air</h3>
-
-                      <p className="mt-2">
-                        Quick delivery by air, ideal for urgent orders.
-                      </p>
-
-                      <ul className="mt-3 space-y-1">
-                        <li>
-                          <span className="font-medium text-carbon">
-                            South India:
-                          </span>{" "}
-                          Not applicable, Surface delivery takes same time as
-                          Air.
-                        </li>
-
-                        <li>
-                          <span className="font-medium text-carbon">
-                            North East and Himalayan region:
-                          </span>{" "}
-                          5 to 8 days
-                        </li>
-
-                        <li>
-                          <span className="font-medium text-carbon">
-                            Rest of India:
-                          </span>{" "}
-                          4 to 5 days
-                        </li>
-                      </ul>
-                    </div> */}
-
                     <p>
                       Shipping cost is based on weight. Just add products to
                       your cart and use the Shipping calculator to see the
@@ -813,9 +782,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   <div className="space-y-3 text-[14px] leading-relaxed text-ink-mid">
                     <p>
                       For Cash on Delivery orders, a 10% advance payment is
-                      required at the time of booking. The remaining balance
-                      must be paid at the time of delivery. For assistance,
-                      please contact our team.
+                      required at the time of booking. The remaining balance must
+                      be paid at the time of delivery. For assistance, please
+                      contact our team.
                     </p>
 
                     <p>
@@ -866,8 +835,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
                     />
                   </ul>
 
-                  <p>
+                  <p className="mt-4 text-[14px] leading-relaxed text-ink-mid">
                     <span className="font-medium text-carbon">Phone - </span>
+
                     <a
                       href="tel:+917044815488"
                       className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
@@ -883,13 +853,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
           {/* Related products */}
           {related.length > 0 && (
             <section className="mt-14 sm:mt-20">
-              <div className="mb-10 flex items-end justify-between gap-6">
+              <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:mb-10 sm:flex-row sm:items-end">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
                     More to love
                   </p>
 
-                  <h2 className="mt-2 font-display text-[28px] font-semibold text-carbon md:text-[34px]">
+                  <h2 className="mt-2 font-display text-[26px] font-semibold text-carbon sm:text-[28px] md:text-[34px]">
                     You May Also Like
                   </h2>
 
@@ -898,7 +868,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
                 <Link
                   href={`/collections/${product.category}`}
-                  className="hidden shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon sm:inline-flex"
+                  className="inline-flex shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon"
                 >
                   View collection <span>→</span>
                 </Link>

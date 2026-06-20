@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 
 interface ProductGalleryProps {
@@ -267,33 +267,16 @@ function isVideoLikeUrl(src: string) {
 function isImageLikeUrl(src: string) {
   const value = src.trim();
 
-  if (!value) {
-    return false;
-  }
+  if (!value) return false;
+  if (isPrivateFileUrl(value)) return false;
+  if (isVideoLikeUrl(value)) return false;
 
-  if (isPrivateFileUrl(value)) {
-    return false;
-  }
+  if (hasImageExtension(value)) return true;
 
-  if (isVideoLikeUrl(value)) {
-    return false;
-  }
-
-  if (hasImageExtension(value)) {
-    return true;
-  }
-
-  /*
-    ERPNext public image uploads usually live under /files/.
-    Keep /files/ items as images only after video detection has already rejected video files.
-  */
   if (value.startsWith("/files/") || value.includes("/files/")) {
     return true;
   }
 
-  /*
-    Local product images can be passed as filenames without extensions from static data.
-  */
   if (!value.startsWith("http")) {
     return true;
   }
@@ -333,9 +316,7 @@ function canonicalMediaKey(src: string) {
       }
     }
 
-    return safeDecode(url.toString())
-      .replace(/\/$/, "")
-      .toLowerCase();
+    return safeDecode(url.toString()).replace(/\/$/, "").toLowerCase();
   } catch {
     return safeDecode(trimmed).replace(/\/$/, "").toLowerCase();
   }
@@ -348,7 +329,20 @@ export default function ProductGallery({
   alt,
   badge,
 }: ProductGalleryProps) {
-  const media: GalleryItem[] = useMemo(() => {
+  const [active, setActive] = useState(0);
+  const [failedMediaKeys, setFailedMediaKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [zoomVisible, setZoomVisible] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
+    x: 50,
+    y: 50,
+  });
+  const [imageSizes, setImageSizes] = useState<Record<string, ImageSize>>({});
+
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  const allMedia: GalleryItem[] = useMemo(() => {
     const cleanVideos = cleanMediaList(videos).filter(isVideoLikeUrl);
     const videoKeys = new Set(cleanVideos.map(canonicalMediaKey));
 
@@ -370,20 +364,14 @@ export default function ProductGallery({
     ];
   }, [images, videos]);
 
-  const [active, setActive] = useState(0);
-  const [failed, setFailed] = useState<Record<number, boolean>>({});
-  const [zoomVisible, setZoomVisible] = useState(false);
-  const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
-    x: 50,
-    y: 50,
-  });
-  const [imageSizes, setImageSizes] = useState<Record<number, ImageSize>>({});
-
-  const stageRef = useRef<HTMLDivElement | null>(null);
+  const media = useMemo(() => {
+    return allMedia.filter((item) => !failedMediaKeys.has(canonicalMediaKey(item.src)));
+  }, [allMedia, failedMediaKeys]);
 
   const total = media.length;
   const hasMedia = total > 0;
   const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
+  const activeKey = activeItem ? canonicalMediaKey(activeItem.src) : "";
 
   const activeSrc =
     activeItem?.type === "image"
@@ -392,11 +380,19 @@ export default function ProductGallery({
         ? getVideoSrc(activeItem.src)
         : "";
 
+  useEffect(() => {
+    if (active >= total && total > 0) {
+      setActive(total - 1);
+    }
+
+    if (total === 0 && active !== 0) {
+      setActive(0);
+    }
+  }, [active, total]);
+
   const go = useCallback(
     (delta: number) => {
-      if (total === 0) {
-        return;
-      }
+      if (total === 0) return;
 
       setZoomVisible(false);
 
@@ -406,6 +402,30 @@ export default function ProductGallery({
     },
     [total],
   );
+
+  function removeBrokenMedia(item: GalleryItem, index: number) {
+    const key = canonicalMediaKey(item.src);
+
+    setFailedMediaKeys((current) => {
+      const next = new Set(current);
+      next.add(key);
+      return next;
+    });
+
+    setZoomVisible(false);
+
+    setActive((current) => {
+      if (index < current) {
+        return Math.max(0, current - 1);
+      }
+
+      if (index === current) {
+        return Math.max(0, Math.min(current, total - 2));
+      }
+
+      return current;
+    });
+  }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "ArrowLeft") {
@@ -419,17 +439,10 @@ export default function ProductGallery({
     }
   }
 
-  function markFailed(index: number) {
-    setFailed((current) => ({
-      ...current,
-      [index]: true,
-    }));
-  }
-
-  function saveImageSize(index: number, image: HTMLImageElement) {
+  function saveImageSize(key: string, image: HTMLImageElement) {
     setImageSizes((current) => ({
       ...current,
-      [index]: {
+      [key]: {
         width: image.naturalWidth,
         height: image.naturalHeight,
       },
@@ -443,9 +456,9 @@ export default function ProductGallery({
     }
 
     const stage = stageRef.current;
-    const imageSize = imageSizes[active];
+    const imageSize = imageSizes[activeKey];
 
-    if (!stage || !imageSize || failed[active] || !activeSrc) {
+    if (!stage || !imageSize || !activeSrc) {
       setZoomVisible(false);
       return;
     }
@@ -524,6 +537,10 @@ export default function ProductGallery({
           const src =
             item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
 
+          if (!src) {
+            return null;
+          }
+
           return (
             <button
               key={`${item.type}-${item.src}-${index}`}
@@ -544,16 +561,12 @@ export default function ProductGallery({
                 <span className="flex h-full w-full items-center justify-center bg-carbon text-base text-white sm:text-lg">
                   ▶
                 </span>
-              ) : failed[index] || !src ? (
-                <span className="flex h-full w-full items-center justify-center text-xl sm:text-2xl">
-                  {emoji}
-                </span>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={src}
                   alt={`${alt} thumbnail ${index + 1}`}
-                  onError={() => markFailed(index)}
+                  onError={() => removeBrokenMedia(item, index)}
                   className="h-full w-full object-contain p-1"
                 />
               )}
@@ -582,30 +595,32 @@ export default function ProductGallery({
           {hasMedia && activeItem ? (
             <>
               {activeItem.type === "image" ? (
-                failed[active] || !activeSrc ? (
-                  <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">
-                    {emoji}
-                  </div>
-                ) : (
+                activeSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={activeSrc}
                     alt={alt}
                     onLoad={(event) => {
-                      saveImageSize(active, event.currentTarget);
+                      saveImageSize(activeKey, event.currentTarget);
                     }}
-                    onError={() => markFailed(active)}
+                    onError={() => removeBrokenMedia(activeItem, active)}
                     className="h-full w-full object-contain p-2 sm:p-3"
                   />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">
+                    {emoji}
+                  </div>
                 )
               ) : isEmbeddableVideo(activeSrc) ? (
-                <iframe
-                  src={withAutoplayParams(activeSrc)}
-                  title={`${alt} video`}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  className="h-full w-full border-0"
-                />
+                <div className="relative h-full w-full overflow-hidden bg-black">
+                  <iframe
+                    src={withAutoplayParams(activeSrc)}
+                    title={`${alt} video`}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    className="absolute left-1/2 top-1/2 h-full w-[178%] max-w-none -translate-x-1/2 -translate-y-1/2 border-0"
+                  />
+                </div>
               ) : isDirectVideo(activeSrc) ? (
                 <video
                   src={activeSrc}
@@ -614,6 +629,7 @@ export default function ProductGallery({
                   loop
                   playsInline
                   preload="metadata"
+                  onError={() => removeBrokenMedia(activeItem, active)}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -633,23 +649,20 @@ export default function ProductGallery({
             </div>
           )}
 
-          {activeItem?.type === "image" &&
-            zoomVisible &&
-            activeSrc &&
-            !failed[active] && (
-              <div
-                className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-white bg-no-repeat shadow-xl lg:block"
-                style={{
-                  backgroundImage: `url("${activeSrc}")`,
-                  backgroundSize: `${ZOOM_SCALE * 100}%`,
-                  backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                }}
-              >
-                <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs font-semibold text-white">
-                  Move mouse to zoom
-                </span>
-              </div>
-            )}
+          {activeItem?.type === "image" && zoomVisible && activeSrc && (
+            <div
+              className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-white bg-no-repeat shadow-xl lg:block"
+              style={{
+                backgroundImage: `url("${activeSrc}")`,
+                backgroundSize: `${ZOOM_SCALE * 100}%`,
+                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+              }}
+            >
+              <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs font-semibold text-white">
+                Move mouse to zoom
+              </span>
+            </div>
+          )}
 
           {badge && (
             <span className="absolute left-4 top-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-carbon shadow-sm">

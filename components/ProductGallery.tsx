@@ -30,6 +30,8 @@ interface ImageSize {
   height: number;
 }
 
+const ZOOM_SCALE = 2;
+
 function isPrivateFileUrl(src?: string) {
   if (!src) return false;
 
@@ -44,10 +46,8 @@ function getImageSrc(img: string) {
   if (!img) return "";
 
   const value = img.trim();
-
   if (!value) return "";
 
-  // Do not render private ERPNext files on public product pages.
   if (isPrivateFileUrl(value)) {
     return "";
   }
@@ -68,51 +68,61 @@ function getImageSrc(img: string) {
   return `/products/${value}`;
 }
 
-function isYoutubeUrl(src: string) {
-  return (
-    src.includes("youtube.com/embed/") ||
-    src.includes("youtube.com/watch") ||
-    src.includes("youtu.be/") ||
-    src.includes("youtube.com/shorts/")
-  );
-}
-
-function toYoutubeEmbedUrl(src: string) {
+function getYoutubeVideoId(src: string) {
   try {
-    const url = new URL(src);
-    let id = "";
+    const url = new URL(src.trim());
 
     if (url.hostname.includes("youtube.com")) {
       if (url.pathname === "/watch") {
-        id = url.searchParams.get("v") || "";
+        return url.searchParams.get("v") || "";
       }
 
       if (url.pathname.startsWith("/shorts/")) {
-        id = url.pathname.split("/")[2] || "";
+        return url.pathname.split("/")[2] || "";
       }
 
       if (url.pathname.startsWith("/embed/")) {
-        id = url.pathname.split("/")[2] || "";
+        return url.pathname.split("/")[2] || "";
+      }
+
+      if (url.pathname.startsWith("/live/")) {
+        return url.pathname.split("/")[2] || "";
       }
     }
 
-    if (url.hostname === "youtu.be") {
-      id = url.pathname.replace("/", "");
+    if (url.hostname === "youtu.be" || url.hostname.endsWith(".youtu.be")) {
+      return url.pathname.split("/").filter(Boolean)[0] || "";
     }
 
-    if (!id) {
-      return src;
-    }
-
-    const embed = new URL(`https://www.youtube.com/embed/${id}`);
-    embed.searchParams.set("rel", "0");
-    embed.searchParams.set("modestbranding", "1");
-    embed.searchParams.set("playsinline", "1");
-
-    return embed.toString();
+    return "";
   } catch {
+    return "";
+  }
+}
+
+function isYoutubeUrl(src: string) {
+  return Boolean(getYoutubeVideoId(src));
+}
+
+function toYoutubeEmbedUrl(src: string) {
+  const id = getYoutubeVideoId(src);
+
+  if (!id) {
     return src;
   }
+
+  const embed = new URL(`https://www.youtube.com/embed/${id}`);
+
+  embed.searchParams.set("autoplay", "1");
+  embed.searchParams.set("mute", "1");
+  embed.searchParams.set("muted", "1");
+  embed.searchParams.set("controls", "0");
+  embed.searchParams.set("playsinline", "1");
+  embed.searchParams.set("rel", "0");
+  embed.searchParams.set("loop", "1");
+  embed.searchParams.set("playlist", id);
+
+  return embed.toString();
 }
 
 function isVimeoUrl(src: string) {
@@ -124,12 +134,30 @@ function toVimeoEmbedUrl(src: string) {
     const url = new URL(src);
 
     if (url.hostname.includes("player.vimeo.com")) {
-      return src;
+      url.searchParams.set("autoplay", "1");
+      url.searchParams.set("muted", "1");
+      url.searchParams.set("background", "1");
+      url.searchParams.set("controls", "0");
+      url.searchParams.set("playsinline", "1");
+      return url.toString();
     }
 
     if (url.hostname.includes("vimeo.com")) {
       const id = url.pathname.split("/").filter(Boolean)[0];
-      return id ? `https://player.vimeo.com/video/${id}` : src;
+
+      if (!id) {
+        return src;
+      }
+
+      const embed = new URL(`https://player.vimeo.com/video/${id}`);
+
+      embed.searchParams.set("autoplay", "1");
+      embed.searchParams.set("muted", "1");
+      embed.searchParams.set("background", "1");
+      embed.searchParams.set("controls", "0");
+      embed.searchParams.set("playsinline", "1");
+
+      return embed.toString();
     }
 
     return src;
@@ -172,7 +200,6 @@ function isImageLikeUrl(src: string) {
     return false;
   }
 
-  // Do not show ERPNext private files in product gallery.
   if (isPrivateFileUrl(value)) {
     return false;
   }
@@ -191,7 +218,7 @@ function isImageLikeUrl(src: string) {
   );
 }
 
-function cleanMediaList(list: string[]) {
+function cleanMediaList(list: string[] = []) {
   return Array.from(
     new Set(
       list
@@ -202,25 +229,6 @@ function cleanMediaList(list: string[]) {
   );
 }
 
-function withAutoplayParams(src: string) {
-  try {
-    const url = new URL(src);
-
-    url.searchParams.set("autoplay", "1");
-    url.searchParams.set("mute", "1");
-    url.searchParams.set("muted", "1");
-    url.searchParams.set("playsinline", "1");
-
-    return url.toString();
-  } catch {
-    return (
-      src + (src.includes("?") ? "&" : "?") + "autoplay=1&mute=1&playsinline=1"
-    );
-  }
-}
-
-const ZOOM_SCALE = 2;
-
 export default function ProductGallery({
   images,
   videos = [],
@@ -229,22 +237,8 @@ export default function ProductGallery({
   badge,
 }: ProductGalleryProps) {
   const media: GalleryItem[] = useMemo(() => {
-    /*
-     * Reverse the image list.
-     *
-     * Example:
-     * Original: Image 1, Image 2, Image 3
-     * Gallery: Image 3, Image 2, Image 1
-     *
-     * Because active starts at index 0, Image 3 becomes:
-     * 1. The default main image.
-     * 2. The first thumbnail.
-     */
     const cleanImages = cleanMediaList(images).filter(isImageLikeUrl).reverse();
-
-    const cleanVideos = cleanMediaList(videos).filter((src) =>
-      isVideoLikeUrl(src),
-    );
+    const cleanVideos = cleanMediaList(videos).filter(isVideoLikeUrl);
 
     return [
       ...cleanImages.map((src) => ({
@@ -392,19 +386,13 @@ export default function ProductGallery({
     setZoomVisible(false);
   }
 
-  function renderThumbnails(isDesktop = false) {
+  function renderThumbnails() {
     if (total <= 1) {
       return null;
     }
 
     return (
-      <div
-        className={
-          isDesktop
-            ? "hidden lg:flex lg:w-24 lg:flex-col lg:gap-3"
-            : "mt-4 flex gap-3 overflow-x-auto pb-1 lg:hidden"
-        }
-      >
+      <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
         {media.map((item, index) => {
           const isActive = index === active;
           const src =
@@ -422,18 +410,18 @@ export default function ProductGallery({
               }}
               aria-label={`View ${item.type} ${index + 1}`}
               aria-current={isActive}
-              className={`relative aspect-square h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[70px] sm:w-[70px] lg:h-24 lg:w-24 ${
+              className={`relative aspect-square h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-ivory transition sm:h-[76px] sm:w-[76px] ${
                 isActive
                   ? "border-carbon ring-1 ring-carbon"
                   : "border-gold/25 hover:border-gold"
               }`}
             >
               {item.type === "video" ? (
-                <span className="flex h-full w-full items-center justify-center bg-carbon text-lg text-white">
+                <span className="flex h-full w-full items-center justify-center bg-carbon text-xl text-white">
                   ▶
                 </span>
               ) : failed[index] || !src ? (
-                <span className="flex h-full w-full items-center justify-center text-2xl">
+                <span className="flex h-full w-full items-center justify-center text-xl">
                   {emoji}
                 </span>
               ) : (
@@ -453,126 +441,126 @@ export default function ProductGallery({
   }
 
   return (
-    <div
-      className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)]"
+    <section
+      className="w-full"
       onKeyDown={onKeyDown}
+      tabIndex={0}
+      aria-label="Product media gallery"
     >
-      {renderThumbnails(true)}
-
-      <div className="min-w-0">
-        <div
-          ref={stageRef}
-          tabIndex={0}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className="group relative flex aspect-square items-center justify-center overflow-hidden rounded-[2rem] border border-gold/20 bg-ivory shadow-sm outline-none"
-        >
-          {hasMedia && activeItem ? (
-            <>
-              {activeItem.type === "image" ? (
-                failed[active] || !activeSrc ? (
-                  <div className="flex h-full w-full items-center justify-center text-7xl">
-                    {emoji}
-                  </div>
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={activeSrc}
-                    alt={alt}
-                    onLoad={(event) => {
-                      saveImageSize(active, event.currentTarget);
-                    }}
-                    onError={() => markFailed(active)}
-                    className="h-full w-full object-contain p-3"
-                  />
-                )
-              ) : isEmbeddableVideo(activeSrc) ? (
-                <iframe
-                  src={withAutoplayParams(activeSrc)}
-                  title={`${alt} video`}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  className="h-full w-full"
-                />
-              ) : isDirectVideo(activeSrc) ? (
-                <video
-                  src={activeSrc}
-                  controls
-                  autoPlay
-                  muted
-                  playsInline
-                  className="h-full w-full object-contain"
-                />
+      <div
+        ref={stageRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="group relative aspect-square overflow-hidden rounded-3xl border border-gold/20 bg-ivory shadow-sm outline-none"
+      >
+        {hasMedia && activeItem ? (
+          <>
+            {activeItem.type === "image" ? (
+              failed[active] || !activeSrc ? (
+                <div className="flex h-full w-full items-center justify-center text-6xl">
+                  {emoji}
+                </div>
               ) : (
-                <a
-                  href={activeSrc}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white"
-                >
-                  Open product video
-                </a>
-              )}
-            </>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-7xl">
-              {emoji}
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activeSrc}
+                  alt={alt}
+                  onLoad={(event) => {
+                    saveImageSize(active, event.currentTarget);
+                  }}
+                  onError={() => markFailed(active)}
+                  className="h-full w-full object-contain p-3"
+                />
+              )
+            ) : isEmbeddableVideo(activeSrc) ? (
+              <iframe
+                key={activeSrc}
+                src={activeSrc}
+                title={`${alt} product video`}
+                className="h-full w-full"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            ) : isDirectVideo(activeSrc) ? (
+              <video
+                key={activeSrc}
+                src={activeSrc}
+                className="h-full w-full object-contain"
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls={false}
+              />
+            ) : (
+              <a
+                href={activeSrc}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-full w-full items-center justify-center text-sm font-semibold text-carbon underline"
+              >
+                Open product video
+              </a>
+            )}
+          </>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-6xl">
+            {emoji}
+          </div>
+        )}
+
+        {activeItem?.type === "image" &&
+          zoomVisible &&
+          activeSrc &&
+          !failed[active] && (
+            <div
+              className="pointer-events-none absolute inset-0 z-20 hidden bg-white bg-no-repeat md:block"
+              style={{
+                backgroundImage: `url(${activeSrc})`,
+                backgroundSize: `${ZOOM_SCALE * 100}%`,
+                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+              }}
+            >
+              <span className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-carbon shadow">
+                Move mouse to zoom
+              </span>
             </div>
           )}
 
-          {activeItem?.type === "image" &&
-            zoomVisible &&
-            activeSrc &&
-            !failed[active] && (
-              <div
-                className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-white bg-no-repeat shadow-xl lg:block"
-                style={{
-                  backgroundImage: `url("${activeSrc}")`,
-                  backgroundSize: `${ZOOM_SCALE * 100}%`,
-                  backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                }}
-              >
-                <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs font-semibold text-white">
-                  Move mouse to zoom
-                </span>
-              </div>
-            )}
+        {badge && (
+          <span className="absolute left-4 top-4 z-30 rounded-full bg-carbon px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+            {badge}
+          </span>
+        )}
 
-          {badge && (
-            <span className="absolute left-4 top-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-carbon shadow-sm">
-              {badge}
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Previous media"
+              className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+            >
+              ←
+            </button>
+
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Next media"
+              className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+            >
+              →
+            </button>
+
+            <span className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-carbon shadow">
+              {active + 1} / {total}
             </span>
-          )}
-
-          {total > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={() => go(-1)}
-                aria-label="Previous media"
-                className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-              >
-                ←
-              </button>
-
-              <button
-                type="button"
-                onClick={() => go(1)}
-                aria-label="Next media"
-                className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white md:opacity-0 md:group-hover:opacity-100"
-              >
-                →
-              </button>
-
-              <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow-sm">
-                {active + 1} / {total}
-              </span>
-            </>
-          )}
-        </div>
-
-        {renderThumbnails(false)}
+          </>
+        )}
       </div>
-    </div>
+
+      {renderThumbnails()}
+    </section>
   );
 }

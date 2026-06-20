@@ -122,6 +122,11 @@ type ErpFileAttachment = {
   modified?: string;
 };
 
+type ErpAttachmentMedia = {
+  images: string[];
+  videos: string[];
+};
+
 export type ErpProduct = Product & {
   itemCode: string;
   itemGroup: string;
@@ -996,12 +1001,13 @@ function extractGalleryImages(
 async function fetchErpItemAttachments(
   itemName: string,
   itemCode?: string,
-): Promise<string[]> {
+): Promise<ErpAttachmentMedia> {
   const names = Array.from(
     new Set([itemName, itemCode].filter(Boolean) as string[]),
   );
 
-  const urls: string[] = [];
+  const images: string[] = [];
+  const videos: string[] = [];
 
   const looksLikeImage = (v: unknown) => {
     if (typeof v !== "string") return false;
@@ -1009,9 +1015,7 @@ async function fetchErpItemAttachments(
     const value = v.trim();
     if (!value) return false;
 
-    // Do not allow private ERPNext files.
     if (isPrivateFileUrl(value)) return false;
-
     if (looksLikeVideoUrl(value)) return false;
 
     const cleanPath = value.split("?")[0].toLowerCase();
@@ -1023,13 +1027,25 @@ async function fetchErpItemAttachments(
     );
   };
 
-  const push = (value?: string) => {
+  const pushImage = (value?: string) => {
     if (!looksLikeImage(value)) return;
 
     const built = buildImageUrl(value)[0];
 
-    if (built && !urls.includes(built)) {
-      urls.push(built);
+    if (built && !images.includes(built)) {
+      images.push(built);
+    }
+  };
+
+  const pushVideo = (value?: string) => {
+    if (!looksLikeVideoUrl(value)) return;
+
+    const built = buildVideoUrl(value).map(toYoutubeEmbedUrl);
+
+    for (const url of built) {
+      if (url && !videos.includes(url)) {
+        videos.push(url);
+      }
     }
   };
 
@@ -1062,7 +1078,13 @@ async function fetchErpItemAttachments(
 
       for (const file of json.data || []) {
         if (isPrivateFileRecord(file as Record<string, unknown>)) continue;
-        push(file.file_url);
+
+        // YouTube links attached as File URL should go into product.videos.
+        pushVideo(file.file_url);
+        pushVideo(file.file_name);
+
+        // Normal ERPNext uploaded files should remain as product.images.
+        pushImage(file.file_url);
       }
     } catch {
       // Some ERPNext users may not have File API permission.
@@ -1070,7 +1092,10 @@ async function fetchErpItemAttachments(
     }
   }
 
-  return urls;
+  return {
+    images,
+    videos,
+  };
 }
 
 function mergeImageLists(...lists: string[][]): string[] {
@@ -1080,9 +1105,27 @@ function mergeImageLists(...lists: string[][]): string[] {
     for (const image of list) {
       if (!image) continue;
       if (isPrivateFileUrl(image)) continue;
+      if (looksLikeVideoUrl(image)) continue;
 
       if (!merged.includes(image)) {
         merged.push(image);
+      }
+    }
+  }
+
+  return merged;
+}
+
+function mergeVideoLists(...lists: string[][]): string[] {
+  const merged: string[] = [];
+
+  for (const list of lists) {
+    for (const video of list) {
+      if (!video) continue;
+      if (isPrivateFileUrl(video)) continue;
+
+      if (!merged.includes(video)) {
+        merged.push(video);
       }
     }
   }
@@ -1130,51 +1173,82 @@ function extractGalleryVideos(doc: Record<string, unknown> | null): string[] {
   const rowOrder = (row: Record<string, unknown>, fallback: number): number => {
     if (ERPNEXT_VIDEO_ORDER_FIELD) {
       const n = toNum(row[ERPNEXT_VIDEO_ORDER_FIELD]);
-
       if (n !== null) return n;
     }
 
     for (const key of Object.keys(row)) {
       if (/^(custom_)?(order|sort_order|sequence|position)$/i.test(key)) {
         const n = toNum(row[key]);
-
         if (n !== null) return n;
       }
     }
 
     const idx = toNum(row.idx);
-
     return idx !== null ? idx : fallback;
   };
 
-  // Direct video field on Item.
+  // 1. Configured direct field from .env
   push(doc[ERPNEXT_VIDEO_FIELD]);
 
+  // 2. Common direct Item fieldnames
+  const directVideoFields = [
+    "custom_video_link",
+    "custom_video_url",
+    "custom_youtube_link",
+    "custom_youtube_url",
+    "custom_product_video",
+    "custom_product_video_link",
+    "video",
+    "video_url",
+    "video_link",
+    "youtube",
+    "youtube_url",
+    "youtube_link",
+  ];
+
+  for (const field of directVideoFields) {
+    push(doc[field]);
+  }
+
+  // 3. Scan all top-level string fields on Item
+  for (const value of Object.values(doc)) {
+    if (typeof value === "string") {
+      push(value);
+    }
+  }
+
+  // 4. Scan configured child table first, then all other child tables
   const tables: Record<string, unknown>[][] = [];
 
   const preferred = ERPNEXT_VIDEO_TABLE_FIELD
     ? doc[ERPNEXT_VIDEO_TABLE_FIELD]
     : null;
 
-  if (Array.isArray(preferred)) {
+  if (
+    Array.isArray(preferred) &&
+    preferred.length &&
+    typeof preferred[0] === "object"
+  ) {
     tables.push(preferred as Record<string, unknown>[]);
-  } else {
-    for (const value of Object.values(doc)) {
-      if (
-        Array.isArray(value) &&
-        value.length &&
-        typeof value[0] === "object"
-      ) {
-        tables.push(value as Record<string, unknown>[]);
+  }
+
+  for (const value of Object.values(doc)) {
+    if (Array.isArray(value) && value.length && typeof value[0] === "object") {
+      const rows = value as Record<string, unknown>[];
+
+      if (!tables.includes(rows)) {
+        tables.push(rows);
       }
     }
   }
 
   for (const rows of tables) {
-    const before = urls.length;
-
     const ordered = rows
-      .map((row, i) => ({ row, i, order: rowOrder(row, i) }))
+      .map((row, i) => ({
+        row,
+        i,
+        order: rowOrder(row, i),
+      }))
       .sort((a, b) => a.order - b.order || a.i - b.i);
 
     for (const { row } of ordered) {
@@ -1187,15 +1261,31 @@ function extractGalleryVideos(doc: Record<string, unknown> | null): string[] {
         continue;
       }
 
-      for (const v of Object.values(row)) {
-        if (looksLikeVideoUrl(v)) {
-          push(v);
+      const commonRowFields = [
+        "video",
+        "video_url",
+        "video_link",
+        "youtube",
+        "youtube_url",
+        "youtube_link",
+        "url",
+        "link",
+      ];
+
+      for (const field of commonRowFields) {
+        if (looksLikeVideoUrl(row[field])) {
+          push(row[field]);
+          break;
+        }
+      }
+
+      for (const value of Object.values(row)) {
+        if (looksLikeVideoUrl(value)) {
+          push(value);
           break;
         }
       }
     }
-
-    if (urls.length > before) break;
   }
 
   return urls;
@@ -1233,14 +1323,17 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
         const allImages = mergeImageLists(
           product.images || [],
           gallery,
-          attachments,
+          attachments.images,
         );
 
         if (allImages.length > 0) {
           product.images = allImages;
         }
 
-        const videos = extractGalleryVideos(doc);
+        const videos = mergeVideoLists(
+          extractGalleryVideos(doc),
+          attachments.videos,
+        );
 
         if (videos.length > 0) {
           product.videos = videos;
@@ -1328,13 +1421,17 @@ export async function fetchErpProductBySlug(
     product.itemCode,
   );
 
-  const allImages = mergeImageLists(product.images || [], gallery, attachments);
+  const allImages = mergeImageLists(
+    product.images || [],
+    gallery,
+    attachments.images,
+  );
 
   if (allImages.length > 0) {
     product.images = allImages;
   }
 
-  const videos = extractGalleryVideos(doc);
+  const videos = mergeVideoLists(extractGalleryVideos(doc), attachments.videos);
 
   if (videos.length > 0) {
     product.videos = videos;

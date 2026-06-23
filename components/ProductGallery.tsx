@@ -69,9 +69,7 @@ function isPrivateFileUrl(src?: string) {
 
   const value = src.trim().toLowerCase();
 
-  return (
-    value.startsWith("/private/files/") || value.includes("/private/files/")
-  );
+  return value.startsWith("/private/files/") || value.includes("/private/files/");
 }
 
 function getPublicFileSrc(src: string) {
@@ -91,7 +89,6 @@ function getPublicFileSrc(src: string) {
 
   if (value.startsWith("/files/")) {
     const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-
     return erpUrl ? `${erpUrl}${value}` : value;
   }
 
@@ -246,9 +243,7 @@ function withAutoplayParams(src: string) {
 }
 
 function isEmbeddableVideo(src: string) {
-  return (
-    src.includes("youtube.com/embed/") || src.includes("player.vimeo.com/video/")
-  );
+  return src.includes("youtube.com/embed/") || src.includes("player.vimeo.com/video/");
 }
 
 function isDirectVideo(src: string) {
@@ -256,12 +251,7 @@ function isDirectVideo(src: string) {
 }
 
 function isVideoLikeUrl(src: string) {
-  return (
-    isYoutubeUrl(src) ||
-    isVimeoUrl(src) ||
-    isDirectVideo(src) ||
-    hasVideoExtension(src)
-  );
+  return isYoutubeUrl(src) || isVimeoUrl(src) || isDirectVideo(src) || hasVideoExtension(src);
 }
 
 function isImageLikeUrl(src: string) {
@@ -270,7 +260,6 @@ function isImageLikeUrl(src: string) {
   if (!value) return false;
   if (isPrivateFileUrl(value)) return false;
   if (isVideoLikeUrl(value)) return false;
-
   if (hasImageExtension(value)) return true;
 
   if (value.startsWith("/files/") || value.includes("/files/")) {
@@ -297,7 +286,6 @@ function cleanMediaList(list: string[] = []) {
 
 function canonicalMediaKey(src: string) {
   const trimmed = src.trim();
-
   const youtubeId = getYoutubeVideoId(trimmed);
 
   if (youtubeId) {
@@ -343,20 +331,35 @@ export default function ProductGallery({
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   const allMedia: GalleryItem[] = useMemo(() => {
-    const cleanVideos = cleanMediaList(videos).filter(isVideoLikeUrl);
+    /*
+     * IMPORTANT:
+     * Images now come from ERPNext already sorted by File.custom_photo_order.
+     *
+     * photo order 1 = first image = main product image
+     * photo order 2 = second gallery image
+     * photo order 3 = third gallery image
+     *
+     * So do NOT reverse the image list here.
+     */
+
+    const rawImages = cleanMediaList(images);
+    const videosFoundInsideImages = rawImages.filter(isVideoLikeUrl);
+
+    const cleanVideos = cleanMediaList([...videosFoundInsideImages, ...videos]).filter(
+      isVideoLikeUrl,
+    );
+
     const videoKeys = new Set(cleanVideos.map(canonicalMediaKey));
 
-    const cleanImages = cleanMediaList(images)
+    const cleanImages = rawImages
       .filter((src) => !videoKeys.has(canonicalMediaKey(src)))
-      .filter(isImageLikeUrl)
-      .reverse();
+      .filter(isImageLikeUrl);
 
     return [
       ...cleanImages.map((src) => ({
         type: "image" as const,
         src,
       })),
-
       ...cleanVideos.map((src) => ({
         type: "video" as const,
         src,
@@ -370,6 +373,7 @@ export default function ProductGallery({
 
   const total = media.length;
   const hasMedia = total > 0;
+
   const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
   const activeKey = activeItem ? canonicalMediaKey(activeItem.src) : "";
 
@@ -523,19 +527,15 @@ export default function ProductGallery({
       return null;
     }
 
+    const wrapperClass = isDesktop
+      ? "hidden max-h-[560px] grid-cols-1 gap-2 overflow-y-auto pr-1 xl:grid"
+      : "mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6 xl:hidden";
+
     return (
-      <div
-        className={
-          isDesktop
-            ? "hidden xl:grid xl:w-20 xl:grid-cols-1 xl:content-start xl:gap-3 2xl:w-24"
-            : "mt-3 grid grid-cols-4 gap-2 sm:mt-4 sm:grid-cols-6 sm:gap-3 md:grid-cols-8 xl:hidden"
-        }
-      >
+      <div className={wrapperClass}>
         {media.map((item, index) => {
           const isActive = index === active;
-
-          const src =
-            item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
+          const src = item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
 
           if (!src) {
             return null;
@@ -543,7 +543,7 @@ export default function ProductGallery({
 
           return (
             <button
-              key={`${item.type}-${item.src}-${index}`}
+              key={`${item.type}-${canonicalMediaKey(item.src)}-${index}`}
               type="button"
               onClick={() => {
                 setZoomVisible(false);

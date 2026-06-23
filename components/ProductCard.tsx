@@ -5,12 +5,19 @@ import Link from "next/link";
 
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
-
 import AddToCartButton from "./AddToCartButton";
 import WishlistButton from "./WishlistButton";
 
 interface ProductCardProps {
   product: Product;
+}
+
+function isPrivateFileUrl(src?: string) {
+  if (!src) return false;
+
+  const value = src.trim().toLowerCase();
+
+  return value.startsWith("/private/files/") || value.includes("/private/files/");
 }
 
 function getImageSrc(img: string) {
@@ -20,19 +27,16 @@ function getImageSrc(img: string) {
 
   if (!value) return "";
 
+  if (isPrivateFileUrl(value)) {
+    return "";
+  }
+
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
 
-  if (
-    value.startsWith("/files/") ||
-    value.startsWith("/private/files/")
-  ) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(
-      /\/$/,
-      "",
-    );
-
+  if (value.startsWith("/files/")) {
+    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
     return erpUrl ? `${erpUrl}${value}` : value;
   }
 
@@ -43,50 +47,56 @@ function getImageSrc(img: string) {
   return `/products/${value}`;
 }
 
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function getCleanPath(src: string) {
+  return safeDecode(src.trim()).split("?")[0].split("#")[0].toLowerCase();
+}
+
 function isYoutubeUrl(src: string) {
+  const value = src.toLowerCase();
+
   return (
-    src.includes("youtube.com/embed/") ||
-    src.includes("youtube.com/watch") ||
-    src.includes("youtube.com/shorts/") ||
-    src.includes("youtu.be/")
+    value.includes("youtube.com/embed/") ||
+    value.includes("youtube.com/watch") ||
+    value.includes("youtube.com/shorts/") ||
+    value.includes("youtu.be/")
   );
 }
 
 function isVimeoUrl(src: string) {
-  return src.includes("vimeo.com/");
+  return src.toLowerCase().includes("vimeo.com/");
 }
 
 function isDirectVideo(src: string) {
-  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(
-    src.split("?")[0],
-  );
+  const cleanPath = getCleanPath(src);
+
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(cleanPath);
 }
 
 function isVideoLikeUrl(src: string) {
-  return (
-    isYoutubeUrl(src) ||
-    isVimeoUrl(src) ||
-    isDirectVideo(src)
-  );
+  return isYoutubeUrl(src) || isVimeoUrl(src) || isDirectVideo(src);
 }
 
 function isImageLikeUrl(src: string) {
   const value = src.trim();
 
-  if (!value) {
-    return false;
-  }
+  if (!value) return false;
+  if (isPrivateFileUrl(value)) return false;
+  if (isVideoLikeUrl(value)) return false;
 
-  if (isVideoLikeUrl(value)) {
-    return false;
-  }
-
-  const cleanPath = value.split("?")[0].toLowerCase();
+  const cleanPath = getCleanPath(value);
 
   return (
-    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(cleanPath) ||
+    /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
     value.startsWith("/files/") ||
-    value.startsWith("/private/files/") ||
+    value.includes("/files/") ||
     value.startsWith("/") ||
     !value.startsWith("http")
   );
@@ -94,46 +104,35 @@ function isImageLikeUrl(src: string) {
 
 function getMainProductImage(images: string[] | undefined) {
   /*
-   * ProductGallery does the following:
+   * Product images now arrive from ERPNext sorted by File.custom_photo_order.
    *
-   * 1. Removes empty image paths.
-   * 2. Removes duplicate images.
-   * 3. Removes videos from the image list.
-   * 4. Reverses the image order.
+   * photo order 1 = main product image
+   * photo order 2 = second gallery image
+   * photo order 3 = third gallery image
    *
-   * Therefore, the last valid ERPNext image becomes the
-   * default main image in the product gallery.
-   *
-   * Product cards use the same logic here.
+   * So the product card should use the FIRST valid image.
+   * Do NOT reverse the list here.
    */
+
   const cleanImages = Array.from(
     new Set(
       (images ?? [])
         .map((image) => image?.trim())
         .filter((image): image is string => Boolean(image)),
     ),
-  )
-    .filter(isImageLikeUrl)
-    .reverse();
+  ).filter(isImageLikeUrl);
 
   return cleanImages[0] ?? "";
 }
 
-export default function ProductCard({
-  product,
-}: ProductCardProps) {
+export default function ProductCard({ product }: ProductCardProps) {
   const [failed, setFailed] = useState(false);
 
   const discount = discountPercent(product);
-
-  const isSaleCard =
-    product.badge === "SALE" || product.onSale === true;
+  const isSaleCard = product.badge === "SALE" || product.onSale === true;
 
   const badge =
-    product.badge ??
-    (!isSaleCard && discount > 0
-      ? `${discount}% OFF`
-      : undefined);
+    product.badge ?? (!isSaleCard && discount > 0 ? `${discount}% OFF` : undefined);
 
   const mainImage = getMainProductImage(product.images);
   const src = mainImage ? getImageSrc(mainImage) : "";
@@ -148,6 +147,7 @@ export default function ProductCard({
           className="flex h-full w-full items-center justify-center"
         >
           {showImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={src}
               alt={product.name}
@@ -174,10 +174,7 @@ export default function ProductCard({
       </div>
 
       <div className="border-t border-carbon/5 bg-white p-4 sm:p-5">
-        <Link
-          href={`/products/${product.slug}`}
-          className="block"
-        >
+        <Link href={`/products/${product.slug}`} className="block">
           <h3 className="line-clamp-2 min-h-[42px] text-[15px] font-semibold leading-snug text-[#85172b] transition-colors group-hover:text-carbon">
             {product.name}
           </h3>

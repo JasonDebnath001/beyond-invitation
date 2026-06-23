@@ -68,6 +68,9 @@ const ERPNEXT_IMAGE_ROW_FIELD = process.env.ERPNEXT_IMAGE_ROW_FIELD ?? "image";
 
 const ERPNEXT_IMAGE_ORDER_FIELD = process.env.ERPNEXT_IMAGE_ORDER_FIELD ?? "";
 
+const ERPNEXT_FILE_PHOTO_ORDER_FIELD =
+  cleanEnv(process.env.ERPNEXT_FILE_PHOTO_ORDER_FIELD) || "custom_photo_order";
+
 // --- Multi-video gallery: direct Item field or child table on Item ----------
 // IMPORTANT:
 // Do NOT put this field in the Item get_list fields array.
@@ -120,6 +123,9 @@ type ErpFileAttachment = {
   is_private?: 0 | 1 | boolean | string;
   creation?: string;
   modified?: string;
+
+  // Allows custom File fields like custom_photo_order / photo_order
+  [key: string]: unknown;
 };
 
 type ErpAttachmentMedia = {
@@ -1014,7 +1020,6 @@ async function fetchErpItemAttachments(
 
     const value = v.trim();
     if (!value) return false;
-
     if (isPrivateFileUrl(value)) return false;
     if (looksLikeVideoUrl(value)) return false;
 
@@ -1049,22 +1054,106 @@ async function fetchErpItemAttachments(
     }
   };
 
-  for (const name of names) {
+  const toNum = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (
+      typeof value === "string" &&
+      value.trim() !== "" &&
+      Number.isFinite(Number(value))
+    ) {
+      return Number(value);
+    }
+
+    return null;
+  };
+
+  const getFilePhotoOrder = (file: ErpFileAttachment): number | null => {
+    // First use configured env field
+    const configuredOrder = toNum(file[ERPNEXT_FILE_PHOTO_ORDER_FIELD]);
+
+    if (configuredOrder !== null) {
+      return configuredOrder;
+    }
+
+    // Then try likely ERPNext custom fieldnames
+    const fallbackFields = [
+      "custom_photo_order",
+      "photo_order",
+      "custom_photo_order_",
+      "order",
+      "sort_order",
+      "sequence",
+      "position",
+    ];
+
+    for (const field of fallbackFields) {
+      const value = toNum(file[field]);
+
+      if (value !== null) {
+        return value;
+      }
+    }
+
+    return null;
+  };
+
+  const baseFileFields = [
+    "name",
+    "file_name",
+    "file_url",
+    "attached_to_doctype",
+    "attached_to_name",
+    "is_folder",
+    "is_private",
+    "creation",
+    "modified",
+  ];
+
+  const photoOrderFieldCandidates = Array.from(
+    new Set(
+      [
+        ERPNEXT_FILE_PHOTO_ORDER_FIELD,
+        "custom_photo_order",
+        "photo_order",
+      ].filter(Boolean),
+    ),
+  );
+
+  const fetchFilesForItem = async (name: string): Promise<ErpFileAttachment[]> => {
+    // Try with the custom photo order field first.
+    // If the fieldname is wrong, ERPNext may reject the query, so we fall back safely.
+    for (const photoOrderField of photoOrderFieldCandidates) {
+      try {
+        const json = await erpFetch<ErpNextListResponse<ErpFileAttachment>>(
+          "/api/resource/File",
+          {
+            fields: JSON.stringify([...baseFileFields, photoOrderField]),
+            filters: JSON.stringify([
+              ["File", "attached_to_doctype", "=", "Item"],
+              ["File", "attached_to_name", "=", name],
+              ["File", "is_folder", "=", 0],
+              ["File", "is_private", "=", 0],
+            ]),
+            limit_page_length: "100",
+            order_by: "creation asc",
+          },
+        );
+
+        return json.data || [];
+      } catch {
+        // Try next possible fieldname.
+      }
+    }
+
+    // Final fallback: fetch files without photo order field.
     try {
       const json = await erpFetch<ErpNextListResponse<ErpFileAttachment>>(
         "/api/resource/File",
         {
-          fields: JSON.stringify([
-            "name",
-            "file_name",
-            "file_url",
-            "attached_to_doctype",
-            "attached_to_name",
-            "is_folder",
-            "is_private",
-            "creation",
-            "modified",
-          ]),
+          fields: JSON.stringify(baseFileFields),
           filters: JSON.stringify([
             ["File", "attached_to_doctype", "=", "Item"],
             ["File", "attached_to_name", "=", name],
@@ -1076,20 +1165,54 @@ async function fetchErpItemAttachments(
         },
       );
 
-      for (const file of json.data || []) {
-        if (isPrivateFileRecord(file as Record<string, unknown>)) continue;
-
-        // YouTube links attached as File URL should go into product.videos.
-        pushVideo(file.file_url);
-        pushVideo(file.file_name);
-
-        // Normal ERPNext uploaded files should remain as product.images.
-        pushImage(file.file_url);
-      }
+      return json.data || [];
     } catch {
-      // Some ERPNext users may not have File API permission.
-      // In that case, the child table / item image fallback still works.
+      return [];
     }
+  };
+
+  const allFiles: ErpFileAttachment[] = [];
+  const seenFiles = new Set<string>();
+
+  for (const name of names) {
+    const files = await fetchFilesForItem(name);
+
+    for (const file of files) {
+      if (isPrivateFileRecord(file as Record<string, unknown>)) continue;
+
+      const key =
+        file.name ||
+        file.file_url ||
+        file.file_name ||
+        `${file.attached_to_name}-${file.creation}`;
+
+      if (!key || seenFiles.has(key)) continue;
+
+      seenFiles.add(key);
+      allFiles.push(file);
+    }
+  }
+
+  const orderedFiles = allFiles
+    .map((file, index) => ({
+      file,
+      index,
+      photoOrder: getFilePhotoOrder(file),
+    }))
+    .sort((a, b) => {
+      const aOrder = a.photoOrder ?? Number.MAX_SAFE_INTEGER;
+      const bOrder = b.photoOrder ?? Number.MAX_SAFE_INTEGER;
+
+      return aOrder - bOrder || a.index - b.index;
+    });
+
+  for (const { file } of orderedFiles) {
+    // YouTube links attached as File URL should go into product.videos.
+    pushVideo(file.file_url);
+    pushVideo(file.file_name);
+
+    // Normal ERPNext uploaded files should remain as product.images.
+    pushImage(file.file_url);
   }
 
   return {
@@ -1320,11 +1443,11 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
           product.itemCode,
         );
 
-        const allImages = mergeImageLists(
-          product.images || [],
-          gallery,
-          attachments.images,
-        );
+const allImages = mergeImageLists(
+  attachments.images,
+  gallery,
+  product.images || [],
+);
 
         if (allImages.length > 0) {
           product.images = allImages;
@@ -1421,11 +1544,11 @@ export async function fetchErpProductBySlug(
     product.itemCode,
   );
 
-  const allImages = mergeImageLists(
-    product.images || [],
-    gallery,
-    attachments.images,
-  );
+const allImages = mergeImageLists(
+  attachments.images,
+  gallery,
+  product.images || [],
+);
 
   if (allImages.length > 0) {
     product.images = allImages;

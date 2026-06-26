@@ -26,6 +26,11 @@ interface ZoomPosition {
   y: number;
 }
 
+interface ImageSize {
+  width: number;
+  height: number;
+}
+
 const ZOOM_SCALE = 2;
 
 const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i;
@@ -324,6 +329,8 @@ export default function ProductGallery({
     y: 50,
   });
 
+  const [imageSizes, setImageSizes] = useState<Record<string, ImageSize>>({});
+
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   const allMedia: GalleryItem[] = useMemo(() => {
@@ -369,6 +376,7 @@ export default function ProductGallery({
 
   const total = media.length;
   const hasMedia = total > 0;
+
   const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
   const activeKey = activeItem ? canonicalMediaKey(activeItem.src) : "";
 
@@ -438,6 +446,18 @@ export default function ProductGallery({
     }
   }
 
+  function saveImageSize(key: string, image: HTMLImageElement) {
+    if (!key) return;
+
+    setImageSizes((current) => ({
+      ...current,
+      [key]: {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      },
+    }));
+  }
+
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
     if (activeItem?.type !== "image") {
       setZoomVisible(false);
@@ -445,16 +465,55 @@ export default function ProductGallery({
     }
 
     const stage = stageRef.current;
+    const imageSize = imageSizes[activeKey];
 
-    if (!stage || !activeSrc) {
+    if (!stage || !imageSize || !activeSrc) {
       setZoomVisible(false);
       return;
     }
 
     const rect = stage.getBoundingClientRect();
 
-    const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
-    const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
+
+    const imageAspect = imageSize.width / imageSize.height;
+    const containerAspect = containerWidth / containerHeight;
+
+    let renderedWidth = containerWidth;
+    let renderedHeight = containerHeight;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (imageAspect > containerAspect) {
+      renderedWidth = containerWidth;
+      renderedHeight = containerWidth / imageAspect;
+      offsetY = (containerHeight - renderedHeight) / 2;
+    } else {
+      renderedHeight = containerHeight;
+      renderedWidth = containerHeight * imageAspect;
+      offsetX = (containerWidth - renderedWidth) / 2;
+    }
+
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    const imageX = mouseX - offsetX;
+    const imageY = mouseY - offsetY;
+
+    const isInsideImage =
+      imageX >= 0 &&
+      imageX <= renderedWidth &&
+      imageY >= 0 &&
+      imageY <= renderedHeight;
+
+    if (!isInsideImage) {
+      setZoomVisible(false);
+      return;
+    }
+
+    const xPercent = (imageX / renderedWidth) * 100;
+    const yPercent = (imageY / renderedHeight) * 100;
 
     setZoomPosition({
       x: Math.max(0, Math.min(100, xPercent)),
@@ -546,8 +605,11 @@ export default function ProductGallery({
                   <img
                     src={activeSrc}
                     alt={alt}
+                    onLoad={(event) => {
+                      saveImageSize(activeKey, event.currentTarget);
+                    }}
                     onError={() => removeBrokenMedia(activeItem, active)}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-0"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">

@@ -26,11 +26,6 @@ interface ZoomPosition {
   y: number;
 }
 
-interface ImageSize {
-  width: number;
-  height: number;
-}
-
 const ZOOM_SCALE = 2;
 
 const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i;
@@ -60,7 +55,6 @@ function hasVideoExtension(src: string) {
   }
 
   const decoded = safeDecode(src.trim()).toLowerCase();
-
   return /\.(mp4|webm|ogg|mov|m4v)(?:$|[?#&/])/i.test(decoded);
 }
 
@@ -318,15 +312,17 @@ export default function ProductGallery({
   badge,
 }: ProductGalleryProps) {
   const [active, setActive] = useState(0);
+
   const [failedMediaKeys, setFailedMediaKeys] = useState<Set<string>>(
     () => new Set(),
   );
+
   const [zoomVisible, setZoomVisible] = useState(false);
+
   const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
     x: 50,
     y: 50,
   });
-  const [imageSizes, setImageSizes] = useState<Record<string, ImageSize>>({});
 
   const stageRef = useRef<HTMLDivElement | null>(null);
 
@@ -341,8 +337,8 @@ export default function ProductGallery({
      *
      * So do NOT reverse the image list here.
      */
-
     const rawImages = cleanMediaList(images);
+
     const videosFoundInsideImages = rawImages.filter(isVideoLikeUrl);
 
     const cleanVideos = cleanMediaList([...videosFoundInsideImages, ...videos]).filter(
@@ -373,7 +369,6 @@ export default function ProductGallery({
 
   const total = media.length;
   const hasMedia = total > 0;
-
   const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
   const activeKey = activeItem ? canonicalMediaKey(activeItem.src) : "";
 
@@ -443,16 +438,6 @@ export default function ProductGallery({
     }
   }
 
-  function saveImageSize(key: string, image: HTMLImageElement) {
-    setImageSizes((current) => ({
-      ...current,
-      [key]: {
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-      },
-    }));
-  }
-
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
     if (activeItem?.type !== "image") {
       setZoomVisible(false);
@@ -460,55 +445,16 @@ export default function ProductGallery({
     }
 
     const stage = stageRef.current;
-    const imageSize = imageSizes[activeKey];
 
-    if (!stage || !imageSize || !activeSrc) {
+    if (!stage || !activeSrc) {
       setZoomVisible(false);
       return;
     }
 
     const rect = stage.getBoundingClientRect();
 
-    const containerWidth = rect.width;
-    const containerHeight = rect.height;
-
-    const imageAspect = imageSize.width / imageSize.height;
-    const containerAspect = containerWidth / containerHeight;
-
-    let renderedWidth = containerWidth;
-    let renderedHeight = containerHeight;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    if (imageAspect > containerAspect) {
-      renderedWidth = containerWidth;
-      renderedHeight = containerWidth / imageAspect;
-      offsetY = (containerHeight - renderedHeight) / 2;
-    } else {
-      renderedHeight = containerHeight;
-      renderedWidth = containerHeight * imageAspect;
-      offsetX = (containerWidth - renderedWidth) / 2;
-    }
-
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-
-    const imageX = mouseX - offsetX;
-    const imageY = mouseY - offsetY;
-
-    const isInsideImage =
-      imageX >= 0 &&
-      imageX <= renderedWidth &&
-      imageY >= 0 &&
-      imageY <= renderedHeight;
-
-    if (!isInsideImage) {
-      setZoomVisible(false);
-      return;
-    }
-
-    const xPercent = (imageX / renderedWidth) * 100;
-    const yPercent = (imageY / renderedHeight) * 100;
+    const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
+    const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
 
     setZoomPosition({
       x: Math.max(0, Math.min(100, xPercent)),
@@ -528,7 +474,7 @@ export default function ProductGallery({
     }
 
     const wrapperClass = isDesktop
-      ? "hidden max-h-[560px] grid-cols-1 gap-2 overflow-y-auto pr-1 xl:grid"
+      ? "hidden max-h-[640px] grid-cols-1 gap-2 overflow-y-auto pr-1 xl:grid"
       : "mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6 xl:hidden";
 
     return (
@@ -590,7 +536,7 @@ export default function ProductGallery({
           tabIndex={0}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className="group relative flex aspect-square min-h-[280px] items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-ivory shadow-sm outline-none sm:min-h-[420px] sm:rounded-[2rem] xl:min-h-0"
+          className="group relative flex aspect-[4/5] min-h-[360px] items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-ivory shadow-sm outline-none sm:min-h-[560px] sm:rounded-[2rem] xl:min-h-0"
         >
           {hasMedia && activeItem ? (
             <>
@@ -600,11 +546,8 @@ export default function ProductGallery({
                   <img
                     src={activeSrc}
                     alt={alt}
-                    onLoad={(event) => {
-                      saveImageSize(activeKey, event.currentTarget);
-                    }}
                     onError={() => removeBrokenMedia(activeItem, active)}
-                    className="h-full w-full object-contain p-2 sm:p-3"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">

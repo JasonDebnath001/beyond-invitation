@@ -317,18 +317,14 @@ export default function ProductGallery({
   badge,
 }: ProductGalleryProps) {
   const [active, setActive] = useState(0);
-
   const [failedMediaKeys, setFailedMediaKeys] = useState<Set<string>>(
     () => new Set(),
   );
-
   const [zoomVisible, setZoomVisible] = useState(false);
-
   const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
     x: 50,
     y: 50,
   });
-
   const [imageSizes, setImageSizes] = useState<Record<string, ImageSize>>({});
 
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -345,7 +341,6 @@ export default function ProductGallery({
      * So do NOT reverse the image list here.
      */
     const rawImages = cleanMediaList(images);
-
     const videosFoundInsideImages = rawImages.filter(isVideoLikeUrl);
 
     const cleanVideos = cleanMediaList([...videosFoundInsideImages, ...videos]).filter(
@@ -533,8 +528,8 @@ export default function ProductGallery({
     }
 
     const wrapperClass = isDesktop
-      ? "hidden max-h-[640px] grid-cols-1 gap-2 overflow-y-auto pr-1 xl:grid"
-      : "mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6 xl:hidden";
+      ? "hidden grid-cols-1 content-start gap-4 xl:grid"
+      : "mt-4 grid grid-cols-5 gap-3 sm:grid-cols-6 sm:gap-4 xl:hidden";
 
     return (
       <div className={wrapperClass}>
@@ -572,7 +567,7 @@ export default function ProductGallery({
                   src={src}
                   alt={`${alt} thumbnail ${index + 1}`}
                   onError={() => removeBrokenMedia(item, index)}
-                  className="h-full w-full object-contain p-1"
+                  className="h-full w-full object-contain p-2"
                 />
               )}
             </button>
@@ -584,7 +579,7 @@ export default function ProductGallery({
 
   return (
     <div
-      className="grid min-w-0 gap-3 sm:gap-4 xl:grid-cols-[80px_minmax(0,1fr)] 2xl:grid-cols-[96px_minmax(0,1fr)]"
+      className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[80px_minmax(0,1fr)] 2xl:grid-cols-[96px_minmax(0,1fr)]"
       onKeyDown={onKeyDown}
     >
       {renderThumbnails(true)}

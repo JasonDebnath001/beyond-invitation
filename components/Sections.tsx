@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { ProductSection } from "@/components/ProductGrid";
 import type { Category, Product } from "@/types";
+import CatalogueAnimatedCard from "@/components/CatalogueAnimatedCard";
 
 /* ------------------------------------------------------------------ */
 /* Shared building blocks */
@@ -450,36 +451,36 @@ export function Catalogue() {
       price: "MRP below Rs. 50",
       image: "/collections/cat1.png",
       href: "/collections/affordable",
-      className: "lg:col-span-1",
+      className: "lg:col-span-1"
     },
     {
       title: "Mid - Range",
       price: "MRP Rs. 50 to Rs. 150",
       image: "/collections/cat2.png",
       href: "/collections/mid-range",
-      className: "lg:col-span-1",
+      className: "lg:col-span-1"
     },
     {
       title: "Premium",
       price: "MRP Rs. 150 to Rs. 300",
       image: "/collections/cat3.png",
       href: "/collections/premium",
-      className: "lg:col-span-1",
+      className: "lg:col-span-1"
     },
     {
       title: "Stock Clearance",
       price: "MRP Rs. 5 to Rs. 100",
       image: "/collections/cat4.png",
       href: "/collections/stock-clearance",
-      className: "lg:col-span-2",
+      className: "lg:col-span-2"
     },
     {
       title: "Fast Selling Cards",
       price: "MRP Rs. 50 to Rs. 300",
       image: "/collections/cat5.png",
       href: "/collections/fast-selling-cards",
-      className: "lg:col-span-1",
-    },
+      className: "lg:col-span-1"
+    }
   ];
 
   return (
@@ -496,32 +497,16 @@ export function Catalogue() {
         </div>
 
         <div className="grid grid-cols-1 gap-[2px] overflow-hidden bg-white md:grid-cols-2 lg:grid-cols-3">
-          {catalogueItems.map((item) => (
-            <a
+          {catalogueItems.map((item, index) => (
+            <CatalogueAnimatedCard
               key={item.title}
+              title={item.title}
+              price={item.price}
+              image={item.image}
               href={item.href}
-              className={`group relative block h-[280px] overflow-hidden md:h-[300px] ${item.className}`}
-            >
-              <Image
-                src={item.image}
-                alt={item.title}
-                width={900}
-                height={600}
-                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-              />
-
-              <div className="absolute inset-0 bg-black/45 transition duration-500 group-hover:bg-black/35" />
-
-              <div className="absolute bottom-7 left-7 z-10 pr-6 text-white">
-                <p className="mb-3 text-sm font-bold uppercase tracking-wide">
-                  {item.price}
-                </p>
-
-                <h3 className="text-3xl font-bold tracking-wide">
-                  {item.title}
-                </h3>
-              </div>
-            </a>
+              className={item.className}
+              index={index}
+            />
           ))}
         </div>
       </div>

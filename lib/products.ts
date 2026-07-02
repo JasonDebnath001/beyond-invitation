@@ -77,6 +77,37 @@ export async function getAllProducts(): Promise<Product[]> {
 }
 
 /**
+ * Return the full product catalog from local fixtures and ERPNext.
+ *
+ * ERPNext failures are treated as a non-blocking fallback so sitemap and
+ * other catalog-driven routes still render with the local catalog.
+ */
+export async function getCatalogProducts(): Promise<Product[]> {
+  const catalogProducts = [...localProducts];
+
+  try {
+    const erpProducts = await fetchErpProducts();
+
+    const merged = [...catalogProducts, ...erpProducts];
+    const seen = new Set<string>();
+
+    return merged.filter((product) => {
+      const key = product.slug?.trim().toLowerCase();
+
+      if (!key || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+  } catch (error) {
+    console.error("Failed to load ERPNext products for catalog", error);
+    return catalogProducts;
+  }
+}
+
+/**
  * Find a local product using its slug.
  */
 export async function getProductBySlug(

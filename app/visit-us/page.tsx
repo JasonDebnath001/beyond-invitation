@@ -3,11 +3,18 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BRAND } from "@/components/siteConfig";
+import { siteUrl } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: `Visit Us | ${BRAND}`,
   description:
     "Visit Beyond Invitation / Bharat Agency Wedding Cards Pvt. Ltd. at 8, Jackson Lane, Canning Street, Kolkata - 700001.",
+  alternates: {
+    canonical: "/visit-us",
+  },
+  openGraph: {
+    url: siteUrl("/visit-us"),
+  },
 };
 
 export default function VisitUsPage() {

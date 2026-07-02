@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
-import { getAllCategories, getAllProducts } from "@/lib/products";
-import { fetchErpProducts } from "@/lib/erpnext";
-import type { Product } from "@/types";
+import { getAllCategories, getCatalogProducts } from "@/lib/products";
 import { getSiteUrl } from "@/lib/site-config";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 function uniqueByUrl(items: MetadataRoute.Sitemap) {
   const seen = new Set<string>();
@@ -30,12 +31,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.98,
-    },
-    {
-      url: `${siteUrl}/collections`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.75,
     },
     {
       url: `${siteUrl}/about`,
@@ -90,46 +85,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: category.slug.includes("wedding") ? 0.9 : 0.72,
   }));
 
-  const localProducts = await getAllProducts();
+  const products = await getCatalogProducts();
 
-  let erpProducts: Product[] = [];
+  const productRoutes: MetadataRoute.Sitemap = products
+    .filter((product) => Boolean(product.slug))
+    .map((product) => {
+      const lastModified =
+        (product as any).modifiedAt || (product as any).updatedAt || now;
 
-  try {
-    erpProducts = (await fetchErpProducts()) as Product[];
-  } catch {
-    erpProducts = [];
-  }
+      const text = [
+        product.name,
+        product.slug,
+        product.category,
+        product.description,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-  const products = [...localProducts, ...erpProducts];
+      const isWeddingProduct =
+        text.includes("wedding") ||
+        text.includes("marriage") ||
+        text.includes("bride") ||
+        text.includes("groom") ||
+        text.includes("invitation");
 
-  const productRoutes: MetadataRoute.Sitemap = products.map((product) => {
-    const lastModified =
-      (product as any).modifiedAt || (product as any).updatedAt || now;
-
-    const text = [
-      product.name,
-      product.slug,
-      product.category,
-      product.description,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    const isWeddingProduct =
-      text.includes("wedding") ||
-      text.includes("marriage") ||
-      text.includes("bride") ||
-      text.includes("groom") ||
-      text.includes("invitation");
-
-    return {
-      url: `${siteUrl}/products/${product.slug}`,
-      lastModified: new Date(lastModified),
-      changeFrequency: "weekly",
-      priority: isWeddingProduct ? 0.92 : 0.82,
-    };
-  });
+      return {
+        url: `${siteUrl}/products/${product.slug}`,
+        lastModified: new Date(lastModified),
+        changeFrequency: "weekly",
+        priority: isWeddingProduct ? 0.92 : 0.82,
+      };
+    });
 
   return uniqueByUrl([...staticRoutes, ...categoryRoutes, ...productRoutes]);
 }

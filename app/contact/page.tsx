@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ContactLeadForm from "@/components/ContactLeadForm";
+import { siteUrl } from "@/lib/site-config";
 
 const phoneNumber = "7044815488";
 const displayPhone = "+91 70448 15488";
@@ -10,6 +11,12 @@ export const metadata: Metadata = {
   title: "Contact Us | Beyond Invitation",
   description:
     "Get in touch with Beyond Invitation for wedding invitations, shagun envelopes, rakhi packaging, and custom stationery.",
+  alternates: {
+    canonical: "/contact",
+  },
+  openGraph: {
+    url: siteUrl("/contact"),
+  },
 };
 
 export default function ContactPage() {

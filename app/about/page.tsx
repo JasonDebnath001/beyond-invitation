@@ -3,11 +3,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BRAND, TAGLINE } from "@/components/siteConfig";
+import { siteUrl } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: `About Us | ${BRAND}`,
   description:
     "Learn about Beyond Invitation, a brand of Bharat Agency Wedding Cards Pvt. Ltd., carrying a 65+ year legacy in wedding cards, shagun envelopes, Rakhi packaging and celebration stationery.",
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    url: siteUrl("/about"),
+  },
 };
 
 const highlights = [

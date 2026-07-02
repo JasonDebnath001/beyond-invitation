@@ -3,33 +3,36 @@
 import Link from "next/link";
 import { useCart } from "./CartProvider";
 
-/** Navbar cart button — shows the live item count from the cart context. */
 export default function CartButton() {
   const { totalItems } = useCart();
+
+  const displayCount = totalItems > 99 ? "99+" : String(totalItems);
 
   return (
     <Link
       href="/cart"
-      aria-label={`Cart, ${totalItems} item${totalItems === 1 ? "" : "s"}`}
-      className="relative flex h-10 w-10 items-center justify-center text-carbon transition-colors hover:bg-neutral-100"
+      aria-label={`Cart${totalItems > 0 ? `, ${totalItems} items` : ""}`}
+      className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus:ring-2 focus:ring-carbon/15"
     >
       <svg
-        width="20"
-        height="20"
+        aria-hidden="true"
         viewBox="0 0 24 24"
+        className="h-5 w-5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        aria-hidden
       >
-        <path d="M6 8h12l-1 12H7L6 8Z" />
-        <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+        <path d="M6 7h15l-1.5 9h-12z" />
+        <path d="M6 7 5.4 4H3" />
+        <circle cx="9" cy="20" r="1" />
+        <circle cx="18" cy="20" r="1" />
       </svg>
+
       {totalItems > 0 && (
-        <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-carbon px-1 text-[9px] font-semibold leading-none text-white">
-          {totalItems}
+        <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-carbon px-1.5 text-[10px] font-extrabold leading-none text-white ring-2 ring-white">
+          {displayCount}
         </span>
       )}
     </Link>

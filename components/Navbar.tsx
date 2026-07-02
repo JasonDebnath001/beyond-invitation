@@ -72,12 +72,12 @@ const navMenu: NavItem[] = [
 
 function DesktopAuthControls() {
   return (
-    <div className="hidden items-center gap-2 lg:flex">
+    <div className="flex shrink-0 items-center gap-2">
       <Show when="signed-out">
         <SignInButton>
           <button
             type="button"
-            className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-carbon transition hover:bg-paper"
+            className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full border border-carbon/20 bg-white px-4 text-[13px] font-bold text-carbon shadow-sm transition hover:border-carbon/40 hover:bg-paper focus:outline-none focus:ring-2 focus:ring-carbon/15"
           >
             Sign in
           </button>
@@ -86,7 +86,7 @@ function DesktopAuthControls() {
         <SignUpButton>
           <button
             type="button"
-            className="rounded-full bg-carbon px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-carbon-dark"
+            className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full bg-carbon px-5 text-[13px] font-bold text-white shadow-sm transition hover:bg-carbon-dark focus:outline-none focus:ring-2 focus:ring-carbon/25"
           >
             Sign up
           </button>
@@ -97,7 +97,7 @@ function DesktopAuthControls() {
         <UserButton
           appearance={{
             elements: {
-              avatarBox: "h-9 w-9",
+              avatarBox: "h-10 w-10",
             },
           }}
         />
@@ -108,37 +108,44 @@ function DesktopAuthControls() {
 
 function MobileAuthControls({ onAction }: { onAction: () => void }) {
   return (
-    <div className="grid gap-3 pt-3">
+    <div className="pt-4">
       <Show when="signed-out">
-        <SignInButton>
-          <button
-            type="button"
-            onClick={onAction}
-            className="flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-semibold text-carbon transition hover:bg-paper"
-          >
-            Sign in
-          </button>
-        </SignInButton>
+        <div className="grid grid-cols-2 gap-3">
+          <SignInButton>
+            <button
+              type="button"
+              onClick={onAction}
+              className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-full border border-carbon/20 bg-white px-4 text-sm font-bold text-carbon shadow-sm transition hover:bg-paper"
+            >
+              Sign in
+            </button>
+          </SignInButton>
 
-        <SignUpButton>
-          <button
-            type="button"
-            onClick={onAction}
-            className="flex w-full items-center justify-center rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-carbon-dark"
-          >
-            Sign up
-          </button>
-        </SignUpButton>
+          <SignUpButton>
+            <button
+              type="button"
+              onClick={onAction}
+              className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-carbon px-4 text-sm font-bold text-white shadow-sm transition hover:bg-carbon-dark"
+            >
+              Sign up
+            </button>
+          </SignUpButton>
+        </div>
       </Show>
 
       <Show when="signed-in">
-        <div className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3">
-          <span className="text-sm font-semibold text-carbon">My account</span>
+        <div className="flex items-center justify-between rounded-2xl border border-carbon/10 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-light">
+              Signed in
+            </p>
+            <p className="text-sm font-bold text-carbon">My account</p>
+          </div>
 
           <UserButton
             appearance={{
               elements: {
-                avatarBox: "h-9 w-9",
+                avatarBox: "h-10 w-10",
               },
             }}
           />
@@ -178,31 +185,38 @@ export default function Navbar() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 shadow-sm backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 shadow-[0_8px_30px_rgba(123,28,46,0.08)] backdrop-blur-xl">
+      <div className="mx-auto flex h-[72px] max-w-[1500px] items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="flex min-w-0 shrink-0 items-center gap-3 xl:w-[260px]"
+          aria-label={BRAND}
+        >
           <Image
             src="/logo.ico"
             alt={BRAND}
-            width={44}
-            height={44}
+            width={42}
+            height={42}
             priority
-            className="h-11 w-11 rounded-full object-contain"
+            className="h-10 w-10 shrink-0 rounded-xl object-contain"
           />
 
           <div className="min-w-0">
-            <div className="truncate text-lg font-bold leading-tight text-carbon">
+            <div className="truncate text-[16px] font-extrabold leading-tight tracking-wide text-carbon">
               {BRAND}
             </div>
-            <div className="truncate text-xs font-medium uppercase tracking-[0.18em] text-ink-mid">
+            <div className="mt-0.5 hidden max-w-[210px] truncate text-[10px] font-bold uppercase tracking-[0.28em] text-ink-mid sm:block">
               {TAGLINE}
             </div>
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex">
           {navMenu.map((item, navIndex) => {
             const hasDropdown = Boolean(item.dropdown?.length);
+            const isActive =
+              Boolean(item.href) &&
+              (pathname === item.href || pathname.startsWith(`${item.href}/`));
 
             return (
               <div
@@ -213,7 +227,12 @@ export default function Navbar() {
                 }
                 onMouseLeave={() => setActiveDropdownIndex(null)}
                 onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                  const nextTarget = event.relatedTarget as Node | null;
+
+                  if (
+                    nextTarget &&
+                    !event.currentTarget.contains(nextTarget)
+                  ) {
                     setActiveDropdownIndex(null);
                   }
                 }}
@@ -226,21 +245,37 @@ export default function Navbar() {
                         current === navIndex ? null : navIndex
                       )
                     }
-                    className="rounded-full px-4 py-2 text-sm font-semibold text-carbon transition hover:bg-paper"
+                    className={`inline-flex h-10 items-center gap-1 whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition ${
+                      isActive
+                        ? "bg-paper text-carbon"
+                        : "text-carbon hover:bg-paper"
+                    }`}
                     aria-haspopup="menu"
                     aria-expanded={activeDropdownIndex === navIndex}
                   >
-                    {item.label} <span aria-hidden="true">▾</span>
+                    {item.label}
+                    <span
+                      aria-hidden="true"
+                      className={`text-[11px] transition-transform ${
+                        activeDropdownIndex === navIndex ? "rotate-180" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
                   </button>
                 ) : item.href ? (
                   <Link
                     href={item.href}
-                    className="rounded-full px-4 py-2 text-sm font-semibold text-carbon transition hover:bg-paper"
+                    className={`inline-flex h-10 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition ${
+                      isActive
+                        ? "bg-paper text-carbon"
+                        : "text-carbon hover:bg-paper"
+                    }`}
                   >
                     {item.label}
                   </Link>
                 ) : (
-                  <span className="rounded-full px-4 py-2 text-sm font-semibold text-carbon">
+                  <span className="inline-flex h-10 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold text-carbon">
                     {item.label}
                   </span>
                 )}
@@ -248,13 +283,13 @@ export default function Navbar() {
                 {hasDropdown && activeDropdownIndex === navIndex && (
                   <div
                     role="menu"
-                    className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl"
+                    className="absolute left-0 top-full mt-3 w-72 rounded-3xl border border-carbon/10 bg-white p-2 shadow-[0_20px_50px_rgba(42,26,16,0.16)]"
                   >
                     {item.dropdown?.map((dropdownItem, index) =>
                       "section" in dropdownItem ? (
                         <div
                           key={`${dropdownItem.section}-${index}`}
-                          className="px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-ink-light"
+                          className="px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
                         >
                           {dropdownItem.section}
                         </div>
@@ -263,7 +298,7 @@ export default function Navbar() {
                           key={dropdownItem.href}
                           href={dropdownItem.href}
                           role="menuitem"
-                          className="block rounded-xl px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper hover:text-carbon"
+                          className="block rounded-2xl px-4 py-3 text-sm font-bold text-ink transition hover:bg-paper hover:text-carbon"
                         >
                           {dropdownItem.label}
                         </Link>
@@ -276,8 +311,11 @@ export default function Navbar() {
           })}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
-          <SearchBar />
+        <div className="hidden shrink-0 items-center justify-end gap-3 xl:flex">
+          <div className="w-[230px] 2xl:w-[280px]">
+            <SearchBar />
+          </div>
+
           <WishlistNavLink />
           <CartButton />
           <DesktopAuthControls />
@@ -288,69 +326,72 @@ export default function Navbar() {
           onClick={() => setMobileOpen((open) => !open)}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={mobileOpen}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-2xl leading-none text-carbon transition-colors hover:bg-paper lg:hidden"
+          className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-2xl font-bold leading-none text-carbon shadow-sm transition hover:bg-paper xl:hidden"
         >
           {mobileOpen ? "×" : "☰"}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-neutral-200 bg-white px-4 py-4 shadow-lg lg:hidden">
-          <div className="mb-4">
+        <div className="border-t border-carbon/10 bg-white shadow-[0_18px_40px_rgba(42,26,16,0.14)] xl:hidden">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
             <SearchBar />
-          </div>
 
-          <nav className="space-y-1">
-            {navMenu.map((item) => (
-              <div key={item.label} className="rounded-2xl bg-paper/70 p-2">
-                {item.href ? (
-                  <Link
-                    href={item.href}
-                    onClick={closeMobile}
-                    className="block rounded-xl px-3 py-2 text-base font-bold text-carbon transition hover:bg-white"
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <div className="rounded-xl px-3 py-2 text-base font-bold text-carbon">
-                    {item.label}
-                  </div>
-                )}
+            <nav className="mt-5 space-y-2">
+              {navMenu.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-3xl border border-carbon/10 bg-paper/70 p-2"
+                >
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      onClick={closeMobile}
+                      className="block rounded-2xl px-4 py-3 text-base font-extrabold text-carbon transition hover:bg-white"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <div className="rounded-2xl px-4 py-3 text-base font-extrabold text-carbon">
+                      {item.label}
+                    </div>
+                  )}
 
-                {item.dropdown && (
-                  <div className="mt-1 space-y-1 pl-3">
-                    {item.dropdown.map((dropdownItem, index) =>
-                      "section" in dropdownItem ? (
-                        <div
-                          key={`${dropdownItem.section}-${index}`}
-                          className="px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-ink-light"
-                        >
-                          {dropdownItem.section}
-                        </div>
-                      ) : (
-                        <Link
-                          key={dropdownItem.href}
-                          href={dropdownItem.href}
-                          onClick={closeMobile}
-                          className="block rounded-xl px-3 py-2 text-sm font-medium text-ink transition hover:bg-white hover:text-carbon"
-                        >
-                          {dropdownItem.label}
-                        </Link>
-                      )
-                    )}
-                  </div>
-                )}
+                  {item.dropdown && (
+                    <div className="mt-1 space-y-1 pl-2">
+                      {item.dropdown.map((dropdownItem, index) =>
+                        "section" in dropdownItem ? (
+                          <div
+                            key={`${dropdownItem.section}-${index}`}
+                            className="px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
+                          >
+                            {dropdownItem.section}
+                          </div>
+                        ) : (
+                          <Link
+                            key={dropdownItem.href}
+                            href={dropdownItem.href}
+                            onClick={closeMobile}
+                            className="block rounded-2xl px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-white hover:text-carbon"
+                          >
+                            {dropdownItem.label}
+                          </Link>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </nav>
+
+            <div className="mt-5 border-t border-carbon/10 pt-5">
+              <div className="flex items-center gap-3">
+                <WishlistNavLink />
+                <CartButton />
               </div>
-            ))}
-          </nav>
 
-          <div className="mt-4 grid gap-3 border-t border-neutral-200 pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <WishlistNavLink />
-              <CartButton />
+              <MobileAuthControls onAction={closeMobile} />
             </div>
-
-            <MobileAuthControls onAction={closeMobile} />
           </div>
         </div>
       )}

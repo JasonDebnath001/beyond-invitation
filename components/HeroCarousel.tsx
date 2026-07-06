@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 
 const SLIDES = [
   {
+    src: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2012_52_54%20PM.png",
+    mobileSrc:
+      "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2003_44_31%20PM.png",
+    alt: "Luxury wedding box collection hero image",
+  },
+  {
     src: "/hero1.png",
     mobileSrc: "/mobile_hero1.png",
     alt: "Hero image 1",
@@ -24,6 +30,7 @@ const AUTO_ADVANCE_MS = 5000;
 
 export default function HeroCarousel() {
   const [current, setCurrent] = useState(0);
+
   const total = SLIDES.length;
 
   const goNext = useCallback(() => {
@@ -56,9 +63,13 @@ export default function HeroCarousel() {
           >
             <picture className="h-full w-full">
               <source media="(max-width: 767px)" srcSet={slide.mobileSrc} />
+
               <img
                 src={slide.src}
                 alt={slide.alt}
+                loading={i === 0 ? "eager" : "lazy"}
+                decoding="async"
+                draggable={false}
                 className={`h-full w-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   i === current ? "scale-100" : "scale-150"
                 }`}

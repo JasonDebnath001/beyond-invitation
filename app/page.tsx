@@ -23,6 +23,7 @@ import { ProductSection } from "@/components/ProductGrid";
 import KindWords from "@/components/KindWords";
 import InstagramReels from "@/components/InstagramReels";
 import HomeTextAnimation from "@/components/HomeTextAnimation";
+import WeddingBoxesEditorial from "@/components/WeddingBoxesEditorial";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +225,8 @@ export default async function HomePage() {
 
       <div data-home-text-motion className="overflow-hidden">
         <HeroCarousel />
+
+        <WeddingBoxesEditorial />
 
         <HomeTextAnimation />
 

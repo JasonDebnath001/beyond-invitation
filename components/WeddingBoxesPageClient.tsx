@@ -400,35 +400,6 @@ export default function WeddingBoxesPageClient({
               </Link>
             </div>
 
-            <div
-              data-hero-reveal
-              className="mt-10 grid max-w-xl grid-cols-2 gap-3 border-y border-[#d9b875]/45 py-5 sm:grid-cols-3"
-            >
-              <div>
-                <p className="text-2xl font-semibold text-[#2a1810]">
-                  {products.length}
-                </p>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#806553]">
-                  Designs
-                </p>
-              </div>
-
-              <div>
-                <p className="text-2xl font-semibold text-[#2a1810]">ERP</p>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#806553]">
-                  Live stock
-                </p>
-              </div>
-
-              <div className="hidden sm:block">
-                <p className="text-2xl font-semibold text-[#2a1810]">✦</p>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#806553]">
-                  Premium
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="relative min-h-[540px] lg:min-h-[690px]">
             <div
               data-glow

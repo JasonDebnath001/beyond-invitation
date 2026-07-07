@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import JsonLd from "@/components/seo/JsonLd";
-import WeddingBoxesPageClient from "@/components/WeddingBoxesPageClient";
 import { fetchErpProducts } from "@/lib/erpnext";
 import type { ErpProduct } from "@/lib/erpnext";
 import {
@@ -10,9 +9,9 @@ import {
   getSiteUrl,
   siteUrl,
 } from "@/lib/site-config";
+import WeddingBoxesPageClient from "@/components/WeddingBoxesPageClient";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60;
 
 const PAGE_PATH = "/wedding-boxes";
 const PAGE_URL = siteUrl(PAGE_PATH);
@@ -77,9 +76,7 @@ function normalizeSubject(value: string | undefined) {
 }
 
 function isWeddingBoxProduct(product: ErpProduct) {
-  return (
-    normalizeSubject(product.subject) === normalizeSubject(WEDDING_BOX_SUBJECT)
-  );
+  return normalizeSubject(product.subject) === normalizeSubject(WEDDING_BOX_SUBJECT);
 }
 
 function getProductImage(product: ErpProduct) {
@@ -112,14 +109,14 @@ async function getWeddingBoxProducts(): Promise<{
       errorMessage: "",
     };
   } catch (error) {
-    console.error("Wedding boxes page ERPNext fetch failed:", error);
+    console.error("Wedding boxes page fetch failed:", error);
 
     return {
       products: [],
       errorMessage:
         error instanceof Error
           ? error.message
-          : "Unable to load wedding boxes from ERPNext.",
+          : "Unable to load wedding boxes.",
     };
   }
 }
@@ -179,7 +176,6 @@ export default async function WeddingBoxesPage() {
       <WeddingBoxesPageClient
         products={products}
         errorMessage={errorMessage}
-        subjectLabel={WEDDING_BOX_SUBJECT}
       />
     </>
   );

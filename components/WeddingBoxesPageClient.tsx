@@ -399,6 +399,7 @@ export default function WeddingBoxesPageClient({
                 Custom enquiry
               </Link>
             </div>
+          </div>
 
           <div className="relative min-h-[540px] lg:min-h-[690px]">
             <div

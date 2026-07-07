@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import CategoryCollectionPageClient from "@/components/CategoryCollectionPageClient";
 import JsonLd from "@/components/seo/JsonLd";
-import { getAllCategories, getCategoryBySlug } from "@/lib/products";
 import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
-import type { ProductCategory } from "@/types";
-import FilterableProductGrid from "@/components/FilterableProductGrid";
+import { getAllCategories, getCategoryBySlug } from "@/lib/products";
 import {
   DEFAULT_OG_IMAGE,
   PRIMARY_KEYWORDS,
@@ -72,6 +72,24 @@ function getCategorySeo(
   };
 }
 
+function getProductImage(product: ErpProduct) {
+  const image = product.images?.[0];
+
+  if (!image) {
+    return siteUrl(DEFAULT_OG_IMAGE);
+  }
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  if (image.startsWith("/")) {
+    return siteUrl(image);
+  }
+
+  return siteUrl(`/products/${image}`);
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -88,7 +106,12 @@ export async function generateMetadata({
     };
   }
 
-  const seo = getCategorySeo(category.slug, category.name, category.description);
+  const seo = getCategorySeo(
+    category.slug,
+    category.name,
+    category.description,
+  );
+
   const canonicalPath = `/collections/${category.slug}`;
 
   return {
@@ -143,26 +166,27 @@ export default async function CollectionPage({ params }: PageProps) {
     notFound();
   }
 
-  let allProducts: ErpProduct[] = [];
   let products: ErpProduct[] = [];
   let errorMessage = "";
 
   try {
-    allProducts = await fetchErpProducts();
+    const allProducts = await fetchErpProducts();
+
     products = allProducts.filter(
-      (product) => product.category === (categorySlug as ProductCategory),
+      (product) => product.category === category.slug,
     );
   } catch (error) {
-    console.error(`ERPNext ${category.name} fetch failed:`, error);
-    errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unable to fetch products from ERPNext.";
+    console.error(`${category.name} collection fetch failed:`, error);
+    errorMessage = "Unable to load this collection.";
   }
 
   const collectionUrl = siteUrl(`/collections/${category.slug}`);
-  const seo = getCategorySeo(category.slug, category.name, category.description);
-  const weddingCategory = isWeddingCategory(category.slug);
+
+  const seo = getCategorySeo(
+    category.slug,
+    category.name,
+    category.description,
+  );
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -202,7 +226,20 @@ export default async function CollectionPage({ params }: PageProps) {
         "@type": "ListItem",
         position: index + 1,
         url: siteUrl(`/products/${product.slug}`),
-        name: product.name,
+        item: {
+          "@type": "Product",
+          name: product.name,
+          description: product.description || seo.description,
+          image: getProductImage(product),
+          url: siteUrl(`/products/${product.slug}`),
+          category: category.name,
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "INR",
+            price: product.price,
+            availability: "https://schema.org/InStock",
+          },
+        },
       })),
     },
   };
@@ -212,53 +249,12 @@ export default async function CollectionPage({ params }: PageProps) {
       <JsonLd data={breadcrumbJsonLd} />
       {products.length > 0 ? <JsonLd data={collectionJsonLd} /> : null}
 
-      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-maroon">
-          Collection
-        </p>
-
-        <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-          {weddingCategory
-            ? `${category.name} Wedding Invitation Cards`
-            : category.name}
-        </h1>
-
-        <p className="mt-4 max-w-3xl text-base leading-7 text-ink-mid">
-          {weddingCategory
-            ? "Browse premium wedding cards in Kolkata, including designer Indian wedding invitation cards, custom printed invitations and luxury wedding card options from Beyond Invitation."
-            : category.description}
-        </p>
-
-        {!errorMessage && (
-          <p className="mt-6 text-sm font-medium text-ink-mid">
-            {products.length} {products.length === 1 ? "Product" : "Products"}
-          </p>
-        )}
-
-        {errorMessage ? (
-          <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em]">
-              ERPNext Error
-            </p>
-            <h2 className="mt-2 text-xl font-bold">
-              Products could not be loaded
-            </h2>
-            <p className="mt-2 text-sm">{errorMessage}</p>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-gold/25 bg-white p-8 text-center">
-            <h2 className="text-xl font-bold text-ink">No products found</h2>
-            <p className="mt-2 text-sm text-ink-mid">
-              ERPNext connected successfully, but no visible products were found
-              for this collection.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-8">
-            <FilterableProductGrid products={products} />
-          </div>
-        )}
-      </main>
+      <CategoryCollectionPageClient
+        categoryName={category.name}
+        categoryDescription={category.description}
+        products={products}
+        errorMessage={errorMessage}
+      />
     </>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import gsap from "gsap";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
 import CartButton from "./CartButton";
@@ -139,6 +140,7 @@ function MobileAuthControls({ onAction }: { onAction: () => void }) {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-light">
               Signed in
             </p>
+
             <p className="text-sm font-bold text-carbon">My account</p>
           </div>
 
@@ -157,19 +159,307 @@ function MobileAuthControls({ onAction }: { onAction: () => void }) {
 
 export default function Navbar() {
   const pathname = usePathname();
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(
     null
   );
 
-  const closeMobile = () => setMobileOpen(false);
+  const desktopCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
+  const desktopDropdownRefs = useRef<
+    Record<number, HTMLDivElement | null>
+  >({});
+
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileBackdropRef = useRef<HTMLButtonElement | null>(null);
+  const mobileMenuContentRef = useRef<HTMLDivElement | null>(null);
+
+  const mobileTimelineRef = useRef<
+    ReturnType<typeof gsap.timeline> | null
+  >(null);
+
+  const hasOpenedMobileMenuRef = useRef(false);
+
+  const closeMobile = () => {
+    setMobileOpen(false);
+  };
+
+  const cancelDesktopClose = () => {
+    if (!desktopCloseTimerRef.current) {
+      return;
+    }
+
+    clearTimeout(desktopCloseTimerRef.current);
+    desktopCloseTimerRef.current = null;
+  };
+
+  const openDesktopDropdown = (index: number) => {
+    cancelDesktopClose();
+    setActiveDropdownIndex(index);
+  };
+
+  const scheduleDesktopClose = () => {
+    cancelDesktopClose();
+
+    desktopCloseTimerRef.current = setTimeout(() => {
+      setActiveDropdownIndex(null);
+      desktopCloseTimerRef.current = null;
+    }, 180);
+  };
+
+  /*
+   * Animate the desktop dropdown whenever a new dropdown is opened.
+   */
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setMobileOpen(false);
-        setActiveDropdownIndex(null);
+    if (activeDropdownIndex === null) {
+      return;
+    }
+
+    const dropdown = desktopDropdownRefs.current[activeDropdownIndex];
+
+    if (!dropdown) {
+      return;
+    }
+
+    gsap.killTweensOf(dropdown);
+
+    gsap.fromTo(
+      dropdown,
+      {
+        autoAlpha: 0,
+        y: 8,
+        scale: 0.985,
+        transformOrigin: "top left",
+      },
+      {
+        autoAlpha: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.24,
+        ease: "power3.out",
       }
+    );
+  }, [activeDropdownIndex]);
+
+  /*
+   * Animate the mobile menu in both directions.
+   *
+   * The menu remains mounted while closing, allowing GSAP to finish the
+   * closing animation before it becomes invisible and non-interactive.
+   */
+  useEffect(() => {
+    const menu = mobileMenuRef.current;
+    const backdrop = mobileBackdropRef.current;
+    const content = mobileMenuContentRef.current;
+
+    if (!menu || !backdrop || !content) {
+      return;
+    }
+
+    const animatedItems = Array.from(
+      content.querySelectorAll<HTMLElement>("[data-mobile-menu-item]")
+    );
+
+    mobileTimelineRef.current?.kill();
+
+    if (mobileOpen) {
+      hasOpenedMobileMenuRef.current = true;
+
+      gsap.killTweensOf([menu, backdrop, ...animatedItems]);
+
+      gsap.set(backdrop, {
+        visibility: "visible",
+        pointerEvents: "auto",
+      });
+
+      gsap.set(menu, {
+        visibility: "visible",
+        pointerEvents: "auto",
+      });
+
+      const timeline = gsap.timeline();
+
+      mobileTimelineRef.current = timeline;
+
+      timeline
+        .fromTo(
+          backdrop,
+          {
+            autoAlpha: 0,
+          },
+          {
+            autoAlpha: 1,
+            duration: 0.3,
+            ease: "power2.out",
+          },
+          0
+        )
+        .fromTo(
+          menu,
+          {
+            height: 0,
+            autoAlpha: 0,
+            y: -16,
+          },
+          {
+            height: "auto",
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.5,
+            ease: "power4.out",
+          },
+          0
+        )
+        .fromTo(
+          animatedItems,
+          {
+            autoAlpha: 0,
+            y: -14,
+            scale: 0.985,
+          },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.38,
+            stagger: 0.055,
+            ease: "power3.out",
+          },
+          0.12
+        )
+        .set(menu, {
+          height: "auto",
+        });
+    } else {
+      /*
+       * Prevent a closing animation from running during the initial render.
+       */
+      if (!hasOpenedMobileMenuRef.current) {
+        gsap.set(menu, {
+          height: 0,
+          autoAlpha: 0,
+          y: -12,
+          visibility: "hidden",
+          pointerEvents: "none",
+        });
+
+        gsap.set(backdrop, {
+          autoAlpha: 0,
+          visibility: "hidden",
+          pointerEvents: "none",
+        });
+
+        gsap.set(animatedItems, {
+          autoAlpha: 0,
+          y: -10,
+          scale: 0.985,
+        });
+
+        return;
+      }
+
+      gsap.killTweensOf([menu, backdrop, ...animatedItems]);
+
+      const timeline = gsap.timeline({
+        onComplete: () => {
+          gsap.set(menu, {
+            height: 0,
+            autoAlpha: 0,
+            y: -12,
+            visibility: "hidden",
+            pointerEvents: "none",
+          });
+
+          gsap.set(backdrop, {
+            autoAlpha: 0,
+            visibility: "hidden",
+            pointerEvents: "none",
+          });
+
+          gsap.set(animatedItems, {
+            autoAlpha: 0,
+            y: -10,
+            scale: 0.985,
+          });
+        },
+      });
+
+      mobileTimelineRef.current = timeline;
+
+      timeline
+        .to(
+          animatedItems,
+          {
+            autoAlpha: 0,
+            y: -10,
+            scale: 0.985,
+            duration: 0.18,
+            stagger: {
+              each: 0.025,
+              from: "end",
+            },
+            ease: "power2.in",
+          },
+          0
+        )
+        .to(
+          menu,
+          {
+            height: 0,
+            autoAlpha: 0,
+            y: -12,
+            duration: 0.36,
+            ease: "power3.inOut",
+          },
+          0.07
+        )
+        .to(
+          backdrop,
+          {
+            autoAlpha: 0,
+            duration: 0.28,
+            ease: "power2.in",
+          },
+          0.07
+        );
+    }
+
+    return () => {
+      mobileTimelineRef.current?.kill();
+    };
+  }, [mobileOpen]);
+
+  /*
+   * Prevent the page behind the mobile navigation from scrolling.
+   */
+  useEffect(() => {
+    if (!mobileOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen]);
+
+  /*
+   * Close menus with the Escape key.
+   */
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      setMobileOpen(false);
+      setActiveDropdownIndex(null);
     }
 
     document.addEventListener("keydown", onKey);
@@ -179,14 +469,46 @@ export default function Navbar() {
     };
   }, []);
 
+  /*
+   * Automatically close the mobile menu when switching to desktop size.
+   */
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1280px)");
+
+    const handleDesktopViewport = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setMobileOpen(false);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleDesktopViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleDesktopViewport);
+    };
+  }, []);
+
+  /*
+   * Close menus after navigating to another route.
+   */
   useEffect(() => {
     setMobileOpen(false);
     setActiveDropdownIndex(null);
   }, [pathname]);
 
+  /*
+   * Clear pending timers and GSAP animations on unmount.
+   */
+  useEffect(() => {
+    return () => {
+      cancelDesktopClose();
+      mobileTimelineRef.current?.kill();
+    };
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 shadow-[0_8px_30px_rgba(123,28,46,0.08)] backdrop-blur-xl">
-      <div className="mx-auto flex h-[72px] max-w-[1500px] items-center gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="relative z-30 mx-auto flex h-[72px] max-w-[1500px] items-center gap-4 bg-white/95 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
         <Link
           href="/"
           className="flex min-w-0 shrink-0 items-center gap-3 xl:w-[260px]"
@@ -205,6 +527,7 @@ export default function Navbar() {
             <div className="truncate text-[16px] font-extrabold leading-tight tracking-wide text-carbon">
               {BRAND}
             </div>
+
             <div className="mt-0.5 hidden max-w-[210px] truncate text-[10px] font-bold uppercase tracking-[0.28em] text-ink-mid sm:block">
               {TAGLINE}
             </div>
@@ -214,37 +537,56 @@ export default function Navbar() {
         <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex">
           {navMenu.map((item, navIndex) => {
             const hasDropdown = Boolean(item.dropdown?.length);
+
             const isActive =
               Boolean(item.href) &&
-              (pathname === item.href || pathname.startsWith(`${item.href}/`));
+              (pathname === item.href ||
+                pathname.startsWith(`${item.href}/`));
 
             return (
               <div
                 key={item.label}
-                className="relative"
-                onMouseEnter={() =>
-                  hasDropdown && setActiveDropdownIndex(navIndex)
-                }
-                onMouseLeave={() => setActiveDropdownIndex(null)}
+                className="relative py-3"
+                onMouseEnter={() => {
+                  if (hasDropdown) {
+                    openDesktopDropdown(navIndex);
+                  }
+                }}
+                onMouseLeave={scheduleDesktopClose}
+                onFocus={() => {
+                  if (hasDropdown) {
+                    openDesktopDropdown(navIndex);
+                  }
+                }}
                 onBlur={(event) => {
                   const nextTarget = event.relatedTarget as Node | null;
 
                   if (
                     nextTarget &&
-                    !event.currentTarget.contains(nextTarget)
+                    event.currentTarget.contains(nextTarget)
                   ) {
-                    setActiveDropdownIndex(null);
+                    return;
                   }
+
+                  scheduleDesktopClose();
                 }}
               >
                 {hasDropdown ? (
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      cancelDesktopClose();
+
                       setActiveDropdownIndex((current) =>
                         current === navIndex ? null : navIndex
-                      )
-                    }
+                      );
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        setActiveDropdownIndex(null);
+                        event.currentTarget.blur();
+                      }
+                    }}
                     className={`inline-flex h-10 items-center gap-1 whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition ${
                       isActive
                         ? "bg-paper text-carbon"
@@ -254,9 +596,10 @@ export default function Navbar() {
                     aria-expanded={activeDropdownIndex === navIndex}
                   >
                     {item.label}
+
                     <span
                       aria-hidden="true"
-                      className={`text-[11px] transition-transform ${
+                      className={`text-[11px] transition-transform duration-200 ${
                         activeDropdownIndex === navIndex ? "rotate-180" : ""
                       }`}
                     >
@@ -281,29 +624,40 @@ export default function Navbar() {
                 )}
 
                 {hasDropdown && activeDropdownIndex === navIndex && (
-                  <div
-                    role="menu"
-                    className="absolute left-0 top-full mt-3 w-72 rounded-3xl border border-carbon/10 bg-white p-2 shadow-[0_20px_50px_rgba(42,26,16,0.16)]"
-                  >
-                    {item.dropdown?.map((dropdownItem, index) =>
-                      "section" in dropdownItem ? (
-                        <div
-                          key={`${dropdownItem.section}-${index}`}
-                          className="px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
-                        >
-                          {dropdownItem.section}
-                        </div>
-                      ) : (
-                        <Link
-                          key={dropdownItem.href}
-                          href={dropdownItem.href}
-                          role="menuitem"
-                          className="block rounded-2xl px-4 py-3 text-sm font-bold text-ink transition hover:bg-paper hover:text-carbon"
-                        >
-                          {dropdownItem.label}
-                        </Link>
-                      )
-                    )}
+                  /*
+                   * The outer padding creates a transparent hover bridge
+                   * between the trigger and the visible dropdown.
+                   */
+                  <div className="absolute left-0 top-full z-50 pt-2">
+                    <div
+                      ref={(element) => {
+                        desktopDropdownRefs.current[navIndex] = element;
+                      }}
+                      role="menu"
+                      onMouseEnter={cancelDesktopClose}
+                      onMouseLeave={scheduleDesktopClose}
+                      className="w-72 rounded-3xl border border-carbon/10 bg-white p-2 shadow-[0_20px_50px_rgba(42,26,16,0.16)]"
+                    >
+                      {item.dropdown?.map((dropdownItem, index) =>
+                        "section" in dropdownItem ? (
+                          <div
+                            key={`${dropdownItem.section}-${index}`}
+                            className="px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
+                          >
+                            {dropdownItem.section}
+                          </div>
+                        ) : (
+                          <Link
+                            key={dropdownItem.href}
+                            href={dropdownItem.href}
+                            role="menuitem"
+                            className="block rounded-2xl px-4 py-3 text-sm font-bold text-ink transition hover:bg-paper hover:text-carbon focus:bg-paper focus:text-carbon focus:outline-none"
+                          >
+                            {dropdownItem.label}
+                          </Link>
+                        )
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -323,31 +677,88 @@ export default function Navbar() {
 
         <button
           type="button"
-          onClick={() => setMobileOpen((open) => !open)}
+          onClick={() => {
+            setMobileOpen((open) => !open);
+          }}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={mobileOpen}
-          className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-2xl font-bold leading-none text-carbon shadow-sm transition hover:bg-paper xl:hidden"
+          aria-controls="mobile-navigation"
+          className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:bg-paper focus:outline-none focus:ring-2 focus:ring-carbon/15 xl:hidden"
         >
-          {mobileOpen ? "×" : "☰"}
+          <span className="relative block h-5 w-5" aria-hidden="true">
+            <span
+              className={`absolute left-0 top-[2px] h-0.5 w-5 rounded-full bg-current transition-all duration-300 ease-out ${
+                mobileOpen
+                  ? "translate-y-[7px] rotate-45"
+                  : "translate-y-0 rotate-0"
+              }`}
+            />
+
+            <span
+              className={`absolute left-0 top-[9px] h-0.5 w-5 rounded-full bg-current transition-all duration-200 ease-out ${
+                mobileOpen ? "scale-x-0 opacity-0" : "scale-x-100 opacity-100"
+              }`}
+            />
+
+            <span
+              className={`absolute left-0 top-[16px] h-0.5 w-5 rounded-full bg-current transition-all duration-300 ease-out ${
+                mobileOpen
+                  ? "-translate-y-[7px] -rotate-45"
+                  : "translate-y-0 rotate-0"
+              }`}
+            />
+          </span>
         </button>
       </div>
 
-      {mobileOpen && (
-        <div className="border-t border-carbon/10 bg-white shadow-[0_18px_40px_rgba(42,26,16,0.14)] xl:hidden">
+      <button
+        ref={mobileBackdropRef}
+        type="button"
+        tabIndex={mobileOpen ? 0 : -1}
+        aria-label="Close mobile menu"
+        onClick={closeMobile}
+        className="fixed inset-x-0 bottom-0 top-[72px] z-0 bg-carbon/20 backdrop-blur-[2px] xl:hidden"
+        style={{
+          opacity: 0,
+          visibility: "hidden",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        id="mobile-navigation"
+        ref={mobileMenuRef}
+        aria-hidden={!mobileOpen}
+        className="relative z-20 overflow-hidden border-t border-carbon/10 bg-white shadow-[0_18px_40px_rgba(42,26,16,0.14)] xl:hidden"
+        style={{
+          height: 0,
+          opacity: 0,
+          visibility: "hidden",
+          pointerEvents: "none",
+          transform: "translateY(-12px)",
+        }}
+      >
+        <div
+          ref={mobileMenuContentRef}
+          className="max-h-[calc(100dvh-72px)] overflow-y-auto overscroll-contain"
+        >
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-            <SearchBar />
+            <div data-mobile-menu-item>
+              <SearchBar />
+            </div>
 
             <nav className="mt-5 space-y-2">
               {navMenu.map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-3xl border border-carbon/10 bg-paper/70 p-2"
+                  data-mobile-menu-item
+                  className="rounded-3xl border border-carbon/10 bg-paper/70 p-2 shadow-sm"
                 >
                   {item.href ? (
                     <Link
                       href={item.href}
                       onClick={closeMobile}
-                      className="block rounded-2xl px-4 py-3 text-base font-extrabold text-carbon transition hover:bg-white"
+                      className="block rounded-2xl px-4 py-3 text-base font-extrabold text-carbon transition hover:bg-white focus:bg-white focus:outline-none"
                     >
                       {item.label}
                     </Link>
@@ -372,7 +783,7 @@ export default function Navbar() {
                             key={dropdownItem.href}
                             href={dropdownItem.href}
                             onClick={closeMobile}
-                            className="block rounded-2xl px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-white hover:text-carbon"
+                            className="block rounded-2xl px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-white hover:text-carbon focus:bg-white focus:text-carbon focus:outline-none"
                           >
                             {dropdownItem.label}
                           </Link>
@@ -384,7 +795,10 @@ export default function Navbar() {
               ))}
             </nav>
 
-            <div className="mt-5 border-t border-carbon/10 pt-5">
+            <div
+              data-mobile-menu-item
+              className="mt-5 border-t border-carbon/10 pt-5"
+            >
               <div className="flex items-center gap-3">
                 <WishlistNavLink />
                 <CartButton />
@@ -394,7 +808,7 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-      )}
+      </div>
     </header>
   );
 }

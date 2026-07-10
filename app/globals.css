@@ -26,3 +26,29 @@
     @apply bg-carbon text-white;
   }
 }
+
+/*
+ * Safety fallback:
+ * If the client-side JavaScript fails completely, the loader removes
+ * itself after eight seconds instead of permanently covering the page.
+ *
+ * SiteLoader.tsx removes this class as soon as React hydrates.
+ */
+@keyframes site-loader-failsafe {
+  0%,
+  94% {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.site-loader-failsafe {
+  animation: site-loader-failsafe 8.5s linear forwards;
+}

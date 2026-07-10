@@ -8,6 +8,7 @@ import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 import JsonLd from "@/components/seo/JsonLd";
 import { getSiteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site-config";
 import { absoluteUrl } from "@/lib/seo";
+import SiteLoader from "@/components/SiteLoader";
 
 import {
   CelebrationGrid,
@@ -15,7 +16,7 @@ import {
   FeatureStrip,
   WhyUs,
   OurShowroom,
-  Catalogue
+  Catalogue,
 } from "@/components/Sections";
 
 import HeroCarousel from "@/components/HeroCarousel";
@@ -61,10 +62,10 @@ export const metadata: Metadata = {
     "shagun envelopes",
     "shagun boxes",
     "rakhi packaging",
-    "Beyond Invitation"
+    "Beyond Invitation",
   ],
   alternates: {
-    canonical: "/"
+    canonical: "/",
   },
   openGraph: {
     title,
@@ -78,15 +79,15 @@ export const metadata: Metadata = {
         url: absoluteUrl(DEFAULT_OG_IMAGE) || "/logo.png",
         width: 1200,
         height: 630,
-        alt: `${SITE_NAME} wedding cards and invitation stationery`
-      }
-    ]
+        alt: `${SITE_NAME} wedding cards and invitation stationery`,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title,
     description,
-    images: ["/logo.png"]
+    images: ["/logo.png"],
   },
   robots: {
     index: true,
@@ -96,9 +97,9 @@ export const metadata: Metadata = {
       follow: true,
       "max-image-preview": "large",
       "max-snippet": -1,
-      "max-video-preview": -1
-    }
-  }
+      "max-video-preview": -1,
+    },
+  },
 };
 
 function getNormalProducts(products: ErpProduct[]): ErpProduct[] {
@@ -109,7 +110,7 @@ function getNormalProducts(products: ErpProduct[]): ErpProduct[] {
       ...product,
       mrp: originalPrice,
       badge: product.badge === "SALE" ? undefined : product.badge,
-      onSale: false
+      onSale: false,
     };
   });
 }
@@ -161,22 +162,23 @@ export default async function HomePage() {
     priceRange: "₹₹",
     address: {
       "@type": "PostalAddress",
-      streetAddress: "Shop No. 8, Indra Kumar Karnani St, China Bazar, B.B.D. Bagh",
+      streetAddress:
+        "Shop No. 8, Indra Kumar Karnani St, China Bazar, B.B.D. Bagh",
       addressLocality: "Kolkata",
       addressRegion: "West Bengal",
       postalCode: "700001",
-      addressCountry: "IN"
+      addressCountry: "IN",
     },
     areaServed: [
       {
         "@type": "City",
-        name: "Kolkata"
+        name: "Kolkata",
       },
       {
         "@type": "Country",
-        name: "India"
-      }
-    ]
+        name: "India",
+      },
+    ],
   };
 
   const websiteJsonLd = {
@@ -186,8 +188,8 @@ export default async function HomePage() {
     name: siteName,
     url: siteUrl,
     publisher: {
-      "@id": `${siteUrl}/#localbusiness`
-    }
+      "@id": `${siteUrl}/#localbusiness`,
+    },
   };
 
   const productListJsonLd = {
@@ -208,14 +210,15 @@ export default async function HomePage() {
           "@type": "Offer",
           priceCurrency: "INR",
           price: product.price,
-          availability: "https://schema.org/InStock"
-        }
-      }
-    }))
+          availability: "https://schema.org/InStock",
+        },
+      },
+    })),
   };
 
   return (
     <>
+      <SiteLoader />
       <JsonLd data={localBusinessJsonLd} />
       <JsonLd data={websiteJsonLd} />
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import CategoryCollectionPageClient from "@/components/CategoryCollectionPageClient";
+import CategoryCollectionPageClient from "@/components/CategoryCollectionPage";
 import JsonLd from "@/components/seo/JsonLd";
 import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 import { getAllCategories, getCategoryBySlug } from "@/lib/products";

@@ -3,14 +3,22 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-
 import { BRAND, TAGLINE } from "./siteConfig";
 
 const MIN_VISIBLE_TIME = 1000;
 const MAX_WAIT_TIME = 8000;
+const LOADER_SHOWN_ATTRIBUTE = "data-site-loader-shown";
 
 export default function SiteLoader() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof document === "undefined") {
+      return true;
+    }
+
+    return !document.documentElement.hasAttribute(
+      LOADER_SHOWN_ATTRIBUTE,
+    );
+  });
 
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -19,6 +27,10 @@ export default function SiteLoader() {
   const progressRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
     const root = rootRef.current;
     const content = contentRef.current;
     const leftPanel = leftPanelRef.current;
@@ -31,29 +43,42 @@ export default function SiteLoader() {
     }
 
     /*
-     * Disable the CSS no-JavaScript failsafe once the component hydrates.
-     * GSAP controls the loader from this point onward.
+     * This marker remains attached to the current browser document.
+     * Next.js route changes use the same document, so the loader does
+     * not appear again when navigating back to the homepage.
+     *
+     * A hard refresh creates a new document, so the loader appears again.
+     */
+    document.documentElement.setAttribute(
+      LOADER_SHOWN_ATTRIBUTE,
+      "",
+    );
+
+    /*
+     * Remove the no-JavaScript safety animation after React hydrates.
+     * GSAP takes control from here.
      */
     root.classList.remove("site-loader-failsafe");
 
     const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
+    const previousPaddingRight =
+      document.body.style.paddingRight;
 
-    /*
-     * Prevent layout shift when the scrollbar disappears.
-     */
     const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
+      window.innerWidth -
+      document.documentElement.clientWidth;
 
     document.body.style.overflow = "hidden";
 
     if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      document.body.style.paddingRight =
+        `${scrollbarWidth}px`;
     }
 
     const restoreBody = () => {
       document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
+      document.body.style.paddingRight =
+        previousPaddingRight;
     };
 
     const prefersReducedMotion = window.matchMedia(
@@ -66,10 +91,16 @@ export default function SiteLoader() {
     let finished = false;
     let minimumTimeElapsed = false;
     let pageIsReady = false;
+
     let loadListener: (() => void) | null = null;
 
-    let progressTween: ReturnType<typeof gsap.to> | null = null;
-    let exitTimeline: ReturnType<typeof gsap.timeline> | null = null;
+    let progressTween:
+      | ReturnType<typeof gsap.to>
+      | null = null;
+
+    let exitTimeline:
+      | ReturnType<typeof gsap.timeline>
+      | null = null;
 
     let minimumTimer = 0;
     let maximumTimer = 0;
@@ -148,8 +179,8 @@ export default function SiteLoader() {
         );
 
       /*
-       * The bar deliberately stops below 100%.
-       * It completes only after the document and fonts are ready.
+       * The progress bar intentionally stops below 100%.
+       * It completes when the document and fonts are ready.
        */
       progressTween = gsap.to(progress, {
         scaleX: 0.84,
@@ -203,7 +234,10 @@ export default function SiteLoader() {
       window.clearTimeout(maximumTimer);
 
       if (loadListener) {
-        window.removeEventListener("load", loadListener);
+        window.removeEventListener(
+          "load",
+          loadListener,
+        );
       }
 
       progressTween?.kill();
@@ -305,40 +339,57 @@ export default function SiteLoader() {
         minimumTimeElapsed = true;
         tryToFinish();
       },
-      prefersReducedMotion ? 100 : MIN_VISIBLE_TIME,
+      prefersReducedMotion
+        ? 100
+        : MIN_VISIBLE_TIME,
     );
 
     /*
-     * Never leave the visitor trapped behind a loader because one asset,
-     * analytics script, font, or third-party resource failed.
+     * Never trap the visitor behind the loader when a font,
+     * analytics script or external resource fails.
      */
-    maximumTimer = window.setTimeout(finishLoader, MAX_WAIT_TIME);
+    maximumTimer = window.setTimeout(
+      finishLoader,
+      MAX_WAIT_TIME,
+    );
 
-    const windowReady = new Promise<void>((resolve) => {
-      if (document.readyState === "complete") {
-        resolve();
-        return;
-      }
+    const windowReady = new Promise<void>(
+      (resolve) => {
+        if (document.readyState === "complete") {
+          resolve();
+          return;
+        }
 
-      loadListener = () => resolve();
+        loadListener = () => resolve();
 
-      window.addEventListener("load", loadListener, {
-        once: true,
-      });
-    });
+        window.addEventListener(
+          "load",
+          loadListener,
+          {
+            once: true,
+          },
+        );
+      },
+    );
 
-    const fontsReady = document.fonts?.ready ?? Promise.resolve();
+    const fontsReady =
+      document.fonts?.ready ?? Promise.resolve();
 
-    void Promise.all([windowReady, fontsReady])
+    void Promise.all([
+      windowReady,
+      fontsReady,
+    ])
       .then(
         () =>
           new Promise<void>((resolve) => {
             /*
-             * Give the browser two frames to paint the completed document
-             * before the curtains open.
+             * Wait for two browser frames so the completed
+             * page has been painted beneath the loader.
              */
             window.requestAnimationFrame(() => {
-              window.requestAnimationFrame(() => resolve());
+              window.requestAnimationFrame(() => {
+                resolve();
+              });
             });
           }),
       )
@@ -351,9 +402,6 @@ export default function SiteLoader() {
         tryToFinish();
       })
       .catch(() => {
-        /*
-         * Font-loading errors should not keep the overlay visible.
-         */
         if (cancelled) {
           return;
         }
@@ -369,16 +417,18 @@ export default function SiteLoader() {
       window.clearTimeout(maximumTimer);
 
       if (loadListener) {
-        window.removeEventListener("load", loadListener);
+        window.removeEventListener(
+          "load",
+          loadListener,
+        );
       }
 
       progressTween?.kill();
       exitTimeline?.kill();
       animationContext.revert();
-
       restoreBody();
     };
-  }, []);
+  }, [isVisible]);
 
   if (!isVisible) {
     return null;
@@ -427,58 +477,47 @@ export default function SiteLoader() {
         <div className="absolute inset-0 bg-gradient-to-bl from-white/5 via-transparent to-black/20" />
       </div>
 
-      {/* Fine centre seam */}
+      {/* Centre seam */}
       <div
-        className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-px
-                   -translate-x-1/2 bg-gradient-to-b from-transparent
-                   via-gold/50 to-transparent"
+        className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-gold/50 to-transparent"
         aria-hidden="true"
       />
 
       <div
         ref={contentRef}
-        className="relative z-20 flex h-full min-h-[100svh] flex-col
-                   items-center justify-center px-6 text-center text-cream"
+        className="relative z-20 flex h-full min-h-[100svh] flex-col items-center justify-center px-6 text-center text-cream"
       >
-        {/* Rotating ornamental ring */}
+        {/* Rotating ornament */}
         <div
           data-loader-orbit
-          className="pointer-events-none absolute h-52 w-52 rounded-full
-                     border border-gold/20 sm:h-64 sm:w-64"
+          className="pointer-events-none absolute h-52 w-52 rounded-full border border-gold/20 sm:h-64 sm:w-64"
           aria-hidden="true"
         >
           <span
             data-loader-diamond
-            className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2
-                       rotate-45 border border-gold bg-carbon"
+            className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border border-gold bg-carbon"
           />
 
           <span
             data-loader-diamond
-            className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2
-                       rotate-45 border border-gold bg-carbon"
+            className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border border-gold bg-carbon"
           />
 
           <span
             data-loader-diamond
-            className="absolute left-[-4px] top-1/2 h-2 w-2 -translate-y-1/2
-                       rotate-45 border border-gold bg-carbon"
+            className="absolute left-[-4px] top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border border-gold bg-carbon"
           />
 
           <span
             data-loader-diamond
-            className="absolute right-[-4px] top-1/2 h-2 w-2 -translate-y-1/2
-                       rotate-45 border border-gold bg-carbon-dark"
+            className="absolute right-[-4px] top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border border-gold bg-carbon-dark"
           />
         </div>
 
         {/* Brand seal */}
         <div
           data-loader-seal
-          className="relative mb-7 flex h-24 w-24 items-center justify-center
-                     rounded-full border border-gold/70 bg-cream
-                     shadow-[0_20px_70px_rgba(0,0,0,0.28)]
-                     sm:h-28 sm:w-28"
+          className="relative mb-7 flex h-24 w-24 items-center justify-center rounded-full border border-gold/70 bg-cream shadow-[0_20px_70px_rgba(0,0,0,0.28)] sm:h-28 sm:w-28"
         >
           <div className="absolute inset-2 rounded-full border border-carbon/15" />
 
@@ -495,39 +534,43 @@ export default function SiteLoader() {
 
         <p
           data-loader-copy
-          className="mb-3 text-[10px] font-bold uppercase tracking-[0.42em]
-                     text-gold-light sm:text-xs"
+          className="mb-3 text-[10px] font-bold uppercase tracking-[0.42em] text-gold-light sm:text-xs"
         >
           A celebration begins
         </p>
 
         <h1
           aria-label={BRAND}
-          className="max-w-4xl text-3xl font-extrabold tracking-[0.06em]
-                     text-cream sm:text-5xl lg:text-6xl"
+          className="max-w-4xl text-3xl font-extrabold tracking-[0.06em] text-cream sm:text-5xl lg:text-6xl"
         >
-          {Array.from(BRAND).map((character, index) => (
-            <span
-              key={`${character}-${index}`}
-              className="inline-block overflow-hidden align-bottom"
-              aria-hidden="true"
-            >
-              <span data-loader-letter className="inline-block">
-                {character === " " ? "\u00A0" : character}
+          {Array.from(BRAND).map(
+            (character, index) => (
+              <span
+                key={`${character}-${index}`}
+                className="inline-block overflow-hidden align-bottom"
+                aria-hidden="true"
+              >
+                <span
+                  data-loader-letter
+                  className="inline-block"
+                >
+                  {character === " "
+                    ? "\u00A0"
+                    : character}
+                </span>
               </span>
-            </span>
-          ))}
+            ),
+          )}
         </h1>
 
         <p
           data-loader-copy
-          className="mt-4 text-xs font-semibold uppercase tracking-[0.28em]
-                     text-cream/65 sm:text-sm"
+          className="mt-4 text-xs font-semibold uppercase tracking-[0.28em] text-cream/65 sm:text-sm"
         >
           {TAGLINE}
         </p>
 
-        {/* Invitation-style ornament */}
+        {/* Invitation ornament */}
         <div
           data-loader-copy
           className="my-7 flex w-full max-w-xs items-center gap-4"
@@ -538,32 +581,39 @@ export default function SiteLoader() {
           <span className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/60" />
         </div>
 
-        <div data-loader-copy className="w-full max-w-xs sm:max-w-sm">
+        <div
+          data-loader-copy
+          className="w-full max-w-xs sm:max-w-sm"
+        >
           <div className="h-px overflow-hidden bg-white/15">
             <div
               ref={progressRef}
-              className="h-full w-full origin-left bg-gradient-to-r
-                         from-gold-light via-gold to-gold-light"
+              className="h-full w-full origin-left bg-gradient-to-r from-gold-light via-gold to-gold-light"
             />
           </div>
 
           <div
             data-loader-status
-            className="mt-4 flex items-center justify-center gap-2
-                       text-[10px] font-semibold uppercase tracking-[0.22em]
-                       text-cream/55 sm:text-xs"
+            className="mt-4 flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cream/55 sm:text-xs"
           >
-            <span>Preparing your invitation experience</span>
+            <span>
+              Preparing your invitation experience
+            </span>
 
-            <span className="flex gap-1" aria-hidden="true">
+            <span
+              className="flex gap-1"
+              aria-hidden="true"
+            >
               <span
                 data-loader-dot
                 className="h-1 w-1 rounded-full bg-gold-light"
               />
+
               <span
                 data-loader-dot
                 className="h-1 w-1 rounded-full bg-gold-light"
               />
+
               <span
                 data-loader-dot
                 className="h-1 w-1 rounded-full bg-gold-light"

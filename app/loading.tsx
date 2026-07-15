@@ -1,7 +1,7 @@
 export default function Loading() {
   /*
-   * The fixed SiteLoader in the root layout visually covers this surface
-   * during the first page load.
+   * SiteLoader is mounted in the root layout and covers
+   * the initial server-rendering/loading state.
    */
-  return <div className="min-h-[70vh] bg-paper" aria-hidden="true" />;
+  return null;
 }

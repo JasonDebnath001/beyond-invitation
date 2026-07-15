@@ -8,7 +8,6 @@ import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
 import JsonLd from "@/components/seo/JsonLd";
 import { getSiteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site-config";
 import { absoluteUrl } from "@/lib/seo";
-import SiteLoader from "@/components/SiteLoader";
 
 import {
   CelebrationGrid,
@@ -218,7 +217,6 @@ export default async function HomePage() {
 
   return (
     <>
-      <SiteLoader />
       <JsonLd data={localBusinessJsonLd} />
       <JsonLd data={websiteJsonLd} />
 

@@ -28,11 +28,14 @@
 }
 
 /*
- * Safety fallback:
- * If the client-side JavaScript fails completely, the loader removes
- * itself after eight seconds instead of permanently covering the page.
+ * Initial-render safety:
  *
- * SiteLoader.tsx removes this class as soon as React hydrates.
+ * These critical properties make the loader cover the screen as soon
+ * as its server-rendered HTML arrives. SiteLoader.tsx removes this
+ * class after React hydrates, and GSAP then controls the animation.
+ *
+ * If JavaScript fails completely, the animation below removes the
+ * loader after 8.5 seconds so the website is not permanently blocked.
  */
 @keyframes site-loader-failsafe {
   0%,
@@ -50,5 +53,17 @@
 }
 
 .site-loader-failsafe {
-  animation: site-loader-failsafe 8.5s linear forwards;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+
+  background-color: #7b1c2e;
+
+  animation:
+    site-loader-failsafe 8.5s linear forwards;
 }

@@ -24,6 +24,7 @@ import KindWords from "@/components/KindWords";
 import InstagramReels from "@/components/InstagramReels";
 import HomeTextAnimation from "@/components/HomeTextAnimation";
 import WeddingBoxesEditorial from "@/components/WeddingBoxesEditorial";
+import CustomerReviewVideo from "@/components/CustomerReviwVideo";
 
 export const dynamic = "force-dynamic";
 
@@ -281,6 +282,8 @@ export default async function HomePage() {
         <Catalogue />
 
         <KindWords />
+
+        <CustomerReviewVideo />
 
         <InstagramReels />
       </div>

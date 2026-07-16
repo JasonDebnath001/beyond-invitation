@@ -18,7 +18,7 @@ type InstagramReelsApiResponse = {
   error?: string | null;
 };
 
-const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/beyond_invitation/";
+const INSTAGRAM_PROFILE_URL = "https://www.instagram.com/beyond_invitationofficial/";
 
 function InstagramIcon({ className = "" }: { className?: string }) {
   return (

@@ -50,8 +50,8 @@ export async function GET() {
     "timestamp",
   ].join(",");
 
-  const url = new URL(
-    `https://graph.facebook.com/${INSTAGRAM_GRAPH_VERSION}/${userId}/media`,
+const url = new URL(
+    `https://graph.instagram.com/${INSTAGRAM_GRAPH_VERSION}/me/media`,
   );
 
   url.searchParams.set("fields", fields);

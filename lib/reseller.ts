@@ -138,7 +138,7 @@ async function erpList(
 /* ------------------------------------------------------------------ */
 
 const CACHE_TTL = 60 * 1000;
-const codeCache = new Map
+const codeCache = new Map<
   string,
   { reseller: Reseller | null; expiresAt: number }
 >();

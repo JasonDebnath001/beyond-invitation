@@ -29,16 +29,14 @@ const DEFAULT_SITE_URL = "https://www.beyondinvitation.co.in";
 type ProductLike = Product | ErpProduct;
 
 export const dynamicParams = true;
-export const revalidate = 60;
 
 /**
- * Important:
- * Returning [] prevents Vercel from trying to prerender every local product page
- * during build. Product pages will render dynamically/on-demand instead.
+ * Product pages must render dynamically:
+ * reseller pricing reads a per-visitor cookie, which cannot work with
+ * static/ISR caching. Dynamic rendering also removes the need for
+ * generateStaticParams (nothing is prerendered at build time).
  */
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = "force-dynamic";
 
 function ensureAbsoluteUrl(value?: string | null) {
   const clean = (value || "")
@@ -173,9 +171,8 @@ function buildSeoDescription(product: ProductLike) {
   const subject = getSubject(product);
   const cleanDescription = stripHtml(product.description);
 
-  const fallback = `Buy ${product.name} online from ${BRAND}. Premium ${categoryLabel.toLowerCase()} invitation card${
-    subject ? ` for ${subject} ceremonies` : ""
-  } with customisation, quality material, and pan-India delivery.`;
+  const fallback = `Buy ${product.name} online from ${BRAND}. Premium ${categoryLabel.toLowerCase()} invitation card${subject ? ` for ${subject} ceremonies` : ""
+    } with customisation, quality material, and pan-India delivery.`;
 
   const priceLine =
     product.price > 0
@@ -340,38 +337,38 @@ function buildProductJsonLd(product: ProductLike) {
   const additionalProperty = [
     subject
       ? {
-          "@type": "PropertyValue",
-          name: "Tradition",
-          value: subject,
-        }
+        "@type": "PropertyValue",
+        name: "Tradition",
+        value: subject,
+      }
       : null,
     product.customisation
       ? {
-          "@type": "PropertyValue",
-          name: "Customisation",
-          value: stripHtml(product.customisation),
-        }
+        "@type": "PropertyValue",
+        name: "Customisation",
+        value: stripHtml(product.customisation),
+      }
       : null,
     product.material
       ? {
-          "@type": "PropertyValue",
-          name: "Material",
-          value: stripHtml(product.material),
-        }
+        "@type": "PropertyValue",
+        name: "Material",
+        value: stripHtml(product.material),
+      }
       : null,
     product.includes
       ? {
-          "@type": "PropertyValue",
-          name: "Includes",
-          value: stripHtml(product.includes),
-        }
+        "@type": "PropertyValue",
+        name: "Includes",
+        value: stripHtml(product.includes),
+      }
       : null,
     discount > 0
       ? {
-          "@type": "PropertyValue",
-          name: "Discount",
-          value: `${discount}% OFF`,
-        }
+        "@type": "PropertyValue",
+        name: "Discount",
+        value: `${discount}% OFF`,
+      }
       : null,
   ].filter(Boolean);
 
@@ -383,7 +380,7 @@ function buildProductJsonLd(product: ProductLike) {
     description,
     image: images,
     sku: getSku(product),
-      // mpn property removed
+    // mpn property removed
     brand: {
       "@type": "Brand",
       name: BRAND,

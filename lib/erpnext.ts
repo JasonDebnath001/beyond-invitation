@@ -1,6 +1,11 @@
 import type { Product, ProductCategory } from "@/types";
 import DOMPurify from "isomorphic-dompurify";
 
+import {
+  applyResellerPricingToProducts,
+  applyResellerPricingToProduct,
+} from "@/lib/reseller";
+
 function cleanEnv(value?: string) {
   return (value ?? "").trim().replace(/^["']|["']$/g, "");
 }
@@ -1443,11 +1448,11 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
           product.itemCode,
         );
 
-const allImages = mergeImageLists(
-  attachments.images,
-  gallery,
-  product.images || [],
-);
+        const allImages = mergeImageLists(
+          attachments.images,
+          gallery,
+          product.images || [],
+        );
 
         if (allImages.length > 0) {
           product.images = allImages;
@@ -1519,7 +1524,7 @@ export async function buildErpProductList(): Promise<ErpProduct[]> {
 export async function fetchErpProducts(): Promise<ErpProduct[]> {
   const products = await buildErpProductList();
 
-  return enrichGalleries(products);
+  return applyResellerPricingToProducts(await enrichGalleries(products));
 }
 
 export async function fetchErpProductBySlug(
@@ -1544,11 +1549,11 @@ export async function fetchErpProductBySlug(
     product.itemCode,
   );
 
-const allImages = mergeImageLists(
-  attachments.images,
-  gallery,
-  product.images || [],
-);
+  const allImages = mergeImageLists(
+    attachments.images,
+    gallery,
+    product.images || [],
+  );
 
   if (allImages.length > 0) {
     product.images = allImages;
@@ -1560,7 +1565,7 @@ const allImages = mergeImageLists(
     product.videos = videos;
   }
 
-  return product;
+  return applyResellerPricingToProduct(product);
 }
 
 export async function fetchErpProductsByCategory(
@@ -1649,7 +1654,7 @@ export async function fetchErpProductsBySubject(
     mapErpItemToProduct(item, priceMap),
   );
 
-  return enrichGalleries(products);
+  return applyResellerPricingToProducts(await enrichGalleries(products));
 }
 
 export async function createErpSalesOrder(payload: {
@@ -1715,6 +1720,10 @@ const ERPNEXT_RZP_PAYMENT_FIELD =
   process.env.ERPNEXT_RZP_PAYMENT_FIELD ?? "custom_razorpay_payment_id";
 const ERPNEXT_PAYMENT_STATUS_FIELD =
   process.env.ERPNEXT_PAYMENT_STATUS_FIELD ?? "custom_payment_status";
+const ERPNEXT_RESELLER_CODE_FIELD =
+  process.env.ERPNEXT_RESELLER_CODE_FIELD ?? "custom_reseller_code";
+const ERPNEXT_RESELLER_COMMISSION_FIELD =
+  process.env.ERPNEXT_RESELLER_COMMISSION_FIELD ?? "custom_reseller_commission";
 
 // Per-buyer customer creation.
 // When enabled and an email is present, the integration finds an existing
@@ -1946,19 +1955,19 @@ async function createContactForCustomer(customer: string, buyer?: BuyerInfo) {
     is_billing_contact: 1,
     email_ids: email
       ? [
-          {
-            email_id: email,
-            is_primary: 1,
-          },
-        ]
+        {
+          email_id: email,
+          is_primary: 1,
+        },
+      ]
       : [],
     phone_nos: phone
       ? [
-          {
-            phone,
-            is_primary_mobile_no: 1,
-          },
-        ]
+        {
+          phone,
+          is_primary_mobile_no: 1,
+        },
+      ]
       : [],
     links: [
       {
@@ -2073,6 +2082,7 @@ export async function createDraftSalesOrder(args: {
   razorpayOrderId: string;
   items: ErpOrderLine[];
   buyer?: BuyerInfo;
+  reseller?: { code: string; commission: number };
 }): Promise<{ name: string }> {
   const resolved = await resolveCustomerWithDetails(args.buyer);
 
@@ -2124,6 +2134,13 @@ export async function createDraftSalesOrder(args: {
 
     [ERPNEXT_RZP_ORDER_FIELD]: args.razorpayOrderId,
     [ERPNEXT_PAYMENT_STATUS_FIELD]: "Pending",
+
+    ...(args.reseller?.code
+      ? {
+        [ERPNEXT_RESELLER_CODE_FIELD]: args.reseller.code,
+        [ERPNEXT_RESELLER_COMMISSION_FIELD]: args.reseller.commission,
+      }
+      : {}),
   };
 
   Object.keys(payload).forEach((key) => {

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getRazorpay } from "@/lib/razorpay";
 import { resolveCartProducts } from "@/lib/checkout";
 import { createDraftSalesOrder, type BuyerInfo } from "@/lib/erpnext";
+import { getActiveResellerFromCookies } from "@/lib/reseller"
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,9 +69,10 @@ export async function POST(request: NextRequest) {
 
     const { userId } = await auth().catch(() => ({ userId: null }));
 
-    const { lines, amountPaise, currency } = await resolveCartProducts(
-      body?.items ?? [],
-    );
+    const reseller = await getActiveResellerFromCookies();
+
+    const { lines, amountPaise, currency, commission } =
+      await resolveCartProducts(body?.items ?? [], reseller);
 
     if (lines.length === 0 || amountPaise < 100) {
       return NextResponse.json(
@@ -126,6 +128,10 @@ export async function POST(request: NextRequest) {
           rate: line.price,
         })),
         buyer: customer,
+        reseller:
+          reseller && commission >= 0
+            ? { code: reseller.code, commission }
+            : undefined,
       });
     } catch (createError) {
       console.error("Failed to create ERP draft Sales Order", {

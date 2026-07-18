@@ -1527,6 +1527,12 @@ export async function fetchErpProducts(): Promise<ErpProduct[]> {
   return applyResellerPricingToProducts(await enrichGalleries(products));
 }
 
+export async function fetchErpProductsBase(): Promise<ErpProduct[]> {
+  const products = await buildErpProductList();
+
+  return enrichGalleries(products);
+}
+
 export async function fetchErpProductBySlug(
   slug: string,
 ): Promise<ErpProduct | null> {

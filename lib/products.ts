@@ -9,8 +9,10 @@ import type {
 
 import {
   fetchErpProducts,
+  fetchErpProductsBase,
   type ErpProduct,
 } from "@/lib/erpnext";
+import { applyResellerPricingToProducts } from "@/lib/reseller";
 
 const localProducts = productsData as Product[];
 const categories = categoriesData as Category[];
@@ -34,7 +36,7 @@ async function getErpProductsForSearch(): Promise<ErpProduct[]> {
     return cachedErpProducts;
   }
 
-  const products = await fetchErpProducts();
+  const products = await fetchErpProductsBase();
 
   cachedErpProducts = products;
   cacheExpiresAt = now + SEARCH_CACHE_DURATION;
@@ -362,7 +364,7 @@ export async function searchProducts(
     return a.originalIndex - b.originalIndex;
   });
 
-  return matchedProducts.map(
-    ({ product }) => product,
+  return await applyResellerPricingToProducts(
+    matchedProducts.map(({ product }) => product),
   );
 }

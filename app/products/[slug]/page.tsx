@@ -18,6 +18,10 @@ import { BRAND } from "@/components/siteConfig";
 import { ProductGrid } from "@/components/ProductGrid";
 import ProductGallery from "@/components/ProductGallery";
 import ProductBuyBox from "@/components/ProductBuyBox";
+import {
+  applyResellerPricingToProduct,
+  applyResellerPricingToProducts,
+} from "@/lib/reseller";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -213,15 +217,16 @@ function productDetailValue(value: string | undefined | null) {
 }
 
 async function resolveProduct(slug: string): Promise<ProductLike | null> {
-  const local = await getProductBySlug(slug);
-
-  if (local) return local;
-
   try {
     const erp = await fetchErpProductBySlug(slug);
     if (erp) return erp;
-  } catch {
-    // ERPNext not configured / unreachable — fall through to 404.
+  } catch (error) {
+    console.error("resolveProduct ERP fetch failed for slug:", slug, error);
+  }
+
+  const local = await getProductBySlug(slug);
+  if (local) {
+    return applyResellerPricingToProduct(local);
   }
 
   return null;
@@ -237,7 +242,8 @@ async function resolveRelated(product: ProductLike): Promise<Product[]> {
     }
   }
 
-  return getRelatedProducts(product);
+  const localRelated = await getRelatedProducts(product);
+  return applyResellerPricingToProducts(localRelated);
 }
 
 export async function generateMetadata({

@@ -85,6 +85,36 @@ function buildErpUrl(path: string, params?: Record<string, string>) {
   return url.toString();
 }
 
+/**
+ * Frappe Phone-type fields validate the exact format +<code>-<number>,
+ * e.g. +91-9876543210. Normalize common Indian inputs to that format.
+ * If we can't confidently normalize, send "" (empty skips validation)
+ * rather than blocking the signup.
+ */
+function normalizePhoneForErp(raw?: string): string {
+  const digits = (raw ?? "").replace(/[^\d]/g, "");
+
+  if (!digits) return "";
+
+  // Already includes 91 country code (e.g. 919876543210)
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return `+91-${digits.slice(2)}`;
+  }
+
+  // Plain 10-digit Indian mobile
+  if (digits.length === 10) {
+    return `+91-${digits}`;
+  }
+
+  // Leading 0 (e.g. 09876543210)
+  if (digits.length === 11 && digits.startsWith("0")) {
+    return `+91-${digits.slice(1)}`;
+  }
+
+  // Unrecognized format — skip rather than fail the whole registration.
+  return "";
+}
+
 function mapDoc(doc: ErpResellerDoc): Reseller {
   return {
     docName: doc.name,
@@ -213,7 +243,7 @@ export async function createReseller(args: {
     clerk_user_id: args.clerkUserId,
     reseller_name: args.resellerName,
     email: args.email,
-    phone: args.phone ?? "",
+    phone: normalizePhoneForErp(args.phone),
     margin_percent: clampMargin(args.marginPercent),
     active: 1,
   };

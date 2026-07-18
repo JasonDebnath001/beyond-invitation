@@ -10,11 +10,29 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function cleanEnv(value?: string) {
+    return (value ?? "").trim().replace(/^["']|["']$/g, "");
+}
+
 export async function GET(request: NextRequest) {
-    // Simple guard so this isn't world-readable. Call it as:
-    // /api/debug-pricing?key=YOUR_SECRET
-    if (request.nextUrl.searchParams.get("key") !== process.env.DEBUG_KEY) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const provided = (request.nextUrl.searchParams.get("key") ?? "").trim();
+    const expected = cleanEnv(process.env.DEBUG_KEY);
+
+    if (!expected || provided !== expected) {
+        // Diagnostic-safe: reveals whether the env var exists and lengths,
+        // never the values themselves.
+        return NextResponse.json(
+            {
+                error: "Not found",
+                guard: {
+                    keyProvidedInUrl: Boolean(provided),
+                    providedLength: provided.length,
+                    envKeyConfigured: Boolean(process.env.DEBUG_KEY),
+                    envKeyLengthAfterCleaning: expected.length,
+                },
+            },
+            { status: 404 },
+        );
     }
 
     const store = await cookies();

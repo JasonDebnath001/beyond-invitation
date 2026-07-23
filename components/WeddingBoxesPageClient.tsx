@@ -334,6 +334,7 @@ export default function WeddingBoxesPageClient({
     <main
       ref={rootRef}
       data-no-text-motion
+      data-wedding-boxes-page
       className="min-h-screen bg-white text-carbon"
     >
       <section className="relative px-4 pb-10 pt-5 sm:px-6 lg:px-8">

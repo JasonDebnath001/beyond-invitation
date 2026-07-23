@@ -63,7 +63,6 @@ function getPrimaryImage(product: ErpProduct) {
 
 function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const cardRef = useRef<HTMLAnchorElement | null>(null);
 
   const image = getPrimaryImage(product);
   const showImage = Boolean(image && !imageFailed);
@@ -73,76 +72,11 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
     stripHtml(product.includes) ||
     stripHtml(product.customisation);
 
-  /*
-   * GSAP hover micro-interaction:
-   * a smooth lift + image zoom driven by quickTo, so rapid
-   * enter/leave events never stack tweens.
-   */
-  useEffect(() => {
-    const card = cardRef.current;
-
-    if (!card) {
-      return;
-    }
-
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    if (reduceMotion) {
-      return;
-    }
-
-    const media = card.querySelector<HTMLElement>("[data-card-media]");
-    const arrow = card.querySelector<HTMLElement>("[data-card-arrow]");
-
-    const liftTo = gsap.quickTo(card, "y", {
-      duration: 0.45,
-      ease: "power3.out",
-    });
-
-    const zoomTo = media
-      ? gsap.quickTo(media, "scale", {
-          duration: 0.9,
-          ease: "power3.out",
-        })
-      : null;
-
-    const arrowTo = arrow
-      ? gsap.quickTo(arrow, "x", {
-          duration: 0.4,
-          ease: "power3.out",
-        })
-      : null;
-
-    const onEnter = () => {
-      liftTo(-6);
-      zoomTo?.(1.05);
-      arrowTo?.(5);
-    };
-
-    const onLeave = () => {
-      liftTo(0);
-      zoomTo?.(1);
-      arrowTo?.(0);
-    };
-
-    card.addEventListener("mouseenter", onEnter);
-    card.addEventListener("mouseleave", onLeave);
-
-    return () => {
-      card.removeEventListener("mouseenter", onEnter);
-      card.removeEventListener("mouseleave", onLeave);
-      gsap.killTweensOf([card, media, arrow]);
-    };
-  }, []);
-
   return (
     <Link
-      ref={cardRef}
       href={`/products/${product.slug}`}
       data-wedding-box-card
-      className="group block overflow-hidden rounded-3xl border border-carbon/10 bg-white shadow-[0_10px_30px_rgba(123,28,46,0.06)] transition-shadow duration-500 hover:border-carbon/25 hover:shadow-[0_22px_55px_rgba(123,28,46,0.14)] focus:outline-none focus:ring-2 focus:ring-carbon/20"
+      className="group block overflow-hidden rounded-3xl border border-carbon/10 bg-white shadow-[0_10px_30px_rgba(123,28,46,0.06)] transition duration-500 hover:-translate-y-1.5 hover:border-carbon/25 hover:shadow-[0_22px_55px_rgba(123,28,46,0.14)] focus:outline-none focus:ring-2 focus:ring-carbon/20"
     >
       <div className="relative overflow-hidden bg-paper">
         <div className="aspect-[4/5]">
@@ -154,14 +88,10 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
               decoding="async"
               draggable={false}
               onError={() => setImageFailed(true)}
-              data-card-media
-              className="h-full w-full object-cover will-change-transform"
+              className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.05]"
             />
           ) : (
-            <div
-              data-card-media
-              className="flex h-full w-full items-center justify-center bg-paper px-6 text-center"
-            >
+            <div className="flex h-full w-full items-center justify-center bg-paper px-6 text-center">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-ink-mid">
                   Wedding Box
@@ -199,10 +129,7 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
             View details
           </span>
 
-          <span
-            data-card-arrow
-            className="inline-block text-base leading-none text-gold"
-          >
+          <span className="inline-block text-base leading-none text-gold transition duration-300 group-hover:translate-x-1">
             →
           </span>
         </div>
@@ -239,7 +166,6 @@ export default function WeddingBoxesPageClient({
           opacity: 1,
           y: 0,
           clipPath: "inset(0% 0% 0% 0%)",
-          filter: "blur(0px)",
         });
 
         if (rule) {
@@ -249,6 +175,11 @@ export default function WeddingBoxesPageClient({
         return;
       }
 
+      /*
+       * Opacity + position only.
+       * No filter/blur animations: they force the browser to rasterize
+       * the cards and leave images looking soft.
+       */
       const timeline = gsap.timeline({
         defaults: {
           ease: "power3.out",
@@ -309,19 +240,22 @@ export default function WeddingBoxesPageClient({
         {
           opacity: 0,
           y: 26,
-          filter: "blur(6px)",
         },
         {
           opacity: 1,
           y: 0,
-          filter: "blur(0px)",
           duration: 0.7,
           stagger: {
             each: 0.06,
             grid: "auto",
             from: "start",
           },
-          clearProps: "filter",
+          /*
+           * Remove GSAP's inline transform/opacity once the entrance
+           * finishes so hover effects and image rendering are fully
+           * handled by CSS, keeping images crisp.
+           */
+          clearProps: "transform,opacity",
         },
         "-=0.45",
       );
@@ -334,7 +268,6 @@ export default function WeddingBoxesPageClient({
     <main
       ref={rootRef}
       data-no-text-motion
-      data-wedding-boxes-page
       className="min-h-screen bg-white text-carbon"
     >
       <section className="relative px-4 pb-10 pt-5 sm:px-6 lg:px-8">
@@ -420,9 +353,9 @@ export default function WeddingBoxesPageClient({
                   Our wedding box collection is being refreshed
                 </h2>
                 <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-ink-mid">
-                  There are no items with Subject set to Wedding Box and Show
-                  on Website enabled right now. Please check back soon, or send
-                  us a custom enquiry.
+                  There are no items with Subject set to Wedding Box and Show on
+                  Website enabled right now. Please check back soon, or send us
+                  a custom enquiry.
                 </p>
                 <Link
                   href="/contact"

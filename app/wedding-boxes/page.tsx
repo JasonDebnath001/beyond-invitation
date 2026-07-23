@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchErpProductsBySubject } from "@/lib/erpnext";
+import { fetchErpProducts } from "@/lib/erpnext";
 import type { ErpProduct } from "@/lib/erpnext";
 import {
   DEFAULT_OG_IMAGE,
@@ -15,7 +15,6 @@ export const dynamic = "force-dynamic";
 
 const PAGE_PATH = "/wedding-boxes";
 const PAGE_URL = siteUrl(PAGE_PATH);
-const WEDDING_BOX_SUBJECT = "Wedding Box";
 
 const title = "Wedding Boxes | Premium Invitation Boxes";
 const description =
@@ -71,6 +70,28 @@ export const metadata: Metadata = {
   },
 };
 
+/*
+ * Lenient Subject matching.
+ *
+ * ERPNext Subject values are not always identical strings:
+ * "Wedding Box", "Wedding Boxes", "wedding box " must all match.
+ *
+ * Normalization: trim, collapse repeated spaces, lowercase.
+ * A product matches when its normalized subject STARTS WITH "wedding box",
+ * which covers both singular and plural.
+ */
+const WEDDING_BOX_SUBJECT_PREFIX = "wedding box";
+
+function normalizeSubject(value: string | undefined) {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isWeddingBoxProduct(product: ErpProduct) {
+  return normalizeSubject(product.subject).startsWith(
+    WEDDING_BOX_SUBJECT_PREFIX,
+  );
+}
+
 function getProductImage(product: ErpProduct) {
   const image = product.images?.[0];
 
@@ -94,14 +115,10 @@ async function getWeddingBoxProducts(): Promise<{
   errorMessage: string;
 }> {
   try {
-    /*
-     * Server-side ERPNext filter:
-     * only Items with Subject = "Wedding Box" and Show on Website enabled.
-     */
-    const products = await fetchErpProductsBySubject(WEDDING_BOX_SUBJECT);
+    const products = await fetchErpProducts();
 
     return {
-      products,
+      products: products.filter(isWeddingBoxProduct),
       errorMessage: "",
     };
   } catch (error) {

@@ -67,3 +67,27 @@
   animation:
     site-loader-failsafe 8.5s linear forwards;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-wedding-boxes-page] [data-page-intro] {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  [data-wedding-boxes-page] [data-page-title] {
+    opacity: 0;
+    transform: translateY(26px);
+    clip-path: inset(0% 0% 100% 0%);
+  }
+
+  [data-wedding-boxes-page] [data-header-rule] {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  [data-wedding-boxes-page] [data-wedding-box-card] {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(6px);
+  }
+}

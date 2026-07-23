@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchErpProducts } from "@/lib/erpnext";
+import { fetchErpProductsBySubject } from "@/lib/erpnext";
 import type { ErpProduct } from "@/lib/erpnext";
 import {
   DEFAULT_OG_IMAGE,
@@ -71,14 +71,6 @@ export const metadata: Metadata = {
   },
 };
 
-function normalizeSubject(value: string | undefined) {
-  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function isWeddingBoxProduct(product: ErpProduct) {
-  return normalizeSubject(product.subject) === normalizeSubject(WEDDING_BOX_SUBJECT);
-}
-
 function getProductImage(product: ErpProduct) {
   const image = product.images?.[0];
 
@@ -102,10 +94,14 @@ async function getWeddingBoxProducts(): Promise<{
   errorMessage: string;
 }> {
   try {
-    const products = await fetchErpProducts();
+    /*
+     * Server-side ERPNext filter:
+     * only Items with Subject = "Wedding Box" and Show on Website enabled.
+     */
+    const products = await fetchErpProductsBySubject(WEDDING_BOX_SUBJECT);
 
     return {
-      products: products.filter(isWeddingBoxProduct),
+      products,
       errorMessage: "",
     };
   } catch (error) {
@@ -173,10 +169,7 @@ export default async function WeddingBoxesPage() {
       <JsonLd data={breadcrumbJsonLd} />
       {products.length > 0 ? <JsonLd data={itemListJsonLd} /> : null}
 
-      <WeddingBoxesPageClient
-        products={products}
-        errorMessage={errorMessage}
-      />
+      <WeddingBoxesPageClient products={products} errorMessage={errorMessage} />
     </>
   );
 }

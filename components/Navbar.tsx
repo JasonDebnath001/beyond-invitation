@@ -41,6 +41,10 @@ const navMenu: NavItem[] = [
         label: "Christian Wedding Cards",
         href: "/collections/wedding-card-christian",
       },
+      {
+        label: "Wedding Box",
+        href: "/wedding-boxes",
+      },
     ],
   },
   {
@@ -169,17 +173,15 @@ export default function Navbar() {
     null
   );
 
-  const desktopDropdownRefs = useRef<
-    Record<number, HTMLDivElement | null>
-  >({});
+  const desktopDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileBackdropRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuContentRef = useRef<HTMLDivElement | null>(null);
 
-  const mobileTimelineRef = useRef<
-    ReturnType<typeof gsap.timeline> | null
-  >(null);
+  const mobileTimelineRef = useRef<ReturnType<typeof gsap.timeline> | null>(
+    null
+  );
 
   const hasOpenedMobileMenuRef = useRef(false);
 

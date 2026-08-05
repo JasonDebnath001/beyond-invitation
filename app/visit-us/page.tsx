@@ -133,8 +133,7 @@ export default function VisitUsPage() {
 
               <p className="mt-4 text-base leading-8 text-neutral-700">
                 You can visit our showroom for catalog viewing, product
-                selection, bulk order discussion and custom wedding card
-                requirements.
+                selection and bulk order discussion.
               </p>
             </div>
 

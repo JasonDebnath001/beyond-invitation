@@ -10,7 +10,7 @@ const placeholderEmail = "contact@khushionline.net";
 export const metadata: Metadata = {
   title: "Contact Us | Beyond Invitation",
   description:
-    "Get in touch with Beyond Invitation for wedding invitations, shagun envelopes, rakhi packaging, and custom stationery.",
+    "Get in touch with Beyond Invitation for wedding invitations, shagun envelopes, rakhi packaging, and celebration stationery.",
   alternates: {
     canonical: "/contact",
   },
@@ -36,8 +36,8 @@ export default function ContactPage() {
 
             <p className="mt-6 text-base leading-8 text-ink-mid sm:text-lg">
               Whether you&apos;re looking for wedding invitations, shagun
-              envelopes, rakhi packaging, or a custom design, our team is here
-              to help you choose the right product.
+              envelopes, rakhi packaging, or celebration stationery, our team
+              is here to help you choose the right product.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -85,8 +85,8 @@ export default function ContactPage() {
           </h2>
 
           <p className="mt-4 text-sm leading-7 text-ink-mid">
-            For quick product queries, catalogue assistance, custom card
-            requirements, or order support, call or message us directly.
+            For quick product queries, catalogue assistance, or order
+            support, call or message us directly.
           </p>
         </div>
 

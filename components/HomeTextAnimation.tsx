@@ -6,7 +6,6 @@ const TEXT_ITEMS = [
   "Wedding Cards",
   "Rakhi Packaging",
   "Shagun Envelopes",
-  "Custom Designs",
   "Premium Printing",
   "Pan-India Delivery",
   "Wholesale & Retail",

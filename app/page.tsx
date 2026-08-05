@@ -38,7 +38,7 @@ const title =
   "Wedding Cards in Kolkata | Wedding Invitation Cards Online India - Beyond Invitation";
 
 const description =
-  "Shop premium wedding cards in Kolkata from Beyond Invitation. Explore Indian wedding invitation cards, designer wedding cards, custom invitation printing, shagun envelopes and wedding stationery with pan-India delivery.";
+  "Shop premium wedding cards in Kolkata from Beyond Invitation. Explore Indian wedding invitation cards, designer wedding cards, shagun envelopes and wedding stationery with pan-India delivery.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -54,7 +54,6 @@ export const metadata: Metadata = {
     "Indian wedding cards",
     "designer wedding cards",
     "premium wedding cards",
-    "custom wedding invitations",
     "invitation printing Kolkata",
     "Hindu wedding cards",
     "Muslim wedding cards",

@@ -34,7 +34,7 @@ const sections = [
         body: [
             `Orders are processed and dispatched on business days, excluding Sundays and public holidays.`,
             `We work with trusted shipping partners to ensure secure and timely delivery of your purchases.`,
-            `While we make every effort to ship all items in a single shipment, certain orders may be delivered separately due to stock availability, customization requirements, or operational considerations.`,
+            `While we make every effort to ship all items in a single shipment, certain orders may be delivered separately due to stock availability or operational considerations.`,
         ],
     },
     {
@@ -99,7 +99,7 @@ export default function ShippingPolicyPage() {
 
                             <nav className="space-y-2">
                                 {sections.map((section) => (
-                                    <a
+                                    <Link
                                         key={section.title}
                                         href={`#${section.title
                                             .toLowerCase()
@@ -108,7 +108,7 @@ export default function ShippingPolicyPage() {
                                         className="block rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-amber-50 hover:text-amber-800"
                                     >
                                         {section.title}
-                                    </a>
+                                    </Link>
                                 ))}
                             </nav>
                         </div>
@@ -120,7 +120,7 @@ export default function ShippingPolicyPage() {
                             <p className="text-base leading-8 text-neutral-700">
                                 Welcome to <strong>{BRAND}</strong>. Your trust matters to us.
                                 We collect only the information needed to provide a smooth
-                                shopping, inquiry, customization, payment and delivery
+                                shopping, inquiry, payment and delivery
                                 experience.
                             </p>
                         </div>

@@ -49,7 +49,7 @@ function getCategorySeo(
     return {
       title: `${categoryName} | Wedding Invitation Cards in Kolkata`,
       description:
-        "Browse premium wedding cards from Beyond Invitation. Explore Indian wedding invitation cards, designer wedding cards, custom invitation printing and luxury wedding card options in Kolkata.",
+        "Browse premium wedding cards from Beyond Invitation. Explore Indian wedding invitation cards, designer wedding cards and luxury wedding card options in Kolkata.",
       keywords: PRIMARY_KEYWORDS,
     };
   }
@@ -66,7 +66,6 @@ function getCategorySeo(
       `${label} cards Kolkata`,
       `${label} cards online India`,
       "invitation cards Kolkata",
-      "custom invitation cards",
       "Beyond Invitation",
     ],
   };

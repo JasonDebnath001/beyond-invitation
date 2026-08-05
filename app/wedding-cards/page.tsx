@@ -23,7 +23,7 @@ const title =
   "Wedding Cards in Kolkata | Wedding Invitation Cards Online India";
 
 const description =
-  "Explore premium wedding cards in Kolkata from Beyond Invitation. Shop Hindu, Muslim, Christian and designer Indian wedding invitation cards with custom printing and pan-India delivery.";
+  "Explore premium wedding cards in Kolkata from Beyond Invitation. Shop Hindu, Muslim, Christian and designer Indian wedding invitation cards with pan-India delivery.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -151,14 +151,6 @@ export default async function WeddingCardsPage() {
           category: "Wedding Invitation Cards",
         },
       },
-      {
-        "@type": "Offer",
-        itemOffered: {
-          "@type": "Product",
-          name: "Custom Wedding Invitation Cards",
-          category: "Invitation Printing",
-        },
-      },
     ],
   };
 
@@ -214,15 +206,7 @@ export default async function WeddingCardsPage() {
         name: "Where can I buy wedding cards in Kolkata?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "You can buy premium wedding cards from Beyond Invitation in Kolkata. The collection includes Indian wedding invitation cards, designer cards, shagun envelopes, boxes and custom invitation stationery.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does Beyond Invitation offer custom wedding invitation cards?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Beyond Invitation offers custom wedding invitation cards with design, material, printing and finishing options depending on the selected card.",
+          text: "You can buy premium wedding cards from Beyond Invitation in Kolkata. The collection includes Indian wedding invitation cards, designer cards, shagun envelopes, boxes and celebration stationery.",
         },
       },
       {
@@ -263,8 +247,8 @@ export default async function WeddingCardsPage() {
 
           <p className="mt-5 max-w-3xl text-lg leading-8 text-ink-mid">
             Beyond Invitation offers premium wedding cards, designer wedding
-            invitation cards, custom printed invitations, shagun envelopes and
-            wedding stationery for families in Kolkata and across India.
+            invitation cards, shagun envelopes and wedding stationery for
+            families in Kolkata and across India.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -279,7 +263,7 @@ export default async function WeddingCardsPage() {
               href="/contact"
               className="rounded-full border border-maroon px-6 py-3 text-sm font-semibold text-maroon transition hover:bg-maroon hover:text-gold-light"
             >
-              Ask for Custom Design
+              Talk to Our Team
             </Link>
           </div>
         </section>
@@ -332,9 +316,8 @@ export default async function WeddingCardsPage() {
             </h2>
 
             <p className="mt-3 text-base leading-7 text-ink-mid">
-              Browse Indian wedding cards, designer cards, luxury invitations
-              and custom wedding card options. Use the filters to find cards by
-              price and style.
+              Browse Indian wedding cards, designer cards and luxury
+              invitations. Use the filters to find cards by price and style.
             </p>
           </div>
 
@@ -347,7 +330,7 @@ export default async function WeddingCardsPage() {
               </h2>
               <p className="mt-2 text-sm text-ink-mid">
                 Please contact Beyond Invitation for the latest wedding card
-                catalogue and custom invitation options.
+                catalogue and availability.
               </p>
               <Link
                 href="/contact"
@@ -379,11 +362,11 @@ export default async function WeddingCardsPage() {
 
               <div className="rounded-2xl border border-gold/25 bg-cream p-6">
                 <h3 className="text-lg font-semibold text-ink">
-                  Customisation support
+                  Curated designs
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-ink-mid">
-                  Choose card design, paper feel, printing style, inserts,
-                  envelopes and matching accessories based on your wedding
+                  Choose from ready designs across paper styles, inserts,
+                  envelopes and matching accessories to suit your wedding
                   theme.
                 </p>
               </div>
@@ -423,16 +406,6 @@ export default async function WeddingCardsPage() {
                 You can buy premium wedding cards from Beyond Invitation in
                 Kolkata, including designer wedding invitation cards, shagun
                 envelopes, boxes and matching stationery.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-ink">
-                Can I order custom wedding invitation cards?
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-ink-mid">
-                Yes. Customisation depends on card design, material, printing
-                style and finishing requirements.
               </p>
             </div>
 

@@ -20,7 +20,7 @@ export const BRAND_NAME = "Bharat Agency Wedding Cards Pvt. Ltd.";
 export const DEFAULT_OG_IMAGE = "/logo.png";
 
 export const SITE_DESCRIPTION =
-  "Shop premium wedding cards, wedding invitation cards, shagun envelopes, shagun boxes, rakhi packaging, and custom invitation stationery from Beyond Invitation in Kolkata.";
+  "Shop premium wedding cards, wedding invitation cards, shagun envelopes, shagun boxes, rakhi packaging, and invitation stationery from Beyond Invitation in Kolkata.";
 
 export const PRIMARY_KEYWORDS = [
   "wedding cards",
@@ -34,7 +34,6 @@ export const PRIMARY_KEYWORDS = [
   "Muslim wedding cards",
   "Christian wedding cards",
   "premium wedding cards",
-  "custom wedding invitations",
   "invitation printing Kolkata",
   "shagun envelopes",
   "shagun boxes",

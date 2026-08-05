@@ -57,12 +57,12 @@ const process = [
     text: "Explore collections by style, religion, theme, finish and budget.",
   },
   {
-    title: "Personalise",
-    text: "Share names, event details, wording preferences and design changes.",
+    title: "Select",
+    text: "Shortlist designs, quantities and matching stationery for your event.",
   },
   {
-    title: "Approve",
-    text: "Review the final layout carefully before the print process begins.",
+    title: "Order",
+    text: "Confirm your order details and complete secure online payment.",
   },
   {
     title: "Celebrate",
@@ -310,7 +310,7 @@ export default function AboutPage() {
               <p className="mt-5 max-w-2xl leading-8 text-ink-mid">
                 Share your theme, function details, quantity and budget. Our
                 team will help you shortlist suitable designs and guide you
-                through customization, correction and delivery.
+                through selection, ordering and delivery.
               </p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -374,7 +374,7 @@ export default function AboutPage() {
                   <div className="mt-8 h-px bg-carbon/10" />
 
                   <p className="mt-6 text-sm leading-7 text-ink-mid">
-                    Traditional. Modern. Elegant. Customised for your
+                    Traditional. Modern. Elegant. Made for your
                     celebration.
                   </p>
                 </div>

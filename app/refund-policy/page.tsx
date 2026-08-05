@@ -25,7 +25,7 @@ const sections = [
       'Product exchanges may be approved only in specific circumstances, including when an incorrect product has been delivered to the customer.',
       'An exchange may also be considered if the delivered product is damaged and an identical replacement product is unavailable due to being out of stock.',
       'Customers must report any eligible exchange issues within a reasonable period after delivery and provide sufficient details or evidence to support the request.',
-      'No cancellation, return, refund, or exchange requests will be accepted for custom-made products, personalized items, printed products, or any order specifically manufactured according to customer requirements.',
+      'No cancellation, return, refund, or exchange requests will be accepted for printed products or any order specifically manufactured to fulfil customer requirements.',
     ]
   },
   {
@@ -36,14 +36,13 @@ const sections = [
   },
 
   {
-    title: "5. No Returns or Exchanges",
+    title: "4. No Returns or Exchanges",
     body: [
-      <><strong>Customized Products:</strong> All custom wedding cards and personalized products are made to order and tailored to your specifications. As such, we do not accept returns or exchanges on any customized items, including printed, embossed, or engraved products.</>,
-      <><strong>Non-Customized Products:</strong> We also do not accept returns or exchanges on non-customized products. Once an order is placed, it is considered final.</>,
+      <><strong>All Products:</strong> We do not accept returns or exchanges. Once an order is placed, it is considered final.</>,
     ],
   },
   {
-    title: "6. Quality Assurance",
+    title: "5. Quality Assurance",
     body: [
       `We are committed to ensuring the highest quality standards for our products.`,
       `Each item undergoes a thorough quality check before it is dispatched to you.`,
@@ -51,22 +50,22 @@ const sections = [
     ],
   },
   {
-    title: "7. Damaged or Defective Products",
+    title: "6. Damaged or Defective Products",
     body: [
       'Although we generally do not accept product returns, we are committed to resolving issues arising from manufacturing defects, shipping damage, or fulfillment errors where applicable.',
       'If you receive a damaged, defective, or incorrect item, you should notify our customer support team within 48 hours of delivery. To help us investigate the issue, please provide your order details along with clear photographs showing the problem.',
-      'Our team will carefully review the submitted information and determine the most appropriate resolution. Where approved, we may arrange a replacement product at no additional charge, provided the item has not been printed or customized beyond correction.',
+      'Our team will carefully review the submitted information and determine the most appropriate resolution. Where approved, we may arrange a replacement product at no additional charge.',
       'In exceptional circumstances where a replacement is not feasible, a refund may be considered based on the findings of our internal review and investigation process.',
     ]
   },
   {
-    title: "8. Order Cancellations",
+    title: "7. Order Cancellations",
     body: [
       `Once an order has been processed or shipped, it cannot be cancelled or refunded.`,
     ],
   },
   {
-    title: "9. Customer Support",
+    title: "8. Customer Support",
     body: [
       <>If you have any questions or enquiry about our return policy, please reach out to our customer support team at <strong>contact@khushionline.net</strong> or call us at <strong>+91 7044815488</strong>.</>,
       `We are always here for yourr help.`,
@@ -140,7 +139,7 @@ export default function RefundPolicyPage() {
               <p className="text-base leading-8 text-neutral-700">
                 Welcome to <strong>{BRAND}</strong>. Your trust matters to us.
                 We collect only the information needed to provide a smooth
-                shopping, inquiry, customization, payment and delivery
+                shopping, inquiry, payment and delivery
                 experience.
               </p>
             </div>

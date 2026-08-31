@@ -1,4 +1,4 @@
-import type { Product, ProductCategory } from "@/types";
+import type { Product, ProductCategory, ProductDimensions } from "@/types";
 import DOMPurify from "isomorphic-dompurify";
 
 import {
@@ -37,6 +37,15 @@ const ERPNEXT_MATERIAL_FIELD =
 
 const ERPNEXT_INCLUDES_FIELD =
   process.env.ERPNEXT_INCLUDES_FIELD ?? "custom_includes";
+
+const ERPNEXT_DIMENSION_FIELDS = {
+  height: "custom_height",
+  width: "custom_width",
+  weight: "custom_weight",
+  depth: "custom_depth",
+  heightInsideCard: "custom_height_inside_card",
+  widthInsideCard: "custom_width_inside_card",
+} as const;
 
 // ---------------------------------------------------------------------------
 // ERPNext Website Catalogue fields
@@ -375,6 +384,49 @@ function cleanPlainTextValue(value: unknown): string {
     .replace(/&nbsp;/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function parseMeasurement(value: unknown): number | undefined {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return undefined;
+  }
+
+  const measurement =
+    typeof value === "number" ? value : Number(value.trim().replace(/,/g, ""));
+
+  return Number.isFinite(measurement) && measurement > 0
+    ? measurement
+    : undefined;
+}
+
+function getProductDimensions(
+  doc: Record<string, unknown> | null,
+): ProductDimensions | undefined {
+  if (!doc) return undefined;
+
+  const dimensions: ProductDimensions = {
+    height: parseMeasurement(doc[ERPNEXT_DIMENSION_FIELDS.height]),
+    width: parseMeasurement(doc[ERPNEXT_DIMENSION_FIELDS.width]),
+    weight: parseMeasurement(doc[ERPNEXT_DIMENSION_FIELDS.weight]),
+    depth: parseMeasurement(doc[ERPNEXT_DIMENSION_FIELDS.depth]),
+    heightInsideCard: parseMeasurement(
+      doc[ERPNEXT_DIMENSION_FIELDS.heightInsideCard],
+    ),
+    widthInsideCard: parseMeasurement(
+      doc[ERPNEXT_DIMENSION_FIELDS.widthInsideCard],
+    ),
+  };
+
+  return Object.values(dimensions).some((value) => value !== undefined)
+    ? dimensions
+    : undefined;
+}
+
+function applyProductDimensions(
+  product: ErpProduct,
+  doc: Record<string, unknown> | null,
+): void {
+  product.dimensions = getProductDimensions(doc);
 }
 
 function normalizeFieldName(fieldName: string): string {
@@ -1440,6 +1492,7 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
         const doc = await fetchErpItemDoc(product.erpName);
 
         await applyWebsiteCatalogueContent(product, doc);
+        applyProductDimensions(product, doc);
 
         const gallery = extractGalleryImages(doc, product.images?.[0]);
 
@@ -1547,6 +1600,7 @@ export async function fetchErpProductBySlug(
   const doc = await fetchErpItemDoc(product.erpName);
 
   await applyWebsiteCatalogueContent(product, doc);
+  applyProductDimensions(product, doc);
 
   const gallery = extractGalleryImages(doc, product.images?.[0]);
 

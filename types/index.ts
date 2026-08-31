@@ -34,6 +34,9 @@ export interface Product {
   material?: string;
   includes?: string;
 
+  /** Physical package measurements supplied by ERPNext */
+  dimensions?: ProductDimensions;
+
   /** Whether the product appears in the homepage "Sale" section */
   onSale?: boolean;
 
@@ -41,6 +44,15 @@ export interface Product {
   isPremium?: boolean;
   itemCode?: string;
   itemGroup?: string;
+}
+
+export interface ProductDimensions {
+  height?: number;
+  width?: number;
+  weight?: number;
+  depth?: number;
+  heightInsideCard?: number;
+  widthInsideCard?: number;
 }
 
 export type ProductCategory =

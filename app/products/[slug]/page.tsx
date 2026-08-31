@@ -560,6 +560,12 @@ function SpecRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function formatMeasurement(value: number, unit: "cm" | "g") {
+  return `${value.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })} ${unit}`;
+}
+
 function Accordion({
   title,
   children,
@@ -595,6 +601,40 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const discount = discountPercent(product);
   const categoryLabel = product.category.replace(/-/g, " ");
   const subject = getSubject(product);
+  const dimensionRows = [
+    {
+      label: "Height",
+      value: product.dimensions?.height,
+      unit: "cm" as const,
+    },
+    {
+      label: "Width",
+      value: product.dimensions?.width,
+      unit: "cm" as const,
+    },
+    {
+      label: "Depth",
+      value: product.dimensions?.depth,
+      unit: "cm" as const,
+    },
+    {
+      label: "Weight",
+      value: product.dimensions?.weight,
+      unit: "g" as const,
+    },
+    {
+      label: "Height (Inside Card)",
+      value: product.dimensions?.heightInsideCard,
+      unit: "cm" as const,
+    },
+    {
+      label: "Width (Inside Card)",
+      value: product.dimensions?.widthInsideCard,
+      unit: "cm" as const,
+    },
+  ].filter(
+    (row): row is typeof row & { value: number } => row.value !== undefined,
+  );
 
   const productJsonLd = buildProductJsonLd(product);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(product);
@@ -804,11 +844,19 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </Accordion>
 
                 <Accordion title="Dimensions">
-                  <ul className="space-y-2 text-[14px] text-ink-mid">
-                    <SpecRow label="Height" value="9.5 cm" />
-                    <SpecRow label="Width" value="18 cm" />
-                    <SpecRow label="Weight" value="326 g" />
-                  </ul>
+                  {dimensionRows.length > 0 ? (
+                    <ul className="space-y-2 text-[14px] text-ink-mid">
+                      {dimensionRows.map((row) => (
+                        <SpecRow
+                          key={row.label}
+                          label={row.label}
+                          value={formatMeasurement(row.value, row.unit)}
+                        />
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[14px] text-ink-mid">Coming soon</p>
+                  )}
                 </Accordion>
 
                 <Accordion title="Return Policy">

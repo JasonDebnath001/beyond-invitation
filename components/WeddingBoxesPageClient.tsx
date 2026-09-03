@@ -260,13 +260,6 @@ export default function WeddingBoxesPageClient({
                   {products.length} {products.length === 1 ? "design" : "designs"}
                 </span>
               ) : null}
-              <Link
-                href="/contact"
-                className="group hidden items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#64172a] transition hover:text-[#a7772d] sm:inline-flex"
-              >
-                Bespoke enquiry
-                <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </Link>
             </div>
           </div>
 

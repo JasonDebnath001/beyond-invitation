@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
+import { Play } from "lucide-react";
 
 interface ProductGalleryProps {
   images: string[];
@@ -68,7 +69,9 @@ function isPrivateFileUrl(src?: string) {
 
   const value = src.trim().toLowerCase();
 
-  return value.startsWith("/private/files/") || value.includes("/private/files/");
+  return (
+    value.startsWith("/private/files/") || value.includes("/private/files/")
+  );
 }
 
 function getPublicFileSrc(src: string) {
@@ -242,7 +245,10 @@ function withAutoplayParams(src: string) {
 }
 
 function isEmbeddableVideo(src: string) {
-  return src.includes("youtube.com/embed/") || src.includes("player.vimeo.com/video/");
+  return (
+    src.includes("youtube.com/embed/") ||
+    src.includes("player.vimeo.com/video/")
+  );
 }
 
 function isDirectVideo(src: string) {
@@ -259,7 +265,12 @@ function canRenderNativeVideo(src: string) {
 }
 
 function isVideoLikeUrl(src: string) {
-  return isYoutubeUrl(src) || isVimeoUrl(src) || isDirectVideo(src) || hasVideoExtension(src);
+  return (
+    isYoutubeUrl(src) ||
+    isVimeoUrl(src) ||
+    isDirectVideo(src) ||
+    hasVideoExtension(src)
+  );
 }
 
 function isImageLikeUrl(src: string) {
@@ -400,7 +411,9 @@ export default function ProductGallery({
   }, [images, videos]);
 
   const media = useMemo(() => {
-    return allMedia.filter((item) => !failedMediaKeys.has(canonicalMediaKey(item.src)));
+    return allMedia.filter(
+      (item) => !failedMediaKeys.has(canonicalMediaKey(item.src)),
+    );
   }, [allMedia, failedMediaKeys]);
 
   const total = media.length;
@@ -569,14 +582,17 @@ export default function ProductGallery({
     }
 
     const wrapperClass = isDesktop
-      ? "hidden max-h-[464px] grid-cols-1 content-start gap-4 overflow-y-auto overscroll-contain scroll-smooth pr-2 [scrollbar-color:rgba(123,28,46,0.45)_transparent] [scrollbar-width:thin] xl:grid 2xl:max-h-[544px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-carbon/40 [&::-webkit-scrollbar-track]:bg-transparent"
-      : "mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] sm:gap-4 xl:hidden [&::-webkit-scrollbar]:hidden";
+      ? "hidden max-h-[720px] flex-col gap-3.5 overflow-y-auto overscroll-contain scroll-smooth rounded-[20px] border border-gold/15 bg-paper/55 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] [scrollbar-width:none] xl:flex 2xl:max-h-[760px] [&::-webkit-scrollbar]:hidden"
+      : "mt-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] xl:hidden [&::-webkit-scrollbar]:hidden";
 
     return (
       <div className={wrapperClass} aria-label="Product media thumbnails">
         {media.map((item, index) => {
           const isActive = index === active;
-          const src = item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
+          const src =
+            item.type === "image"
+              ? getImageSrc(item.src)
+              : getVideoSrc(item.src);
 
           if (!src) {
             return null;
@@ -597,17 +613,23 @@ export default function ProductGallery({
               }}
               aria-label={`View ${item.type} ${index + 1}`}
               aria-current={isActive}
-              className={`relative aspect-square shrink-0 snap-start overflow-hidden rounded-xl border bg-ivory transition ${
+              className={`group relative aspect-square shrink-0 snap-start overflow-hidden rounded-[15px] border bg-white p-1.5 shadow-[0_5px_16px_rgba(73,25,31,0.06)] transition-all duration-300 ${
                 isDesktop ? "w-full" : "w-[72px] sm:w-20"
               } ${
                 isActive
-                  ? "border-carbon ring-1 ring-carbon"
-                  : "border-gold/25 hover:border-gold"
+                  ? "border-carbon ring-2 ring-carbon/10 shadow-[0_8px_22px_rgba(73,25,31,0.12)]"
+                  : "border-gold/20 hover:-translate-y-0.5 hover:border-gold/70 hover:shadow-[0_10px_24px_rgba(73,25,31,0.1)]"
               }`}
             >
               {item.type === "video" ? (
-                <span className="flex h-full w-full items-center justify-center bg-carbon text-base text-white sm:text-lg">
-                  ▶
+                <span className="flex h-full w-full items-center justify-center rounded-[10px] bg-[radial-gradient(circle_at_35%_25%,#9b2d45_0%,#6f172b_48%,#3f0b17_100%)] text-white">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-light/45 bg-white/10 shadow-[0_5px_18px_rgba(30,5,11,0.28)] backdrop-blur transition duration-300 group-hover:scale-105 sm:h-9 sm:w-9">
+                    <Play
+                      aria-hidden="true"
+                      className="ml-0.5 h-3.5 w-3.5 fill-gold-light text-gold-light sm:h-4 sm:w-4"
+                      strokeWidth={1.5}
+                    />
+                  </span>
                 </span>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -615,7 +637,7 @@ export default function ProductGallery({
                   src={src}
                   alt={`${alt} thumbnail ${index + 1}`}
                   onError={() => removeBrokenMedia(item, index)}
-                  className="h-full w-full object-contain p-2"
+                  className="h-full w-full rounded-[10px] object-contain p-1 transition duration-500 group-hover:scale-[1.04]"
                 />
               )}
             </button>
@@ -627,7 +649,7 @@ export default function ProductGallery({
 
   return (
     <div
-      className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[80px_minmax(0,1fr)] 2xl:grid-cols-[96px_minmax(0,1fr)]"
+      className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[96px_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[108px_minmax(0,1fr)] 2xl:gap-7"
       onKeyDown={onKeyDown}
     >
       {renderThumbnails(true)}

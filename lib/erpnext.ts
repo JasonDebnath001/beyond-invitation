@@ -1099,8 +1099,9 @@ async function fetchErpItemAttachments(
     }
   };
 
-  const pushVideo = (value?: string) => {
-    if (!looksLikeVideoUrl(value)) return;
+  const pushVideo = (value?: string, knownVideo = false) => {
+    if (!value) return;
+    if (!knownVideo && !looksLikeVideoUrl(value)) return;
 
     const built = buildVideoUrl(value).map(toYoutubeEmbedUrl);
 
@@ -1155,6 +1156,17 @@ async function fetchErpItemAttachments(
     }
 
     return null;
+  };
+
+  const isVideoAttachment = (file: ErpFileAttachment): boolean => {
+    /*
+     * Some ERPNext file URLs are extensionless even though file_name still
+     * identifies the upload as an MP4/MOV. Check both values so those files
+     * never leak into the photo list when photo order is empty or zero.
+     */
+    return (
+      looksLikeVideoUrl(file.file_url) || looksLikeVideoUrl(file.file_name)
+    );
   };
 
   const baseFileFields = [
@@ -1255,6 +1267,7 @@ async function fetchErpItemAttachments(
       file,
       index,
       photoOrder: getFilePhotoOrder(file),
+      isVideo: isVideoAttachment(file),
     }))
     .sort((a, b) => {
       const aOrder = a.photoOrder ?? Number.MAX_SAFE_INTEGER;
@@ -1263,13 +1276,23 @@ async function fetchErpItemAttachments(
       return aOrder - bOrder || a.index - b.index;
     });
 
-  for (const { file } of orderedFiles) {
-    // YouTube links attached as File URL should go into product.videos.
-    pushVideo(file.file_url);
-    pushVideo(file.file_name);
+  // Build the photo list independently from videos. A video's photo-order
+  // value (including 0 or no value) must never affect the photo sequence.
+  for (const { file, isVideo } of orderedFiles) {
+    if (!isVideo) {
+      pushImage(file.file_url);
+    }
+  }
 
-    // Normal ERPNext uploaded files should remain as product.images.
-    pushImage(file.file_url);
+  // Videos are collected after photos and returned through the dedicated
+  // videos array. ProductGallery always appends this array after every photo.
+  for (const { file, isVideo } of orderedFiles) {
+    if (!isVideo) continue;
+
+    const source =
+      file.file_url || (file.file_name ? `/files/${file.file_name}` : "");
+
+    pushVideo(source, true);
   }
 
   return {
@@ -1501,20 +1524,19 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
           product.itemCode,
         );
 
-        const allImages = mergeImageLists(
-          attachments.images,
-          gallery,
-          product.images || [],
-        );
-
-        if (allImages.length > 0) {
-          product.images = allImages;
-        }
-
         const videos = mergeVideoLists(
           extractGalleryVideos(doc),
           attachments.videos,
         );
+
+        const videoSources = new Set(videos);
+        const allImages = mergeImageLists(
+          attachments.images,
+          gallery,
+          product.images || [],
+        ).filter((image) => !videoSources.has(image));
+
+        product.images = allImages;
 
         if (videos.length > 0) {
           product.videos = videos;
@@ -1609,17 +1631,16 @@ export async function fetchErpProductBySlug(
     product.itemCode,
   );
 
+  const videos = mergeVideoLists(extractGalleryVideos(doc), attachments.videos);
+
+  const videoSources = new Set(videos);
   const allImages = mergeImageLists(
     attachments.images,
     gallery,
     product.images || [],
-  );
+  ).filter((image) => !videoSources.has(image));
 
-  if (allImages.length > 0) {
-    product.images = allImages;
-  }
-
-  const videos = mergeVideoLists(extractGalleryVideos(doc), attachments.videos);
+  product.images = allImages;
 
   if (videos.length > 0) {
     product.videos = videos;

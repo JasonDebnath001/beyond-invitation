@@ -249,6 +249,15 @@ function isDirectVideo(src: string) {
   return hasVideoExtension(src);
 }
 
+function canRenderNativeVideo(src: string) {
+  /*
+   * ERPNext can serve an uploaded video through an extensionless /files URL.
+   * Once a source is in the dedicated video list, that URL is safe to render
+   * with the native video element even when the extension is unavailable.
+   */
+  return isDirectVideo(src) || src.includes("/files/");
+}
+
 function isVideoLikeUrl(src: string) {
   return isYoutubeUrl(src) || isVimeoUrl(src) || isDirectVideo(src) || hasVideoExtension(src);
 }
@@ -309,6 +318,21 @@ function canonicalMediaKey(src: string) {
   }
 }
 
+function dedupeByCanonicalKey(list: string[]) {
+  const seen = new Set<string>();
+
+  return list.filter((src) => {
+    const key = canonicalMediaKey(src);
+
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
 export default function ProductGallery({
   images,
   videos = [],
@@ -344,16 +368,25 @@ export default function ProductGallery({
     const rawImages = cleanMediaList(images);
     const videosFoundInsideImages = rawImages.filter(isVideoLikeUrl);
 
-    const cleanVideos = cleanMediaList([...videosFoundInsideImages, ...videos]).filter(
-      isVideoLikeUrl,
-    );
+    /*
+     * Entries received through `videos` are already classified by the ERP
+     * layer, so retain extensionless File URLs as valid videos. Canonical
+     * deduplication also prevents the same attachment from appearing twice
+     * when it is discovered through both the Item document and File API.
+     */
+    const cleanVideos = dedupeByCanonicalKey(
+      cleanMediaList([...videosFoundInsideImages, ...videos]),
+    ).filter((src) => Boolean(getVideoSrc(src)));
 
     const videoKeys = new Set(cleanVideos.map(canonicalMediaKey));
 
     const cleanImages = rawImages
       .filter((src) => !videoKeys.has(canonicalMediaKey(src)))
-      .filter(isImageLikeUrl);
+      .filter(isImageLikeUrl)
+      .filter((src) => Boolean(getImageSrc(src)));
 
+    // Photo order applies only to photos. Videos always occupy the final
+    // thumbnail position, whether their ERP photo order is 0, empty or set.
     return [
       ...cleanImages.map((src) => ({
         type: "image" as const,
@@ -636,7 +669,7 @@ export default function ProductGallery({
                     className="absolute left-1/2 top-1/2 h-full w-[178%] max-w-none -translate-x-1/2 -translate-y-1/2 border-0"
                   />
                 </div>
-              ) : isDirectVideo(activeSrc) ? (
+              ) : canRenderNativeVideo(activeSrc) ? (
                 <video
                   src={activeSrc}
                   autoPlay

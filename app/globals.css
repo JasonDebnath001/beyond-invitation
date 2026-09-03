@@ -88,6 +88,10 @@
   [data-wedding-boxes-page] [data-wedding-box-card] {
     opacity: 0;
     transform: translateY(26px);
-    filter: blur(6px);
+  }
+
+  [data-wedding-boxes-page] [data-hero-image] {
+    opacity: 0;
+    transform: translateY(30px) scale(0.965);
   }
 }

@@ -328,6 +328,7 @@ export default function ProductGallery({
   const [imageSizes, setImageSizes] = useState<Record<string, ImageSize>>({});
 
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const desktopThumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const allMedia: GalleryItem[] = useMemo(() => {
     /*
@@ -391,6 +392,13 @@ export default function ProductGallery({
       setActive(0);
     }
   }, [active, total]);
+
+  useEffect(() => {
+    desktopThumbnailRefs.current[active]?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [active]);
 
   const go = useCallback(
     (delta: number) => {
@@ -528,11 +536,11 @@ export default function ProductGallery({
     }
 
     const wrapperClass = isDesktop
-      ? "hidden grid-cols-1 content-start gap-4 xl:grid"
-      : "mt-4 grid grid-cols-5 gap-3 sm:grid-cols-6 sm:gap-4 xl:hidden";
+      ? "hidden max-h-[464px] grid-cols-1 content-start gap-4 overflow-y-auto overscroll-contain scroll-smooth pr-2 [scrollbar-color:rgba(123,28,46,0.45)_transparent] [scrollbar-width:thin] xl:grid 2xl:max-h-[544px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-carbon/40 [&::-webkit-scrollbar-track]:bg-transparent"
+      : "mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] sm:gap-4 xl:hidden [&::-webkit-scrollbar]:hidden";
 
     return (
-      <div className={wrapperClass}>
+      <div className={wrapperClass} aria-label="Product media thumbnails">
         {media.map((item, index) => {
           const isActive = index === active;
           const src = item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
@@ -545,13 +553,20 @@ export default function ProductGallery({
             <button
               key={`${item.type}-${canonicalMediaKey(item.src)}-${index}`}
               type="button"
+              ref={(element) => {
+                if (isDesktop) {
+                  desktopThumbnailRefs.current[index] = element;
+                }
+              }}
               onClick={() => {
                 setZoomVisible(false);
                 setActive(index);
               }}
               aria-label={`View ${item.type} ${index + 1}`}
               aria-current={isActive}
-              className={`relative aspect-square w-full overflow-hidden rounded-xl border bg-ivory transition ${
+              className={`relative aspect-square shrink-0 snap-start overflow-hidden rounded-xl border bg-ivory transition ${
+                isDesktop ? "w-full" : "w-[72px] sm:w-20"
+              } ${
                 isActive
                   ? "border-carbon ring-1 ring-carbon"
                   : "border-gold/25 hover:border-gold"

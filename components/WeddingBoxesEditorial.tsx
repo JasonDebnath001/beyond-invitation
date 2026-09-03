@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
-const COLLECTION_HREF = "/collections/shagun-boxes";
+const COLLECTION_HREF = "/wedding-boxes";
 // If you create a new category slug later, change this to:
 // const COLLECTION_HREF = "/collections/wedding-boxes";
 

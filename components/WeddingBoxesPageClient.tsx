@@ -12,6 +12,16 @@ type WeddingBoxesPageClientProps = {
   errorMessage?: string;
 };
 
+function isPrivateFileUrl(image?: string) {
+  if (!image) return false;
+
+  const value = image.trim().toLowerCase();
+
+  return (
+    value.startsWith("/private/files/") || value.includes("/private/files/")
+  );
+}
+
 function formatPrice(price: number) {
   if (!price || price <= 0) {
     return null;
@@ -26,11 +36,13 @@ function getImageSrc(image?: string) {
   const value = image.trim();
   if (!value) return "";
 
+  if (isPrivateFileUrl(value)) return "";
+
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
 
-  if (value.startsWith("/files/") || value.startsWith("/private/files/")) {
+  if (value.startsWith("/files/")) {
     const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
     return erpUrl ? `${erpUrl}${value}` : value;
   }
@@ -60,7 +72,7 @@ function getPrimaryImage(product: ErpProduct) {
     ),
   );
 
-  return getImageSrc(images[0]);
+  return images.map(getImageSrc).find(Boolean) ?? "";
 }
 
 function FloralMark({ className = "" }: { className?: string }) {
@@ -140,7 +152,10 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
             Wedding Box
           </span>
           <span className="absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/35 bg-[#64172a]/95 text-white shadow-lg backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:bottom-4 sm:right-4 sm:h-10 sm:w-10">
-            <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={1.7} />
+            <ArrowUpRight
+              className="h-3.5 w-3.5 sm:h-4 sm:w-4"
+              strokeWidth={1.7}
+            />
           </span>
         </div>
 
@@ -257,7 +272,8 @@ export default function WeddingBoxesPageClient({
             <div className="flex items-center gap-3">
               {hasProducts ? (
                 <span className="rounded-full border border-[#a7772d]/25 bg-white/70 px-4 py-2 text-[9px] font-extrabold uppercase tracking-[0.2em] text-[#64172a] shadow-sm sm:text-[10px]">
-                  {products.length} {products.length === 1 ? "design" : "designs"}
+                  {products.length}{" "}
+                  {products.length === 1 ? "design" : "designs"}
                 </span>
               ) : null}
             </div>

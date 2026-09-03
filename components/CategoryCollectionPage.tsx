@@ -12,6 +12,16 @@ type CategoryCollectionPageClientProps = {
   errorMessage?: string;
 };
 
+function isPrivateFileUrl(image?: string) {
+  if (!image) return false;
+
+  const value = image.trim().toLowerCase();
+
+  return (
+    value.startsWith("/private/files/") || value.includes("/private/files/")
+  );
+}
+
 function formatPrice(price: number) {
   if (!price || price <= 0) {
     return "Price on request";
@@ -26,11 +36,13 @@ function getImageSrc(image?: string) {
   const value = image.trim();
   if (!value) return "";
 
+  if (isPrivateFileUrl(value)) return "";
+
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
 
-  if (value.startsWith("/files/") || value.startsWith("/private/files/")) {
+  if (value.startsWith("/files/")) {
     const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
     return erpUrl ? `${erpUrl}${value}` : value;
   }
@@ -59,7 +71,7 @@ function getPrimaryImage(product: ErpProduct) {
     ),
   );
 
-  return getImageSrc(images[0]);
+  return images.map(getImageSrc).find(Boolean) ?? "";
 }
 
 function CollectionProductCard({

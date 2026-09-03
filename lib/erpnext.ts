@@ -145,6 +145,7 @@ type ErpFileAttachment = {
 type ErpAttachmentMedia = {
   images: string[];
   videos: string[];
+  privateFileKeys: Set<string>;
 };
 
 export type ErpProduct = Product & {
@@ -238,6 +239,48 @@ function isPrivateFileRecord(row: Record<string, unknown>) {
     isPrivateFileUrl(row.attach) ||
     isPrivateFileUrl(row.url)
   );
+}
+
+/**
+ * Return a stable identity for an ERPNext file regardless of whether the
+ * reference uses /files/, /private/files/, an absolute URL, or file_name.
+ * This lets a private File record block stale public-looking references that
+ * still remain in Item.image or an Item child table.
+ */
+function getErpFileKey(value: unknown) {
+  if (typeof value !== "string") return "";
+
+  const original = value.trim();
+  if (!original) return "";
+
+  let clean = original.split("#")[0].split("?")[0];
+
+  try {
+    clean = decodeURIComponent(clean);
+  } catch {
+    // Keep the original value when it contains malformed URL escapes.
+  }
+
+  clean = clean.replace(/\\/g, "/").toLowerCase();
+
+  for (const marker of ["/private/files/", "/files/"]) {
+    const markerIndex = clean.lastIndexOf(marker);
+
+    if (markerIndex >= 0) {
+      return clean.slice(markerIndex + marker.length).replace(/^\/+/, "");
+    }
+  }
+
+  // file_name is returned without a directory by the ERPNext File API.
+  return clean.includes("/") ? "" : clean;
+}
+
+function isKnownPrivateFile(value: unknown, privateFileKeys: Set<string>) {
+  if (isPrivateFileUrl(value)) return true;
+
+  const key = getErpFileKey(value);
+
+  return Boolean(key && privateFileKeys.has(key));
 }
 
 function buildImageUrl(image?: string): string[] {
@@ -1186,12 +1229,15 @@ async function fetchErpItemAttachments(
       [
         ERPNEXT_FILE_PHOTO_ORDER_FIELD,
         "custom_photo_order",
+        "custom_photo_order_",
         "photo_order",
       ].filter(Boolean),
     ),
   );
 
-  const fetchFilesForItem = async (name: string): Promise<ErpFileAttachment[]> => {
+  const fetchFilesForItem = async (
+    name: string,
+  ): Promise<ErpFileAttachment[]> => {
     // Try with the custom photo order field first.
     // If the fieldname is wrong, ERPNext may reject the query, so we fall back safely.
     for (const photoOrderField of photoOrderFieldCandidates) {
@@ -1204,7 +1250,6 @@ async function fetchErpItemAttachments(
               ["File", "attached_to_doctype", "=", "Item"],
               ["File", "attached_to_name", "=", name],
               ["File", "is_folder", "=", 0],
-              ["File", "is_private", "=", 0],
             ]),
             limit_page_length: "100",
             order_by: "creation asc",
@@ -1227,7 +1272,6 @@ async function fetchErpItemAttachments(
             ["File", "attached_to_doctype", "=", "Item"],
             ["File", "attached_to_name", "=", name],
             ["File", "is_folder", "=", 0],
-            ["File", "is_private", "=", 0],
           ]),
           limit_page_length: "100",
           order_by: "creation asc",
@@ -1242,12 +1286,23 @@ async function fetchErpItemAttachments(
 
   const allFiles: ErpFileAttachment[] = [];
   const seenFiles = new Set<string>();
+  const privateFileKeys = new Set<string>();
 
   for (const name of names) {
     const files = await fetchFilesForItem(name);
 
     for (const file of files) {
-      if (isPrivateFileRecord(file as Record<string, unknown>)) continue;
+      if (isPrivateFileRecord(file as Record<string, unknown>)) {
+        for (const value of [file.file_url, file.file_name]) {
+          const privateKey = getErpFileKey(value);
+
+          if (privateKey) {
+            privateFileKeys.add(privateKey);
+          }
+        }
+
+        continue;
+      }
 
       const key =
         file.name ||
@@ -1262,31 +1317,69 @@ async function fetchErpItemAttachments(
     }
   }
 
-  const orderedFiles = allFiles
-    .map((file, index) => ({
-      file,
-      index,
-      photoOrder: getFilePhotoOrder(file),
-      isVideo: isVideoAttachment(file),
-    }))
-    .sort((a, b) => {
-      const aOrder = a.photoOrder ?? Number.MAX_SAFE_INTEGER;
-      const bOrder = b.photoOrder ?? Number.MAX_SAFE_INTEGER;
+  const fileEntries = allFiles.map((file, index) => ({
+    file,
+    index,
+    photoOrder: getFilePhotoOrder(file),
+    isVideo: isVideoAttachment(file),
+  }));
 
-      return aOrder - bOrder || a.index - b.index;
-    });
+  const photoEntries = fileEntries.filter(({ isVideo }) => !isVideo);
+  const claimedPhotoPositions = new Set<number>();
 
-  // Build the photo list independently from videos. A video's photo-order
-  // value (including 0 or no value) must never affect the photo sequence.
-  for (const { file, isVideo } of orderedFiles) {
-    if (!isVideo) {
-      pushImage(file.file_url);
+  for (const { photoOrder } of photoEntries) {
+    if (photoOrder !== null && Number.isInteger(photoOrder) && photoOrder > 0) {
+      claimedPhotoPositions.add(photoOrder);
     }
+  }
+
+  let nextUnclaimedPosition = 1;
+
+  const orderedPhotos = photoEntries
+    .map((entry) => {
+      const requestedPosition =
+        entry.photoOrder !== null &&
+        Number.isInteger(entry.photoOrder) &&
+        entry.photoOrder > 0
+          ? entry.photoOrder
+          : null;
+
+      if (requestedPosition !== null) {
+        return {
+          ...entry,
+          resolvedPosition: requestedPosition,
+        };
+      }
+
+      while (claimedPhotoPositions.has(nextUnclaimedPosition)) {
+        nextUnclaimedPosition += 1;
+      }
+
+      const resolvedPosition = nextUnclaimedPosition;
+      claimedPhotoPositions.add(resolvedPosition);
+      nextUnclaimedPosition += 1;
+
+      return {
+        ...entry,
+        resolvedPosition,
+      };
+    })
+    .sort(
+      (a, b) => a.resolvedPosition - b.resolvedPosition || a.index - b.index,
+    );
+
+  /*
+   * Treat photo order as a one-based gallery position. Unnumbered photos fill
+   * the unused positions in creation order, so a photo marked 2 is actually
+   * second instead of sorting ahead of every unnumbered photo.
+   */
+  for (const { file } of orderedPhotos) {
+    pushImage(file.file_url);
   }
 
   // Videos are collected after photos and returned through the dedicated
   // videos array. ProductGallery always appends this array after every photo.
-  for (const { file, isVideo } of orderedFiles) {
+  for (const { file, isVideo } of fileEntries) {
     if (!isVideo) continue;
 
     const source =
@@ -1298,6 +1391,7 @@ async function fetchErpItemAttachments(
   return {
     images,
     videos,
+    privateFileKeys,
   };
 }
 
@@ -1527,6 +1621,8 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
         const videos = mergeVideoLists(
           extractGalleryVideos(doc),
           attachments.videos,
+        ).filter(
+          (video) => !isKnownPrivateFile(video, attachments.privateFileKeys),
         );
 
         const videoSources = new Set(videos);
@@ -1534,7 +1630,11 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
           attachments.images,
           gallery,
           product.images || [],
-        ).filter((image) => !videoSources.has(image));
+        ).filter(
+          (image) =>
+            !videoSources.has(image) &&
+            !isKnownPrivateFile(image, attachments.privateFileKeys),
+        );
 
         product.images = allImages;
 
@@ -1631,14 +1731,21 @@ export async function fetchErpProductBySlug(
     product.itemCode,
   );
 
-  const videos = mergeVideoLists(extractGalleryVideos(doc), attachments.videos);
+  const videos = mergeVideoLists(
+    extractGalleryVideos(doc),
+    attachments.videos,
+  ).filter((video) => !isKnownPrivateFile(video, attachments.privateFileKeys));
 
   const videoSources = new Set(videos);
   const allImages = mergeImageLists(
     attachments.images,
     gallery,
     product.images || [],
-  ).filter((image) => !videoSources.has(image));
+  ).filter(
+    (image) =>
+      !videoSources.has(image) &&
+      !isKnownPrivateFile(image, attachments.privateFileKeys),
+  );
 
   product.images = allImages;
 
@@ -2036,19 +2143,19 @@ async function createContactForCustomer(customer: string, buyer?: BuyerInfo) {
     is_billing_contact: 1,
     email_ids: email
       ? [
-        {
-          email_id: email,
-          is_primary: 1,
-        },
-      ]
+          {
+            email_id: email,
+            is_primary: 1,
+          },
+        ]
       : [],
     phone_nos: phone
       ? [
-        {
-          phone,
-          is_primary_mobile_no: 1,
-        },
-      ]
+          {
+            phone,
+            is_primary_mobile_no: 1,
+          },
+        ]
       : [],
     links: [
       {
@@ -2218,9 +2325,9 @@ export async function createDraftSalesOrder(args: {
 
     ...(args.reseller?.code
       ? {
-        [ERPNEXT_RESELLER_CODE_FIELD]: args.reseller.code,
-        [ERPNEXT_RESELLER_COMMISSION_FIELD]: args.reseller.commission,
-      }
+          [ERPNEXT_RESELLER_CODE_FIELD]: args.reseller.code,
+          [ERPNEXT_RESELLER_COMMISSION_FIELD]: args.reseller.commission,
+        }
       : {}),
   };
 

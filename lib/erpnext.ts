@@ -275,6 +275,36 @@ function getErpFileKey(value: unknown) {
   return clean.includes("/") ? "" : clean;
 }
 
+function getErpFileName(value: unknown) {
+  if (typeof value !== "string") return "";
+
+  const original = value.trim();
+  if (!original) return "";
+
+  let clean = original.split("#")[0].split("?")[0];
+
+  try {
+    clean = decodeURIComponent(clean);
+  } catch {
+    // Keep the original value when it contains malformed URL escapes.
+  }
+
+  clean = clean.replace(/\\/g, "/");
+
+  for (const marker of ["/private/files/", "/files/"]) {
+    const markerIndex = clean.toLowerCase().lastIndexOf(marker);
+
+    if (markerIndex >= 0) {
+      const path = clean.slice(markerIndex + marker.length).replace(/^\/+/, "");
+      const parts = path.split("/").filter(Boolean);
+
+      return parts[parts.length - 1] ?? "";
+    }
+  }
+
+  return clean.includes("/") ? "" : clean;
+}
+
 function isKnownPrivateFile(value: unknown, privateFileKeys: Set<string>) {
   if (isPrivateFileUrl(value)) return true;
 
@@ -1107,6 +1137,7 @@ function extractGalleryImages(
 async function fetchErpItemAttachments(
   itemName: string,
   itemCode?: string,
+  candidateFileUrls: string[] = [],
 ): Promise<ErpAttachmentMedia> {
   const names = Array.from(
     new Set([itemName, itemCode].filter(Boolean) as string[]),
@@ -1235,8 +1266,8 @@ async function fetchErpItemAttachments(
     ),
   );
 
-  const fetchFilesForItem = async (
-    name: string,
+  const fetchFiles = async (
+    filters: unknown[][],
   ): Promise<ErpFileAttachment[]> => {
     // Try with the custom photo order field first.
     // If the fieldname is wrong, ERPNext may reject the query, so we fall back safely.
@@ -1246,11 +1277,7 @@ async function fetchErpItemAttachments(
           "/api/resource/File",
           {
             fields: JSON.stringify([...baseFileFields, photoOrderField]),
-            filters: JSON.stringify([
-              ["File", "attached_to_doctype", "=", "Item"],
-              ["File", "attached_to_name", "=", name],
-              ["File", "is_folder", "=", 0],
-            ]),
+            filters: JSON.stringify(filters),
             limit_page_length: "100",
             order_by: "creation asc",
           },
@@ -1268,11 +1295,7 @@ async function fetchErpItemAttachments(
         "/api/resource/File",
         {
           fields: JSON.stringify(baseFileFields),
-          filters: JSON.stringify([
-            ["File", "attached_to_doctype", "=", "Item"],
-            ["File", "attached_to_name", "=", name],
-            ["File", "is_folder", "=", 0],
-          ]),
+          filters: JSON.stringify(filters),
           limit_page_length: "100",
           order_by: "creation asc",
         },
@@ -1283,6 +1306,17 @@ async function fetchErpItemAttachments(
       return [];
     }
   };
+
+  const fetchFilesForItem = (name: string) =>
+    fetchFiles([
+      ["File", "attached_to_doctype", "=", "Item"],
+      ["File", "attached_to_name", "=", name],
+      ["File", "is_folder", "=", 0],
+    ]);
+
+  const candidateFileNames = Array.from(
+    new Set(candidateFileUrls.map(getErpFileName).filter(Boolean)),
+  );
 
   const allFiles: ErpFileAttachment[] = [];
   const seenFiles = new Set<string>();
@@ -1317,12 +1351,80 @@ async function fetchErpItemAttachments(
     }
   }
 
-  const fileEntries = allFiles.map((file, index) => ({
-    file,
-    index,
-    photoOrder: getFilePhotoOrder(file),
-    isVideo: isVideoAttachment(file),
-  }));
+  /*
+   * Item image fields and child-table rows can point at File records that are
+   * not directly attached to the parent Item. Resolve those filenames too so
+   * their is_private and photo-order metadata remain authoritative.
+   * Always do this lookup: Frappe may have multiple File documents for the
+   * same URL, and privacy must win if any matching record is private.
+   */
+  for (const fileNameChunk of chunkArray(candidateFileNames, 25)) {
+    const files = await fetchFiles([
+      ["File", "file_name", "in", fileNameChunk],
+      ["File", "is_folder", "=", 0],
+    ]);
+
+    for (const file of files) {
+      if (isPrivateFileRecord(file as Record<string, unknown>)) {
+        for (const value of [file.file_url, file.file_name]) {
+          const privateKey = getErpFileKey(value);
+
+          if (privateKey) {
+            privateFileKeys.add(privateKey);
+          }
+        }
+
+        continue;
+      }
+
+      const key =
+        file.name ||
+        file.file_url ||
+        file.file_name ||
+        `${file.attached_to_name}-${file.creation}`;
+
+      if (!key || seenFiles.has(key)) continue;
+
+      seenFiles.add(key);
+      allFiles.push(file);
+    }
+  }
+
+  /*
+   * Multiple File documents can reference the same physical image. Collapse
+   * them by URL/file name and prefer the record with an explicit photo order;
+   * otherwise an unnumbered duplicate can incorrectly take position 1.
+   */
+  const uniquePublicFiles = new Map<string, ErpFileAttachment>();
+
+  for (const file of allFiles) {
+    const key = getErpFileKey(file.file_url) || getErpFileKey(file.file_name);
+
+    if (!key || privateFileKeys.has(key)) continue;
+
+    const existing = uniquePublicFiles.get(key);
+
+    if (!existing) {
+      uniquePublicFiles.set(key, file);
+      continue;
+    }
+
+    const existingOrder = getFilePhotoOrder(existing);
+    const candidateOrder = getFilePhotoOrder(file);
+
+    if (existingOrder === null && candidateOrder !== null) {
+      uniquePublicFiles.set(key, file);
+    }
+  }
+
+  const fileEntries = Array.from(uniquePublicFiles.values()).map(
+    (file, index) => ({
+      file,
+      index,
+      photoOrder: getFilePhotoOrder(file),
+      isVideo: isVideoAttachment(file),
+    }),
+  );
 
   const photoEntries = fileEntries.filter(({ isVideo }) => !isVideo);
   const claimedPhotoPositions = new Set<number>();
@@ -1612,14 +1714,16 @@ async function enrichGalleries(products: ErpProduct[]): Promise<ErpProduct[]> {
         applyProductDimensions(product, doc);
 
         const gallery = extractGalleryImages(doc, product.images?.[0]);
+        const galleryVideos = extractGalleryVideos(doc);
 
         const attachments = await fetchErpItemAttachments(
           product.erpName,
           product.itemCode,
+          [...gallery, ...(product.images || []), ...galleryVideos],
         );
 
         const videos = mergeVideoLists(
-          extractGalleryVideos(doc),
+          galleryVideos,
           attachments.videos,
         ).filter(
           (video) => !isKnownPrivateFile(video, attachments.privateFileKeys),
@@ -1725,14 +1829,16 @@ export async function fetchErpProductBySlug(
   applyProductDimensions(product, doc);
 
   const gallery = extractGalleryImages(doc, product.images?.[0]);
+  const galleryVideos = extractGalleryVideos(doc);
 
   const attachments = await fetchErpItemAttachments(
     product.erpName,
     product.itemCode,
+    [...gallery, ...(product.images || []), ...galleryVideos],
   );
 
   const videos = mergeVideoLists(
-    extractGalleryVideos(doc),
+    galleryVideos,
     attachments.videos,
   ).filter((video) => !isKnownPrivateFile(video, attachments.privateFileKeys));
 

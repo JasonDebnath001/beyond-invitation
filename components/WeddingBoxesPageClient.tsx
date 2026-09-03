@@ -3,14 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import {
-  ArrowDown,
-  ArrowUpRight,
-  Gem,
-  Gift,
-  Palette,
-  Sparkles,
-} from "lucide-react";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 
 import type { ErpProduct } from "@/lib/erpnext";
 
@@ -19,22 +12,9 @@ type WeddingBoxesPageClientProps = {
   errorMessage?: string;
 };
 
-const HERO_IMAGES = {
-  main: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_52_48%20PM.png",
-  top: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_09_42%20PM.png",
-  bottom:
-    "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_12_38%20PM.png",
-};
-
-const COLLECTION_PROMISES = [
-  { icon: Gem, label: "Premium finishes" },
-  { icon: Palette, label: "Made personal" },
-  { icon: Gift, label: "Gift ready" },
-];
-
 function formatPrice(price: number) {
   if (!price || price <= 0) {
-    return "Price on request";
+    return null;
   }
 
   return `₹${price.toLocaleString("en-IN")}`;
@@ -115,6 +95,7 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
   const [imageFailed, setImageFailed] = useState(false);
 
   const image = getPrimaryImage(product);
+  const price = formatPrice(product.price);
   const showImage = Boolean(image && !imageFailed);
   const detail =
     stripHtml(product.material) ||
@@ -177,11 +158,13 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
             </p>
           ) : null}
 
-          <div className="mt-2.5 border-t border-[#64172a]/10 pt-2.5 sm:mt-4 sm:pt-3.5">
-            <span className="block text-[13px] font-extrabold tracking-tight text-[#351119] sm:text-[17px]">
-              {formatPrice(product.price)}
-            </span>
-          </div>
+          {price ? (
+            <div className="mt-2.5 border-t border-[#64172a]/10 pt-2.5 sm:mt-4 sm:pt-3.5">
+              <span className="block text-[13px] font-extrabold tracking-tight text-[#351119] sm:text-[17px]">
+                {price}
+              </span>
+            </div>
+          ) : null}
         </div>
       </Link>
     </article>
@@ -203,18 +186,13 @@ export default function WeddingBoxesPageClient({
     ).matches;
 
     const ctx = gsap.context(() => {
-      const intro = root.querySelectorAll("[data-page-intro]");
-      const title = root.querySelector("[data-page-title]");
-      const images = root.querySelectorAll("[data-hero-image]");
       const rule = root.querySelector("[data-header-rule]");
       const cards = root.querySelectorAll("[data-wedding-box-card]");
 
       if (reduceMotion) {
-        gsap.set([intro, title, images, cards], {
+        gsap.set(cards, {
           opacity: 1,
           y: 0,
-          scale: 1,
-          clipPath: "inset(0% 0% 0% 0%)",
         });
         if (rule) gsap.set(rule, { scaleX: 1 });
         return;
@@ -222,49 +200,17 @@ export default function WeddingBoxesPageClient({
 
       const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-      timeline
-        .fromTo(
-          intro,
-          { opacity: 0, y: 16 },
-          { opacity: 1, y: 0, duration: 0.65, stagger: 0.07 },
-        )
-        .fromTo(
-          title,
-          { opacity: 0, y: 34, clipPath: "inset(0% 0% 100% 0%)" },
-          {
-            opacity: 1,
-            y: 0,
-            clipPath: "inset(0% 0% 0% 0%)",
-            duration: 0.9,
-            ease: "power4.out",
-          },
-          "-=0.5",
-        )
-        .fromTo(
-          images,
-          { opacity: 0, y: 30, scale: 0.965 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.85,
-            stagger: 0.12,
-            clearProps: "transform,opacity",
-          },
-          "-=0.65",
-        )
-        .fromTo(
-          cards,
-          { opacity: 0, y: 24 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.65,
-            stagger: { each: 0.045, grid: "auto", from: "start" },
-            clearProps: "transform,opacity",
-          },
-          "-=0.35",
-        );
+      timeline.fromTo(
+        cards,
+        { opacity: 0, y: 24 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.65,
+          stagger: { each: 0.045, grid: "auto", from: "start" },
+          clearProps: "transform,opacity",
+        },
+      );
 
       if (rule) {
         gsap.fromTo(
@@ -287,142 +233,6 @@ export default function WeddingBoxesPageClient({
       data-no-text-motion
       className="min-h-screen overflow-hidden bg-[#fbf6ee] text-[#351119]"
     >
-      <section className="relative isolate overflow-hidden bg-[#5b1225] text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(220,177,98,0.18),transparent_29%),radial-gradient(circle_at_90%_82%,rgba(244,212,154,0.12),transparent_32%),linear-gradient(115deg,#4b0e1d_0%,#68162b_55%,#50101f_100%)]" />
-        <FloralMark className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rotate-12 text-[#dcb162]/15 sm:h-80 sm:w-80" />
-        <FloralMark className="pointer-events-none absolute -bottom-32 right-[30%] hidden h-80 w-80 text-[#dcb162]/10 lg:block" />
-        <div className="pointer-events-none absolute inset-3 rounded-[24px] border border-[#f1cf88]/18 sm:inset-5 sm:rounded-[32px]" />
-
-        <div className="relative mx-auto grid max-w-[1500px] items-center gap-10 px-5 pb-14 pt-9 sm:px-8 sm:pb-16 sm:pt-12 lg:min-h-[610px] lg:grid-cols-[0.86fr_1.14fr] lg:gap-16 lg:px-12 lg:py-16 xl:px-16">
-          <div className="relative z-20 max-w-2xl lg:py-8">
-            <nav
-              data-page-intro
-              aria-label="Breadcrumb"
-              className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.24em] text-[#f3d99e]/65 sm:text-[10px]"
-            >
-              <Link href="/" className="transition hover:text-white">
-                Home
-              </Link>
-              <span className="text-[#dcb162]">/</span>
-              <span className="text-[#f3d99e]">Wedding Boxes</span>
-            </nav>
-
-            <p
-              data-page-intro
-              className="mt-8 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.3em] text-[#efcb82] sm:mt-10 sm:text-xs"
-            >
-              <span className="h-px w-8 bg-[#efcb82]/70" />
-              The wedding box atelier
-            </p>
-
-            <h1
-              data-page-title
-              className="mt-4 max-w-xl text-[42px] font-light leading-[0.98] tracking-[-0.045em] text-[#fffaf0] sm:text-6xl lg:text-[72px] xl:text-[82px]"
-            >
-              A grand beginning,
-              <span className="block text-[#efcb82]">beautifully boxed.</span>
-            </h1>
-
-            <p
-              data-page-intro
-              className="mt-6 max-w-lg text-sm font-light leading-7 text-white/72 sm:text-[16px] sm:leading-8"
-            >
-              Invitation boxes designed to feel like the first celebration of
-              your wedding—rich in detail, personal in every finish, and made
-              to be remembered.
-            </p>
-
-            <div
-              data-page-intro
-              className="mt-8 flex flex-wrap items-center gap-3 sm:mt-9"
-            >
-              <a
-                href="#wedding-box-collection"
-                className="group inline-flex h-12 items-center justify-center rounded-full bg-[#e7bd6b] px-6 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#40101b] shadow-[0_12px_35px_rgba(24,4,9,0.22)] transition hover:-translate-y-0.5 hover:bg-[#f2d796] focus:outline-none focus:ring-2 focus:ring-white/50 sm:px-7"
-              >
-                Explore the collection
-                <ArrowDown className="ml-2.5 h-3.5 w-3.5 transition group-hover:translate-y-0.5" />
-              </a>
-              <Link
-                href="/contact"
-                className="inline-flex h-12 items-center justify-center rounded-full border border-[#f3d99e]/35 bg-white/[0.04] px-6 text-[11px] font-bold uppercase tracking-[0.16em] text-[#fff8e9] backdrop-blur transition hover:border-[#f3d99e]/70 hover:bg-white/[0.09] focus:outline-none focus:ring-2 focus:ring-white/40"
-              >
-                Customise yours
-              </Link>
-            </div>
-
-            <div
-              data-page-intro
-              className="mt-9 grid max-w-xl grid-cols-3 divide-x divide-[#efcb82]/20 border-t border-[#efcb82]/20 pt-5 sm:mt-11 sm:pt-6"
-            >
-              {COLLECTION_PROMISES.map(({ icon: Icon, label }) => (
-                <div
-                  key={label}
-                  className="flex flex-col items-center gap-2 px-2 text-center first:pl-0 last:pr-0 sm:flex-row sm:text-left"
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-[#efcb82]" strokeWidth={1.4} />
-                  <span className="text-[8px] font-bold uppercase leading-4 tracking-[0.13em] text-white/62 sm:text-[9px] sm:tracking-[0.16em]">
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative mx-auto h-[330px] w-full max-w-[690px] sm:h-[470px] lg:h-[520px]">
-            <div
-              data-hero-image
-              className="absolute bottom-0 left-0 top-4 z-10 w-[67%] overflow-hidden rounded-[26px] border border-[#f4d99d]/35 bg-[#d9b878] shadow-[0_34px_90px_rgba(24,3,9,0.38)] sm:left-[4%] sm:rounded-[38px]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={HERO_IMAGES.main}
-                alt="Open luxury wedding invitation box"
-                loading="eager"
-                decoding="async"
-                className="h-full w-full object-cover"
-              />
-              <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/20" />
-            </div>
-
-            <div
-              data-hero-image
-              className="absolute right-0 top-0 z-20 h-[46%] w-[43%] rotate-[2.5deg] overflow-hidden rounded-[20px] border-[3px] border-[#f8e7be] bg-[#d9b878] shadow-[0_22px_60px_rgba(24,3,9,0.34)] sm:rounded-[30px] sm:border-4"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={HERO_IMAGES.top}
-                alt="Personalised Indian wedding box"
-                loading="eager"
-                decoding="async"
-                className="h-full w-full object-cover"
-              />
-            </div>
-
-            <div
-              data-hero-image
-              className="absolute bottom-2 right-1 z-30 h-[43%] w-[48%] -rotate-[2deg] overflow-hidden rounded-[20px] border-[3px] border-[#f8e7be] bg-[#d9b878] shadow-[0_22px_60px_rgba(24,3,9,0.38)] sm:bottom-1 sm:right-2 sm:rounded-[30px] sm:border-4"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={HERO_IMAGES.bottom}
-                alt="Blue wedding invitation box with compartments"
-                loading="eager"
-                decoding="async"
-                className="h-full w-full object-cover"
-              />
-            </div>
-
-            <div
-              data-page-intro
-              className="absolute -bottom-3 left-[43%] z-40 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full border border-[#f4d99d]/50 bg-[#6b172b] shadow-xl sm:-left-1 sm:bottom-7 sm:h-24 sm:w-24 sm:translate-x-0"
-            >
-              <FloralMark className="h-12 w-12 text-[#efcb82] sm:h-[74px] sm:w-[74px]" />
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section
         id="wedding-box-collection"
         className="relative scroll-mt-24 px-3 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"

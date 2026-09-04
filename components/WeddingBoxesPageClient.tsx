@@ -148,9 +148,6 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
           )}
 
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#2f0a13]/35 via-transparent to-white/5 opacity-70" />
-          <span className="absolute left-2.5 top-2.5 rounded-full border border-white/55 bg-white/90 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.16em] text-[#64172a] shadow-sm backdrop-blur sm:left-4 sm:top-4 sm:px-3 sm:text-[9px]">
-            Wedding Box
-          </span>
           <span className="absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/35 bg-[#64172a]/95 text-white shadow-lg backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:bottom-4 sm:right-4 sm:h-10 sm:w-10">
             <ArrowUpRight
               className="h-3.5 w-3.5 sm:h-4 sm:w-4"

@@ -1318,9 +1318,26 @@ async function fetchErpItemAttachments(
     new Set(candidateFileUrls.map(getErpFileName).filter(Boolean)),
   );
 
+  /*
+   * Keep the order supplied by the Item document as the fallback order for
+   * files that do not have an explicit photo position. In particular, the
+   * Item.image value is the first candidate, so it remains the card image
+   * when custom_photo_order has not been filled in.
+   */
+  const candidateFileOrder = new Map<string, number>();
+
+  for (const [index, value] of candidateFileUrls.entries()) {
+    const key = getErpFileKey(value);
+
+    if (key && !candidateFileOrder.has(key)) {
+      candidateFileOrder.set(key, index);
+    }
+  }
+
   const allFiles: ErpFileAttachment[] = [];
   const seenFiles = new Set<string>();
   const privateFileKeys = new Set<string>();
+  const directlyAttachedFileKeys = new Set<string>();
 
   for (const name of names) {
     const files = await fetchFilesForItem(name);
@@ -1336,6 +1353,13 @@ async function fetchErpItemAttachments(
         }
 
         continue;
+      }
+
+      const fileKey =
+        getErpFileKey(file.file_url) || getErpFileKey(file.file_name);
+
+      if (fileKey) {
+        directlyAttachedFileKeys.add(fileKey);
       }
 
       const key =
@@ -1365,6 +1389,19 @@ async function fetchErpItemAttachments(
     ]);
 
     for (const file of files) {
+      /*
+       * file_name is not unique in Frappe. A lookup for a common name such as
+       * "A.png" can return uploads belonging to several products, each with a
+       * different file_url. Only an exact media key already referenced by this
+       * Item may contribute metadata or an image to this product.
+       */
+      const fileKey =
+        getErpFileKey(file.file_url) || getErpFileKey(file.file_name);
+
+      if (!fileKey || !candidateFileOrder.has(fileKey)) {
+        continue;
+      }
+
       if (isPrivateFileRecord(file as Record<string, unknown>)) {
         for (const value of [file.file_url, file.file_name]) {
           const privateKey = getErpFileKey(value);
@@ -1374,6 +1411,12 @@ async function fetchErpItemAttachments(
           }
         }
 
+        continue;
+      }
+
+      // Metadata on the File attached to this Item is authoritative. Do not
+      // let another document that references the same URL replace its order.
+      if (directlyAttachedFileKeys.has(fileKey)) {
         continue;
       }
 
@@ -1417,16 +1460,47 @@ async function fetchErpItemAttachments(
     }
   }
 
+  /*
+   * A valid Item.image or child-table image is not guaranteed to be attached
+   * directly to the Item. Keep those known candidates in the same ordering
+   * pass even when no File row was found, instead of merging them after every
+   * attachment (which changes the product-card image).
+   */
+  for (const [index, value] of candidateFileUrls.entries()) {
+    const key = getErpFileKey(value);
+
+    if (
+      !key ||
+      uniquePublicFiles.has(key) ||
+      privateFileKeys.has(key) ||
+      !looksLikeImage(value)
+    ) {
+      continue;
+    }
+
+    uniquePublicFiles.set(key, {
+      name: `item-media-${index}-${key}`,
+      file_name: getErpFileName(value),
+      file_url: value,
+    });
+  }
+
   const fileEntries = Array.from(uniquePublicFiles.values()).map(
     (file, index) => ({
       file,
       index,
+      fallbackOrder:
+        candidateFileOrder.get(
+          getErpFileKey(file.file_url) || getErpFileKey(file.file_name),
+        ) ?? candidateFileOrder.size + index,
       photoOrder: getFilePhotoOrder(file),
       isVideo: isVideoAttachment(file),
     }),
   );
 
-  const photoEntries = fileEntries.filter(({ isVideo }) => !isVideo);
+  const photoEntries = fileEntries
+    .filter(({ isVideo }) => !isVideo)
+    .sort((a, b) => a.fallbackOrder - b.fallbackOrder || a.index - b.index);
   const claimedPhotoPositions = new Set<number>();
 
   for (const { photoOrder } of photoEntries) {
@@ -1467,7 +1541,10 @@ async function fetchErpItemAttachments(
       };
     })
     .sort(
-      (a, b) => a.resolvedPosition - b.resolvedPosition || a.index - b.index,
+      (a, b) =>
+        a.resolvedPosition - b.resolvedPosition ||
+        a.fallbackOrder - b.fallbackOrder ||
+        a.index - b.index,
     );
 
   /*

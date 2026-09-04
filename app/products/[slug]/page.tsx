@@ -490,14 +490,6 @@ function buildFaqJsonLd(product: ProductLike) {
       },
       {
         "@type": "Question",
-        name: "Is Cash on Delivery available?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Cash on Delivery orders require a 10% advance payment at the time of booking. The remaining balance is paid at delivery.",
-        },
-      },
-      {
-        "@type": "Question",
         name: "Can this product be customised?",
         acceptedAnswer: {
           "@type": "Answer",
@@ -817,28 +809,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       Shipping cost is based on weight. Just add products to
                       your cart and use the Shipping calculator to see the
                       shipping price and expected Time of Delivery.
-                    </p>
-                  </div>
-                </Accordion>
-
-                <Accordion title="Cash on Delivery">
-                  <div className="space-y-3 text-[14px] leading-relaxed text-ink-mid">
-                    <p>
-                      For Cash on Delivery orders, a 10% advance payment is
-                      required at the time of booking. The remaining balance must
-                      be paid at the time of delivery. For assistance, please
-                      contact our team.
-                    </p>
-
-                    <p>
-                      <span className="font-medium text-carbon">Phone - </span>
-
-                      <a
-                        href="tel:+917044815488"
-                        className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
-                      >
-                        +91 7044815488
-                      </a>
                     </p>
                   </div>
                 </Accordion>

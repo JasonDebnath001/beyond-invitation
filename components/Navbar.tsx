@@ -75,6 +75,45 @@ const navMenu: NavItem[] = [
   },
 ];
 
+function isHrefActive(pathname: string, href?: string) {
+  if (!href) {
+    return false;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isNavItemActive(pathname: string, item: NavItem) {
+  return (
+    isHrefActive(pathname, item.href) ||
+    item.dropdown?.some(
+      (dropdownItem) =>
+        "href" in dropdownItem && isHrefActive(pathname, dropdownItem.href)
+    ) === true
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${
+        open ? "rotate-180" : ""
+      }`}
+    >
+      <path
+        d="m5.5 7.5 4.5 4.5 4.5-4.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function DesktopAuthControls() {
   return (
     <div className="flex shrink-0 items-center gap-2">
@@ -165,6 +204,9 @@ export default function Navbar() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileExpandedIndex, setMobileExpandedIndex] = useState<number | null>(
+    null
+  );
   const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(
     null
   );
@@ -178,6 +220,7 @@ export default function Navbar() {
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileBackdropRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuContentRef = useRef<HTMLDivElement | null>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
 
   const mobileTimelineRef = useRef<ReturnType<typeof gsap.timeline> | null>(
     null
@@ -185,8 +228,30 @@ export default function Navbar() {
 
   const hasOpenedMobileMenuRef = useRef(false);
 
-  const closeMobile = () => {
+  const closeMobile = (restoreToggleFocus = false) => {
     setMobileOpen(false);
+
+    if (restoreToggleFocus) {
+      window.requestAnimationFrame(() => {
+        mobileToggleRef.current?.focus();
+      });
+    }
+  };
+
+  const toggleMobile = () => {
+    if (mobileOpen) {
+      closeMobile();
+      return;
+    }
+
+    const activeSectionIndex = navMenu.findIndex(
+      (item) => item.dropdown?.length && isNavItemActive(pathname, item)
+    );
+
+    setMobileExpandedIndex(
+      activeSectionIndex >= 0 ? activeSectionIndex : null
+    );
+    setMobileOpen(true);
   };
 
   const cancelDesktopClose = () => {
@@ -228,6 +293,10 @@ export default function Navbar() {
 
     gsap.killTweensOf(dropdown);
 
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
     gsap.fromTo(
       dropdown,
       {
@@ -240,7 +309,7 @@ export default function Navbar() {
         autoAlpha: 1,
         y: 0,
         scale: 1,
-        duration: 0.24,
+        duration: reduceMotion ? 0 : 0.24,
         ease: "power3.out",
       }
     );
@@ -264,6 +333,9 @@ export default function Navbar() {
     const animatedItems = Array.from(
       content.querySelectorAll<HTMLElement>("[data-mobile-menu-item]")
     );
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
     mobileTimelineRef.current?.kill();
 
@@ -282,6 +354,8 @@ export default function Navbar() {
         pointerEvents: "auto",
       });
 
+      menu.focus({ preventScroll: true });
+
       const timeline = gsap.timeline();
 
       mobileTimelineRef.current = timeline;
@@ -294,7 +368,7 @@ export default function Navbar() {
           },
           {
             autoAlpha: 1,
-            duration: 0.3,
+            duration: reduceMotion ? 0 : 0.3,
             ease: "power2.out",
           },
           0
@@ -310,7 +384,7 @@ export default function Navbar() {
             height: "auto",
             autoAlpha: 1,
             y: 0,
-            duration: 0.5,
+            duration: reduceMotion ? 0 : 0.5,
             ease: "power4.out",
           },
           0
@@ -326,8 +400,8 @@ export default function Navbar() {
             autoAlpha: 1,
             y: 0,
             scale: 1,
-            duration: 0.38,
-            stagger: 0.055,
+            duration: reduceMotion ? 0 : 0.38,
+            stagger: reduceMotion ? 0 : 0.055,
             ease: "power3.out",
           },
           0.12
@@ -398,9 +472,9 @@ export default function Navbar() {
             autoAlpha: 0,
             y: -10,
             scale: 0.985,
-            duration: 0.18,
+            duration: reduceMotion ? 0 : 0.18,
             stagger: {
-              each: 0.025,
+              each: reduceMotion ? 0 : 0.025,
               from: "end",
             },
             ease: "power2.in",
@@ -413,7 +487,7 @@ export default function Navbar() {
             height: 0,
             autoAlpha: 0,
             y: -12,
-            duration: 0.36,
+            duration: reduceMotion ? 0 : 0.36,
             ease: "power3.inOut",
           },
           0.07
@@ -422,7 +496,7 @@ export default function Navbar() {
           backdrop,
           {
             autoAlpha: 0,
-            duration: 0.28,
+            duration: reduceMotion ? 0 : 0.28,
             ease: "power2.in",
           },
           0.07
@@ -451,17 +525,68 @@ export default function Navbar() {
     };
   }, [mobileOpen]);
 
-  /*
-   * Close menus with the Escape key.
-   */
+  /* Keep keyboard focus inside the open navigation sheet and support Escape. */
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") {
+      if (event.key === "Escape") {
+        if (mobileOpen) {
+          closeMobile(true);
+        }
+
+        const desktopTrigger =
+          activeDropdownIndex === null
+            ? null
+            : document.getElementById(
+                `desktop-nav-trigger-${activeDropdownIndex}`
+              );
+
+        setActiveDropdownIndex(null);
+
+        if (desktopTrigger instanceof HTMLButtonElement) {
+          window.requestAnimationFrame(() => {
+            desktopTrigger.focus();
+          });
+        }
+
         return;
       }
 
-      setMobileOpen(false);
-      setActiveDropdownIndex(null);
+      if (event.key !== "Tab" || !mobileOpen || !mobileMenuRef.current) {
+        return;
+      }
+
+      const menu = mobileMenuRef.current;
+      const focusableElements = Array.from(
+        menu.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element.getClientRects().length > 0);
+
+      if (!focusableElements.length) {
+        event.preventDefault();
+        menu.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (
+        event.shiftKey &&
+        (activeElement === firstElement ||
+          activeElement === menu ||
+          !menu.contains(activeElement))
+      ) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (
+        !event.shiftKey &&
+        (activeElement === lastElement || !menu.contains(activeElement))
+      ) {
+        event.preventDefault();
+        firstElement.focus();
+      }
     }
 
     document.addEventListener("keydown", onKey);
@@ -469,13 +594,13 @@ export default function Navbar() {
     return () => {
       document.removeEventListener("keydown", onKey);
     };
-  }, []);
+  }, [activeDropdownIndex, mobileOpen]);
 
   /*
    * Automatically close the mobile menu when switching to desktop size.
    */
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 1280px)");
+    const mediaQuery = window.matchMedia("(min-width: 1536px)");
 
     const handleDesktopViewport = (event: MediaQueryListEvent) => {
       if (event.matches) {
@@ -495,6 +620,7 @@ export default function Navbar() {
    */
   useEffect(() => {
     setMobileOpen(false);
+    setMobileExpandedIndex(null);
     setActiveDropdownIndex(null);
   }, [pathname]);
 
@@ -509,11 +635,11 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-carbon/10 bg-white/95 shadow-[0_8px_30px_rgba(123,28,46,0.08)] backdrop-blur-xl">
-      <div className="relative z-30 mx-auto flex h-[72px] max-w-[1500px] items-center gap-4 bg-white/95 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-[110] border-b border-carbon/10 bg-white/95 shadow-[0_8px_30px_rgba(123,28,46,0.08)]">
+      <div className="relative z-30 mx-auto flex h-16 max-w-[1500px] items-center gap-2 bg-white/95 px-3 backdrop-blur-xl sm:h-[72px] sm:gap-3 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex min-w-0 shrink-0 items-center gap-3 xl:w-[260px]"
+          className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3 2xl:w-[220px] 2xl:flex-none"
           aria-label={BRAND}
         >
           <Image
@@ -522,11 +648,11 @@ export default function Navbar() {
             width={42}
             height={42}
             priority
-            className="h-10 w-10 shrink-0 rounded-xl object-contain"
+            className="h-9 w-9 shrink-0 rounded-xl object-contain sm:h-10 sm:w-10"
           />
 
           <div className="min-w-0">
-            <div className="truncate text-[16px] font-extrabold leading-tight tracking-wide text-carbon">
+            <div className="truncate text-sm font-extrabold leading-tight tracking-wide text-carbon sm:text-[16px]">
               {BRAND}
             </div>
 
@@ -536,14 +662,14 @@ export default function Navbar() {
           </div>
         </Link>
 
-        <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex">
+        <nav
+          aria-label="Primary navigation"
+          className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 2xl:flex"
+        >
           {navMenu.map((item, navIndex) => {
             const hasDropdown = Boolean(item.dropdown?.length);
 
-            const isActive =
-              Boolean(item.href) &&
-              (pathname === item.href ||
-                pathname.startsWith(`${item.href}/`));
+            const isActive = isNavItemActive(pathname, item);
 
             return (
               <div
@@ -586,35 +712,31 @@ export default function Navbar() {
                     onKeyDown={(event) => {
                       if (event.key === "Escape") {
                         setActiveDropdownIndex(null);
-                        event.currentTarget.blur();
                       }
                     }}
-                    className={`inline-flex h-10 items-center gap-1 whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition ${
+                    id={`desktop-nav-trigger-${navIndex}`}
+                    className={`inline-flex h-10 items-center gap-1 whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 min-[1680px]:text-[14px] ${
                       isActive
                         ? "bg-paper text-carbon"
-                        : "text-carbon hover:bg-paper"
+                        : "text-carbon"
                     }`}
-                    aria-haspopup="menu"
                     aria-expanded={activeDropdownIndex === navIndex}
+                    aria-controls={`desktop-dropdown-${navIndex}`}
                   >
                     {item.label}
 
-                    <span
-                      aria-hidden="true"
-                      className={`text-[11px] transition-transform duration-200 ${
-                        activeDropdownIndex === navIndex ? "rotate-180" : ""
-                      }`}
-                    >
-                      ▼
-                    </span>
+                    <ChevronIcon
+                      open={activeDropdownIndex === navIndex}
+                    />
                   </button>
                 ) : item.href ? (
                   <Link
                     href={item.href}
-                    className={`inline-flex h-10 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition ${
+                    aria-current={isActive ? "page" : undefined}
+                    className={`inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 min-[1680px]:text-[14px] ${
                       isActive
                         ? "bg-paper text-carbon"
-                        : "text-carbon hover:bg-paper"
+                        : "text-carbon"
                     }`}
                   >
                     {item.label}
@@ -632,10 +754,11 @@ export default function Navbar() {
                    */
                   <div className="absolute left-0 top-full z-50 pt-2">
                     <div
+                      id={`desktop-dropdown-${navIndex}`}
                       ref={(element) => {
                         desktopDropdownRefs.current[navIndex] = element;
                       }}
-                      role="menu"
+                      aria-labelledby={`desktop-nav-trigger-${navIndex}`}
                       onMouseEnter={cancelDesktopClose}
                       onMouseLeave={scheduleDesktopClose}
                       className="w-72 rounded-3xl border border-carbon/10 bg-white p-2 shadow-[0_20px_50px_rgba(42,26,16,0.16)]"
@@ -652,8 +775,12 @@ export default function Navbar() {
                           <Link
                             key={dropdownItem.href}
                             href={dropdownItem.href}
-                            role="menuitem"
-                            className="block rounded-2xl px-4 py-3 text-sm font-bold text-ink transition hover:bg-paper hover:text-carbon focus:bg-paper focus:text-carbon focus:outline-none"
+                            aria-current={
+                              isHrefActive(pathname, dropdownItem.href)
+                                ? "page"
+                                : undefined
+                            }
+                            className="block rounded-2xl px-4 py-3 text-sm font-bold text-ink transition hover:bg-paper hover:text-carbon focus:outline-none focus-visible:bg-paper focus-visible:text-carbon focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-carbon/15"
                           >
                             {dropdownItem.label}
                           </Link>
@@ -667,8 +794,8 @@ export default function Navbar() {
           })}
         </nav>
 
-        <div className="hidden shrink-0 items-center justify-end gap-3 xl:flex">
-          <div className="w-[230px] 2xl:w-[280px]">
+        <div className="hidden shrink-0 items-center justify-end gap-2.5 2xl:flex min-[1680px]:gap-3">
+          <div className="w-52 min-[1680px]:w-60">
             <SearchBar />
           </div>
 
@@ -677,49 +804,57 @@ export default function Navbar() {
           <DesktopAuthControls />
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setMobileOpen((open) => !open);
-          }}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-navigation"
-          className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:bg-paper focus:outline-none focus:ring-2 focus:ring-carbon/15 xl:hidden"
-        >
-          <span className="relative block h-5 w-5" aria-hidden="true">
-            <span
-              className={`absolute left-0 top-[2px] h-0.5 w-5 rounded-full bg-current transition-all duration-300 ease-out ${
-                mobileOpen
-                  ? "translate-y-[7px] rotate-45"
-                  : "translate-y-0 rotate-0"
-              }`}
-            />
+        <div className="ml-auto flex shrink-0 items-center gap-2 2xl:hidden">
+          <CartButton />
 
-            <span
-              className={`absolute left-0 top-[9px] h-0.5 w-5 rounded-full bg-current transition-all duration-200 ease-out ${
-                mobileOpen ? "scale-x-0 opacity-0" : "scale-x-100 opacity-100"
-              }`}
-            />
+          <button
+            ref={mobileToggleRef}
+            type="button"
+            onClick={toggleMobile}
+            aria-label={
+              mobileOpen ? "Close navigation menu" : "Open navigation menu"
+            }
+            aria-haspopup="dialog"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-navigation"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/20"
+          >
+            <span className="relative block h-5 w-5" aria-hidden="true">
+              <span
+                className={`absolute left-0 top-[2px] h-0.5 w-5 rounded-full bg-current transition-all duration-300 ease-out motion-reduce:transition-none ${
+                  mobileOpen
+                    ? "translate-y-[7px] rotate-45"
+                    : "translate-y-0 rotate-0"
+                }`}
+              />
 
-            <span
-              className={`absolute left-0 top-[16px] h-0.5 w-5 rounded-full bg-current transition-all duration-300 ease-out ${
-                mobileOpen
-                  ? "-translate-y-[7px] -rotate-45"
-                  : "translate-y-0 rotate-0"
-              }`}
-            />
-          </span>
-        </button>
+              <span
+                className={`absolute left-0 top-[9px] h-0.5 w-5 rounded-full bg-current transition-all duration-200 ease-out motion-reduce:transition-none ${
+                  mobileOpen
+                    ? "scale-x-0 opacity-0"
+                    : "scale-x-100 opacity-100"
+                }`}
+              />
+
+              <span
+                className={`absolute left-0 top-[16px] h-0.5 w-5 rounded-full bg-current transition-all duration-300 ease-out motion-reduce:transition-none ${
+                  mobileOpen
+                    ? "-translate-y-[7px] -rotate-45"
+                    : "translate-y-0 rotate-0"
+                }`}
+              />
+            </span>
+          </button>
+        </div>
       </div>
 
       <button
         ref={mobileBackdropRef}
         type="button"
-        tabIndex={mobileOpen ? 0 : -1}
-        aria-label="Close mobile menu"
-        onClick={closeMobile}
-        className="fixed inset-x-0 bottom-0 top-[72px] z-0 bg-carbon/20 backdrop-blur-[2px] xl:hidden"
+        tabIndex={-1}
+        aria-hidden="true"
+        onClick={() => closeMobile(true)}
+        className="fixed inset-x-0 bottom-0 top-16 z-0 bg-carbon/20 backdrop-blur-[2px] sm:top-[72px] 2xl:hidden"
         style={{
           opacity: 0,
           visibility: "hidden",
@@ -730,8 +865,12 @@ export default function Navbar() {
       <div
         id="mobile-navigation"
         ref={mobileMenuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
         aria-hidden={!mobileOpen}
-        className="relative z-20 overflow-hidden border-t border-carbon/10 bg-white shadow-[0_18px_40px_rgba(42,26,16,0.14)] xl:hidden"
+        tabIndex={-1}
+        className="fixed inset-x-0 top-16 z-20 overflow-hidden border-t border-carbon/10 bg-white shadow-[0_18px_40px_rgba(42,26,16,0.16)] outline-none sm:inset-x-auto sm:right-6 sm:top-20 sm:w-[28rem] sm:rounded-[1.75rem] sm:border lg:right-8 2xl:hidden"
         style={{
           height: 0,
           opacity: 0,
@@ -742,71 +881,150 @@ export default function Navbar() {
       >
         <div
           ref={mobileMenuContentRef}
-          className="max-h-[calc(100dvh-72px)] overflow-y-auto overscroll-contain"
+          className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-6rem)]"
         >
-          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-            <div data-mobile-menu-item>
-              <SearchBar />
+          <div className="px-4 py-4 sm:p-5">
+            <div data-mobile-menu-item className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchBar onNavigate={() => closeMobile()} />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => closeMobile(true)}
+                aria-label="Close navigation menu"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/20"
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  className="h-5 w-5"
+                >
+                  <path
+                    d="m5 5 10 10M15 5 5 15"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
-            <nav className="mt-5 space-y-2">
-              {navMenu.map((item) => (
-                <div
-                  key={item.label}
-                  data-mobile-menu-item
-                  className="rounded-3xl border border-carbon/10 bg-paper/70 p-2 shadow-sm"
-                >
-                  {item.href ? (
-                    <Link
-                      href={item.href}
-                      onClick={closeMobile}
-                      className="block rounded-2xl px-4 py-3 text-base font-extrabold text-carbon transition hover:bg-white focus:bg-white focus:outline-none"
-                    >
-                      {item.label}
-                    </Link>
-                  ) : (
-                    <div className="rounded-2xl px-4 py-3 text-base font-extrabold text-carbon">
-                      {item.label}
-                    </div>
-                  )}
+            <nav aria-label="Mobile navigation" className="mt-4 space-y-2">
+              {navMenu.map((item, navIndex) => {
+                const hasDropdown = Boolean(item.dropdown?.length);
+                const isExpanded = mobileExpandedIndex === navIndex;
+                const isActive = isNavItemActive(pathname, item);
+                const nestedItems = item.dropdown?.filter(
+                  (dropdownItem) =>
+                    "section" in dropdownItem ||
+                    dropdownItem.href !== item.href
+                );
 
-                  {item.dropdown && (
-                    <div className="mt-1 space-y-1 pl-2">
-                      {item.dropdown.map((dropdownItem, index) =>
-                        "section" in dropdownItem ? (
-                          <div
-                            key={`${dropdownItem.section}-${index}`}
-                            className="px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
-                          >
-                            {dropdownItem.section}
-                          </div>
-                        ) : (
-                          <Link
-                            key={dropdownItem.href}
-                            href={dropdownItem.href}
-                            onClick={closeMobile}
-                            className="block rounded-2xl px-4 py-2.5 text-sm font-bold text-ink transition hover:bg-white hover:text-carbon focus:bg-white focus:text-carbon focus:outline-none"
-                          >
-                            {dropdownItem.label}
-                          </Link>
-                        )
+                return (
+                  <div
+                    key={item.label}
+                    data-mobile-menu-item
+                    className={`rounded-2xl border p-1.5 transition-colors ${
+                      isActive
+                        ? "border-carbon/20 bg-paper"
+                        : "border-carbon/10 bg-paper/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {item.href ? (
+                        <Link
+                          href={item.href}
+                          onClick={() => closeMobile()}
+                          aria-current={
+                            isHrefActive(pathname, item.href)
+                              ? "page"
+                              : undefined
+                          }
+                          className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-[15px] font-extrabold text-carbon transition hover:bg-white focus:outline-none focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-carbon/15"
+                        >
+                          {item.label}
+                        </Link>
+                      ) : (
+                        <div className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-[15px] font-extrabold text-carbon">
+                          {item.label}
+                        </div>
+                      )}
+
+                      {hasDropdown && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileExpandedIndex((current) =>
+                              current === navIndex ? null : navIndex
+                            );
+                          }}
+                          aria-label={`${
+                            isExpanded ? "Collapse" : "Expand"
+                          } ${item.label}`}
+                          aria-expanded={isExpanded}
+                          aria-controls={`mobile-nav-section-${navIndex}`}
+                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-carbon transition hover:bg-white focus:outline-none focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-carbon/15"
+                        >
+                          <ChevronIcon open={isExpanded} />
+                        </button>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {hasDropdown && isExpanded && (
+                      <div
+                        id={`mobile-nav-section-${navIndex}`}
+                        className="mt-1 space-y-1 border-t border-carbon/10 px-1 pt-1"
+                      >
+                        {nestedItems?.map((dropdownItem, index) =>
+                          "section" in dropdownItem ? (
+                            <div
+                              key={`${dropdownItem.section}-${index}`}
+                              className="px-3 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
+                            >
+                              {dropdownItem.section}
+                            </div>
+                          ) : (
+                            <Link
+                              key={dropdownItem.href}
+                              href={dropdownItem.href}
+                              onClick={() => closeMobile()}
+                              aria-current={
+                                isHrefActive(pathname, dropdownItem.href)
+                                  ? "page"
+                                  : undefined
+                              }
+                              className={`block rounded-xl px-3 py-2.5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
+                                isHrefActive(pathname, dropdownItem.href)
+                                  ? "bg-white text-carbon"
+                                  : "text-ink hover:bg-white hover:text-carbon"
+                              }`}
+                            >
+                              {dropdownItem.label}
+                            </Link>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </nav>
 
             <div
               data-mobile-menu-item
               className="mt-5 border-t border-carbon/10 pt-5"
             >
-              <div className="flex items-center gap-3">
-                <WishlistNavLink />
-                <CartButton />
+              <div className="grid grid-cols-2 gap-3">
+                <WishlistNavLink
+                  showLabel
+                  onNavigate={() => closeMobile()}
+                />
+                <CartButton showLabel onNavigate={() => closeMobile()} />
               </div>
 
-              <MobileAuthControls onAction={closeMobile} />
+              <MobileAuthControls onAction={() => closeMobile()} />
             </div>
           </div>
         </div>

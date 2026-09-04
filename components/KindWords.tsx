@@ -57,7 +57,7 @@ export default function KindWords() {
             Testimonials
           </p>
 
-          <h2 className="font-serif text-4xl font-semibold uppercase tracking-[0.08em] text-carbon sm:text-5xl">
+          <h2 className="font-serif text-3xl font-semibold uppercase tracking-[0.06em] text-carbon min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.08em]">
             Kind Words
           </h2>
         </div>
@@ -78,9 +78,9 @@ export default function KindWords() {
               />
             </div>
 
-            <div className="flex items-center px-6 py-12 sm:px-10 lg:px-16">
+            <div className="flex items-center px-4 py-10 min-[400px]:px-6 sm:px-10 sm:py-12 lg:px-10 xl:px-16">
               <div className="max-w-2xl">
-                <h3 className="mb-5 text-3xl font-semibold tracking-wide text-carbon sm:text-4xl lg:text-5xl">
+                <h3 className="mb-5 break-words text-2xl font-semibold tracking-wide text-carbon min-[400px]:text-3xl sm:text-4xl xl:text-5xl">
                   {review.name}
                 </h3>
 

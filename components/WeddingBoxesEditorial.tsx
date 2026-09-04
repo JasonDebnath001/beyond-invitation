@@ -44,7 +44,7 @@ function ImageFrame({
   return (
     <div
       data-image-card
-      className={`group relative overflow-hidden rounded-[2rem] border border-[#d9b875]/35 bg-[#f7ead6] shadow-[0_28px_90px_rgba(64,34,15,0.16)] ${className}`}
+      className={`group relative min-w-0 overflow-hidden rounded-[1.5rem] border border-[#d9b875]/35 bg-[#f7ead6] shadow-[0_28px_90px_rgba(64,34,15,0.16)] sm:rounded-[2rem] ${className}`}
     >
       {src ? (
         <img
@@ -69,7 +69,7 @@ function ImageFrame({
       )}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#2b170b]/35 via-transparent to-white/10 opacity-70" />
-      <div className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/35" />
+      <div className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/35" />
     </div>
   );
 }
@@ -214,20 +214,20 @@ export default function WeddingBoxesEditorial() {
     <section
       ref={rootRef}
       data-no-text-motion
-      className="relative isolate overflow-hidden bg-[#fff8ec] px-4 py-20 text-[#2a1810] sm:px-6 lg:px-8 lg:py-28"
+      className="relative isolate overflow-hidden bg-[#fff8ec] px-4 py-16 text-[#2a1810] sm:px-6 sm:py-20 lg:px-8 lg:py-24 xl:py-28"
     >
       {/* Soft background atmosphere */}
       <div className="pointer-events-none absolute left-[-12%] top-[-20%] h-[420px] w-[420px] rounded-full bg-[#d9b875]/25 blur-3xl" />
       <div className="pointer-events-none absolute bottom-[-18%] right-[-12%] h-[520px] w-[520px] rounded-full bg-[#8b1e2d]/10 blur-3xl" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d9b875]/70 to-transparent" />
 
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16">
+      <div className="mx-auto grid min-w-0 max-w-7xl items-center gap-10 sm:gap-12 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-8 xl:gap-16">
         {/* Copy */}
-        <div className="relative z-10">
+        <div className="relative z-10 min-w-0">
 
           <h2
             data-editorial-reveal
-            className="max-w-3xl font-serif text-4xl leading-[0.95] tracking-[-0.04em] text-[#2a1810] sm:text-5xl md:text-6xl lg:text-7xl"
+            className="max-w-3xl break-words font-serif text-4xl leading-[0.98] tracking-[-0.04em] text-[#2a1810] sm:text-5xl md:text-6xl lg:text-[52px] xl:text-7xl"
           >
             Introducing premium wedding boxes.
           </h2>
@@ -243,11 +243,11 @@ export default function WeddingBoxesEditorial() {
 
           <div
             data-editorial-reveal
-            className="mt-9 flex flex-col gap-3 sm:flex-row"
+            className="mt-9 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap"
           >
             <Link
               href={COLLECTION_HREF}
-              className="group inline-flex items-center justify-center rounded-full bg-[#2a1810] px-7 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-white transition duration-300 hover:-translate-y-0.5 hover:bg-[#8b1e2d]"
+              className="group inline-flex max-w-full items-center justify-center rounded-full bg-[#2a1810] px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition duration-300 hover:-translate-y-0.5 hover:bg-[#8b1e2d] sm:px-7 sm:text-sm sm:tracking-[0.2em]"
             >
               Explore Boxes
               <span className="ml-3 transition duration-300 group-hover:translate-x-1">
@@ -257,7 +257,7 @@ export default function WeddingBoxesEditorial() {
 
             <Link
               href={QUOTE_HREF}
-              className="inline-flex items-center justify-center rounded-full border border-[#2a1810]/20 bg-white/50 px-7 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#2a1810] transition duration-300 hover:-translate-y-0.5 hover:border-[#8b1e2d]/40 hover:bg-white"
+              className="inline-flex max-w-full items-center justify-center rounded-full border border-[#2a1810]/20 bg-white/50 px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#2a1810] transition duration-300 hover:-translate-y-0.5 hover:border-[#8b1e2d]/40 hover:bg-white sm:px-7 sm:text-sm sm:tracking-[0.2em]"
             >
               Request Custom Quote
             </Link>
@@ -265,20 +265,20 @@ export default function WeddingBoxesEditorial() {
 
           <div
             data-editorial-reveal
-            className="mt-10 grid max-w-xl grid-cols-3 gap-3 border-y border-[#d9b875]/40 py-5"
+            className="mt-10 grid max-w-xl grid-cols-1 divide-y divide-[#d9b875]/30 border-y border-[#d9b875]/40 py-2 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:py-5"
           >
-            <div>
-              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#7b604d]">
+            <div className="py-3 sm:px-2 sm:py-0 sm:first:pl-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#7b604d] sm:text-xs sm:tracking-[0.22em]">
                 Premium Finish
               </p>
             </div>
-            <div>
-              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#7b604d]">
+            <div className="py-3 sm:px-3 sm:py-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#7b604d] sm:text-xs sm:tracking-[0.22em]">
                 Customisable
               </p>
             </div>
-            <div>
-              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#7b604d]">
+            <div className="py-3 sm:px-3 sm:py-0">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#7b604d] sm:text-xs sm:tracking-[0.22em]">
                 Gift Ready
               </p>
             </div>
@@ -286,7 +286,7 @@ export default function WeddingBoxesEditorial() {
         </div>
 
         {/* Editorial image layout */}
-        <div className="relative min-h-[560px] lg:min-h-[690px]">
+        <div className="relative min-h-[430px] min-w-0 sm:min-h-[560px] lg:min-h-[600px] xl:min-h-[690px]">
           <div
             data-float-soft
             data-parallax-soft

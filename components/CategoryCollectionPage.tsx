@@ -123,14 +123,14 @@ function CollectionProductCard({
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80" />
 
-        <span className="absolute left-4 top-4 rounded-full bg-white/85 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4a2715] shadow-sm backdrop-blur">
+        <span className="absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate rounded-full bg-white/85 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4a2715] shadow-sm backdrop-blur">
           {categoryName}
         </span>
       </div>
 
       <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="line-clamp-2 text-xl font-semibold leading-tight tracking-[-0.025em] text-[#2a1810]">
+        <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+          <h2 className="min-w-[10rem] flex-1 break-words text-lg font-semibold leading-tight tracking-[-0.025em] text-[#2a1810] sm:line-clamp-2 sm:text-xl">
             {product.name}
           </h2>
 
@@ -263,13 +263,13 @@ export default function CategoryCollectionPageClient({
           <nav
             data-page-intro
             aria-label="Breadcrumb"
-            className="mb-5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b1e2d]"
+            className="mb-5 flex min-w-0 items-center gap-2 overflow-hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8b1e2d] sm:tracking-[0.22em]"
           >
             <Link href="/" className="transition hover:text-[#2a1810]">
               Home
             </Link>
             <span className="text-[#c9a84c]">/</span>
-            <span>{categoryName}</span>
+            <span className="min-w-0 truncate">{categoryName}</span>
           </nav>
 
           <div className="mb-8 flex flex-col justify-between gap-5 border-b border-[#e3cca0] pb-7 md:flex-row md:items-end">
@@ -283,7 +283,7 @@ export default function CategoryCollectionPageClient({
 
               <h1
                 data-page-intro
-                className="text-4xl font-semibold leading-none tracking-[-0.055em] text-[#24130b] sm:text-5xl md:text-6xl"
+                className="break-words text-3xl font-semibold leading-none tracking-[-0.045em] text-[#24130b] min-[400px]:text-4xl sm:text-5xl sm:tracking-[-0.055em] md:text-6xl"
               >
                 {categoryName}
               </h1>
@@ -308,11 +308,11 @@ export default function CategoryCollectionPageClient({
           </div>
 
           {errorMessage ? (
-            <div className="rounded-[1.75rem] border border-[#e4d2a5] bg-white/70 p-8 text-center shadow-sm">
+            <div className="rounded-[1.75rem] border border-[#e4d2a5] bg-white/70 p-6 text-center shadow-sm sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#8b1e2d]">
                 Something went wrong
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[#2a1810]">
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[#2a1810] sm:text-3xl">
                 We couldn&apos;t load this collection
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#806553]">
@@ -320,9 +320,9 @@ export default function CategoryCollectionPageClient({
               </p>
             </div>
           ) : products.length === 0 ? (
-            <div className="rounded-[1.75rem] border border-[#e4d2a5] bg-white/70 p-8 text-center shadow-sm sm:p-10">
+            <div className="rounded-[1.75rem] border border-[#e4d2a5] bg-white/70 p-6 text-center shadow-sm sm:p-10">
               <p className="text-5xl text-[#7b1c2e]">✦</p>
-              <h2 className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-[#2a1810]">
+              <h2 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[#2a1810] sm:text-3xl">
                 This collection is being refreshed
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#806553]">

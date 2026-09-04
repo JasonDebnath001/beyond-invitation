@@ -71,19 +71,19 @@ export default function Footer() {
     <footer className="relative overflow-hidden bg-carbon text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_45%)]" />
 
-      <div className="relative mx-auto max-w-7xl px-6 pb-8 pt-16 md:pt-20">
-        <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr] lg:gap-16">
-          <div className="md:border-r md:border-white/10 md:pr-12">
+      <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-14 sm:px-6 sm:pt-16 md:pt-20 lg:px-8">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr] lg:gap-10 xl:gap-16">
+          <div className="sm:col-span-2 lg:col-span-1 lg:border-r lg:border-white/10 lg:pr-8 xl:pr-12">
             <div className="font-display text-[26px] font-medium tracking-[0.04em] text-white">
               {BRAND}
             </div>
 
-            <div className="mt-2 flex items-center gap-3">
-              <span className="h-px w-8 bg-[#d6b36a]" />
-              <div className="text-[9px] font-medium uppercase tracking-[0.34em] text-white/45">
+            <div className="mt-2 flex max-w-full items-center gap-2 sm:gap-3">
+              <span className="h-px w-5 shrink-0 bg-[#d6b36a] sm:w-8" />
+              <div className="min-w-0 text-center text-[8px] font-medium uppercase leading-4 tracking-[0.2em] text-white/45 sm:text-[9px] sm:tracking-[0.28em] xl:tracking-[0.34em]">
                 {TAGLINE}
               </div>
-              <span className="h-px w-8 bg-[#d6b36a]" />
+              <span className="h-px w-5 shrink-0 bg-[#d6b36a] sm:w-8" />
             </div>
 
             <p className="mt-6 max-w-[310px] text-[14px] leading-7 text-white/62">
@@ -108,7 +108,7 @@ export default function Footer() {
           </div>
 
           {footerColumns.map((col) => (
-            <div key={col.heading} className="md:border-r md:border-white/10 md:pr-10 last:border-r-0">
+            <div key={col.heading} className="lg:border-r lg:border-white/10 lg:pr-6 last:border-r-0 xl:pr-10">
               <h4 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#f0d99b]">
                 {col.heading}
               </h4>

@@ -64,8 +64,8 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-16">
-        <div className="rounded-3xl border border-gold/20 bg-white p-10 text-center shadow-sm">
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:py-16">
+        <div className="rounded-3xl border border-gold/20 bg-white p-6 text-center shadow-sm sm:p-10">
           <h1 className="font-serif text-3xl font-semibold text-maroon">
             Your cart is empty
           </h1>
@@ -88,9 +88,9 @@ export default function CartPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <main className="mx-auto min-w-0 max-w-6xl px-4 py-8 sm:py-10">
       <div className="mb-8">
-        <h1 className="font-serif text-4xl font-semibold text-maroon">
+        <h1 className="font-serif text-3xl font-semibold text-maroon sm:text-4xl">
           Shopping Cart
         </h1>
 
@@ -103,14 +103,14 @@ export default function CartPage() {
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-        <section className="space-y-4">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:gap-8">
+        <section className="min-w-0 space-y-4">
           {items.map((item) => (
             <div
               key={item.slug}
-              className="flex gap-4 rounded-3xl border border-gold/20 bg-white p-4 shadow-sm"
+              className="flex min-w-0 flex-col gap-4 rounded-3xl border border-gold/20 bg-white p-4 shadow-sm min-[420px]:flex-row"
             >
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-pale">
+              <div className="flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-pale min-[420px]:h-24 min-[420px]:w-24">
                 {item.image &&
                 !failedImages[
                   item.slug
@@ -137,9 +137,9 @@ export default function CartPage() {
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col justify-between gap-4 sm:flex-row">
-                <div>
-                  <h3 className="font-serif text-xl font-semibold text-maroon">
+              <div className="flex min-w-0 flex-1 flex-col justify-between gap-4 sm:flex-row">
+                <div className="min-w-0">
+                  <h3 className="break-words font-serif text-xl font-semibold text-maroon">
                     {item.name}
                   </h3>
 
@@ -164,7 +164,7 @@ export default function CartPage() {
                   </button>
                 </div>
 
-                <div className="flex flex-col items-start gap-4 sm:items-end">
+                <div className="flex shrink-0 flex-row items-center justify-between gap-4 sm:flex-col sm:items-end sm:justify-start">
                   <div className="flex items-center rounded-full border border-gold/30 bg-white p-1">
                     <button
                       type="button"
@@ -222,19 +222,19 @@ export default function CartPage() {
           </button>
         </section>
 
-        <aside className="h-fit rounded-3xl border border-gold/20 bg-white p-6 shadow-sm lg:sticky lg:top-24">
+        <aside className="h-fit min-w-0 rounded-3xl border border-gold/20 bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-24">
           <h2 className="font-serif text-2xl font-semibold text-maroon">
             Order Summary
           </h2>
 
           <div className="mt-5 space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-ink-light">
+            <div className="flex min-w-0 justify-between gap-4">
+              <span className="min-w-0 text-ink-light">
                 Subtotal (
                 {totalItems} items)
               </span>
 
-              <span className="font-medium">
+              <span className="shrink-0 font-medium">
                 ₹
                 {formatPrice(
                   totalPrice,
@@ -242,20 +242,20 @@ export default function CartPage() {
               </span>
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-4">
               <span className="text-ink-light">
                 Shipping
               </span>
 
-              <span className="font-medium">
+              <span className="shrink-0 font-medium">
                 Free
               </span>
             </div>
 
-            <div className="flex justify-between border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
+            <div className="flex justify-between gap-4 border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
               <span>Total</span>
 
-              <span>
+              <span className="shrink-0">
                 ₹
                 {formatPrice(
                   totalPrice,

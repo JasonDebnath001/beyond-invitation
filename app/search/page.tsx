@@ -28,18 +28,18 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const results = query ? await searchProducts(query) : [];
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-14">
+    <div className="mx-auto min-w-0 max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="mb-10">
         <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-gold">
           Search Results
         </p>
         {query ? (
-          <h1 className="mt-1 font-display text-3xl font-semibold text-maroon-dark">
+          <h1 className="mt-1 break-words font-display text-2xl font-semibold text-maroon-dark [overflow-wrap:anywhere] sm:text-3xl">
             {results.length} {results.length === 1 ? "result" : "results"} for
             &ldquo;{query}&rdquo;
           </h1>
         ) : (
-          <h1 className="mt-1 font-display text-3xl font-semibold text-maroon-dark">
+          <h1 className="mt-1 break-words font-display text-2xl font-semibold text-maroon-dark sm:text-3xl">
             Search our cards
           </h1>
         )}
@@ -53,9 +53,9 @@ export default async function SearchPage({ searchParams }: PageProps) {
       )}
 
       {query && results.length === 0 && (
-        <div className="rounded-xl border border-gold/25 bg-white py-16 text-center">
+        <div className="rounded-xl border border-gold/25 bg-white px-4 py-12 text-center sm:py-16">
           <div className="text-5xl">🔍</div>
-          <p className="mt-4 text-[15px] font-medium text-ink">
+          <p className="mt-4 break-words text-[15px] font-medium text-ink [overflow-wrap:anywhere]">
             No products matched &ldquo;{query}&rdquo;
           </p>
           <p className="mt-1 text-[13px] text-ink-light">
@@ -63,7 +63,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
           </p>
           <Link
             href="/collections/wedding"
-            className="mt-5 inline-flex items-center gap-2 rounded-lg border-[1.5px] border-maroon px-6 py-2.5 text-[13.5px] font-medium text-maroon transition hover:bg-maroon hover:text-gold-light"
+            className="mt-5 inline-flex max-w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-maroon px-4 py-2.5 text-center text-[13.5px] font-medium text-maroon transition hover:bg-maroon hover:text-gold-light sm:px-6"
           >
             Browse Wedding Cards →
           </Link>

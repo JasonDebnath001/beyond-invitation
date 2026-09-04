@@ -582,8 +582,8 @@ export default function ProductGallery({
     }
 
     const wrapperClass = isDesktop
-      ? "hidden max-h-[720px] flex-col gap-3.5 overflow-y-auto overscroll-contain scroll-smooth rounded-[20px] border border-gold/15 bg-paper/55 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] [scrollbar-width:none] xl:flex 2xl:max-h-[760px] [&::-webkit-scrollbar]:hidden"
-      : "mt-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] xl:hidden [&::-webkit-scrollbar]:hidden";
+      ? "hidden max-h-[640px] flex-col gap-3.5 overflow-y-auto overscroll-contain scroll-smooth rounded-[20px] border border-gold/15 bg-paper/55 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] [scrollbar-width:none] lg:flex xl:max-h-[720px] 2xl:max-h-[760px] [&::-webkit-scrollbar]:hidden"
+      : "mt-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden";
 
     return (
       <div className={wrapperClass} aria-label="Product media thumbnails">
@@ -649,7 +649,11 @@ export default function ProductGallery({
 
   return (
     <div
-      className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[96px_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[108px_minmax(0,1fr)] 2xl:gap-7"
+      className={`grid min-w-0 gap-4 sm:gap-5 ${
+        total > 1
+          ? "lg:grid-cols-[72px_minmax(0,1fr)] lg:gap-4 xl:grid-cols-[96px_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[108px_minmax(0,1fr)] 2xl:gap-7"
+          : ""
+      }`}
       onKeyDown={onKeyDown}
     >
       {renderThumbnails(true)}
@@ -660,7 +664,7 @@ export default function ProductGallery({
           tabIndex={0}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className="group relative flex aspect-[4/5] min-h-[360px] items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-ivory shadow-sm outline-none sm:min-h-[560px] sm:rounded-[2rem] xl:min-h-0"
+          className="group relative flex aspect-[4/5] min-h-[360px] items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-ivory shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-carbon/30 focus-visible:ring-offset-2 sm:min-h-[560px] sm:rounded-[2rem] lg:aspect-auto lg:h-[calc(100svh-8rem)] lg:min-h-[520px] lg:max-h-[720px] 2xl:max-h-[760px]"
         >
           {hasMedia && activeItem ? (
             <>
@@ -746,7 +750,7 @@ export default function ProductGallery({
                 type="button"
                 onClick={() => go(-1)}
                 aria-label="Previous media"
-                className="absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white sm:h-10 sm:w-10 md:opacity-0 md:group-hover:opacity-100"
+                className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/30 focus-visible:ring-offset-2"
               >
                 ←
               </button>
@@ -755,7 +759,7 @@ export default function ProductGallery({
                 type="button"
                 onClick={() => go(1)}
                 aria-label="Next media"
-                className="absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white sm:h-10 sm:w-10 md:opacity-0 md:group-hover:opacity-100"
+                className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/30 focus-visible:ring-offset-2"
               >
                 →
               </button>

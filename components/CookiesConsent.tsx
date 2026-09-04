@@ -93,7 +93,7 @@ export default function CookieConsent() {
         aria-labelledby="cookie-consent-title"
         aria-describedby="cookie-consent-description"
         className={[
-          "pointer-events-auto relative overflow-hidden",
+          "pointer-events-auto relative max-h-[calc(100dvh-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain md:max-h-[calc(100dvh-2.5rem)]",
           "rounded-[26px] border border-carbon/15",
           "bg-[#fffdf8]/95 backdrop-blur-xl",
           "shadow-[0_18px_60px_rgba(62,12,23,0.16)]",

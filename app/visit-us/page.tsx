@@ -21,14 +21,14 @@ export default function VisitUsPage() {
   return (
     <main className="min-h-screen bg-[#fffaf5]">
       <section className="border-b border-amber-100 bg-gradient-to-br from-[#fff7ed] via-white to-[#fef3c7]">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_430px] lg:px-8 lg:py-20">
+        <div className="mx-auto grid min-w-0 max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:px-8 lg:py-20 xl:grid-cols-[minmax(0,1fr)_430px]">
           {/* Text */}
-          <div>
+          <div className="min-w-0">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
               Visit Us
             </p>
 
-            <h1 className="max-w-3xl font-serif text-4xl font-semibold tracking-tight text-neutral-950 sm:text-5xl">
+            <h1 className="max-w-3xl break-words font-serif text-3xl font-semibold tracking-tight text-neutral-950 sm:text-5xl">
               Experience our wedding card collection in person.
             </h1>
 
@@ -40,11 +40,11 @@ export default function VisitUsPage() {
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
+              <div className="min-w-0 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
                   Address
                 </p>
-                <p className="mt-3 text-base leading-7 text-neutral-800">
+                <p className="mt-3 break-words text-base leading-7 text-neutral-800 [overflow-wrap:anywhere]">
                   8, Jackson Lane,
                   <br />
                   Canning Street,
@@ -53,11 +53,11 @@ export default function VisitUsPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
+              <div className="min-w-0 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
                   Contact
                 </p>
-                <p className="mt-3 text-base leading-7 text-neutral-800">
+                <p className="mt-3 break-words text-base leading-7 text-neutral-800 [overflow-wrap:anywhere]">
                   WhatsApp: +91 7044815488
                   <br />
                   Phone: 033-22428918
@@ -89,7 +89,7 @@ export default function VisitUsPage() {
           </div>
 
           {/* Storefront Image */}
-          <div className="relative">
+          <div className="relative min-w-0">
             <div className="absolute -inset-4 rounded-[2rem] bg-amber-200/30 blur-2xl" />
 
             <div className="relative overflow-hidden rounded-[2rem] border border-amber-100 bg-white p-3 shadow-xl">
@@ -120,9 +120,9 @@ export default function VisitUsPage() {
 
       {/* Map Section */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
-          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-            <div>
+        <div className="min-w-0 rounded-3xl border border-amber-100 bg-white p-5 shadow-sm sm:p-8">
+          <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+            <div className="min-w-0">
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
                 Find Us
               </p>

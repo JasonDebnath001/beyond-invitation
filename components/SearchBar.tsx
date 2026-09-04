@@ -6,7 +6,11 @@ import type { Product } from "@/types";
 
 const MAX_DROPDOWN_RESULTS = 6;
 
-export default function SearchBar() {
+type SearchBarProps = {
+  onNavigate?: () => void;
+};
+
+export default function SearchBar({ onNavigate }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -77,12 +81,14 @@ export default function SearchBar() {
     if (!q) return;
 
     setOpen(false);
+    onNavigate?.();
     router.push(`/search?q=${encodeURIComponent(q)}`);
   }
 
   function goToProduct(slug: string) {
     setOpen(false);
     setQuery("");
+    onNavigate?.();
     router.push(`/products/${slug}`);
   }
 
@@ -90,10 +96,7 @@ export default function SearchBar() {
   const showDropdown = open && query.trim().length > 0;
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full lg:w-auto"
-    >
+    <div ref={containerRef} className="relative w-full">
       <form onSubmit={handleSubmit}>
         <div className="relative flex items-center">
           <span className="pointer-events-none absolute left-3 text-neutral-400">
@@ -119,7 +122,7 @@ export default function SearchBar() {
             onFocus={() => setOpen(true)}
             placeholder="Search cards"
             aria-label="Search products"
-            className="w-full rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-[13px] text-carbon shadow-sm transition-all placeholder:text-neutral-400 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10 lg:w-48 lg:focus:w-64"
+            className="w-full rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-[13px] text-carbon shadow-sm transition-all placeholder:text-neutral-400 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10"
           />
         </div>
       </form>

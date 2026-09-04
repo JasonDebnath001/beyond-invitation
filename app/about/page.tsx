@@ -72,7 +72,7 @@ const process = [
 
 export default function AboutPage() {
   return (
-    <main className="bg-white text-ink">
+    <main className="overflow-x-clip bg-white text-ink">
       {/* Hero */}
       <section className="relative overflow-hidden bg-paper">
         <div className="absolute inset-0 pointer-events-none opacity-[0.05]">
@@ -80,13 +80,13 @@ export default function AboutPage() {
           <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-gold" />
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 md:px-10 lg:grid-cols-2 lg:py-24">
-          <div className="max-w-2xl">
+        <div className="relative mx-auto grid min-w-0 max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 md:px-8 lg:grid-cols-2 lg:gap-12 lg:px-10 lg:py-24">
+          <div className="min-w-0 max-w-2xl">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.32em] text-carbon">
               Our Story
             </p>
 
-            <h1 className="font-display text-4xl leading-[1.08] text-carbon sm:text-5xl lg:text-6xl">
+            <h1 className="break-words font-display text-4xl leading-[1.08] text-carbon sm:text-5xl lg:text-[52px] xl:text-6xl">
               Invitations that carry a legacy.
             </h1>
 
@@ -153,7 +153,7 @@ export default function AboutPage() {
       </section>
 
       {/* Brand statement */}
-      <section className="px-6 py-16 md:px-10 lg:py-24">
+      <section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
             A legacy beyond ordinary invitations
@@ -177,7 +177,7 @@ export default function AboutPage() {
       </section>
 
       {/* Values */}
-      <section className="bg-paper px-6 py-16 md:px-10 lg:py-24">
+      <section className="bg-paper px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-carbon">
@@ -213,9 +213,9 @@ export default function AboutPage() {
       </section>
 
       {/* Services */}
-      <section className="px-6 py-16 md:px-10 lg:py-24">
-        <div className="mx-auto grid max-w-7xl items-start gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="max-w-xl">
+      <section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
+        <div className="mx-auto grid min-w-0 max-w-7xl items-start gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="min-w-0 max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
               What we make
             </p>
@@ -259,7 +259,7 @@ export default function AboutPage() {
       </section>
 
       {/* Process */}
-      <section className="bg-carbon px-6 py-16 text-white md:px-10 lg:py-24">
+      <section className="bg-carbon px-4 py-14 text-white sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto mb-12 max-w-4xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold-light">
@@ -295,10 +295,10 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
-      <section className="px-6 py-16 md:px-10 lg:py-24">
+      <section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-carbon/10 bg-paper">
-          <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="p-6 sm:p-8 lg:p-12">
+          <div className="grid min-w-0 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+            <div className="min-w-0 p-5 sm:p-8 lg:p-10 xl:p-12">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
                 Visit Beyond Invitation
               </p>
@@ -318,7 +318,7 @@ export default function AboutPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-carbon">
                     Location
                   </p>
-                  <p className="mt-3 leading-7 text-ink-mid">
+                  <p className="mt-3 break-words leading-7 text-ink-mid [overflow-wrap:anywhere]">
                     8, Jackson Lane, Canning Street, Kolkata - 700001
                   </p>
                 </div>
@@ -328,7 +328,7 @@ export default function AboutPage() {
                     Contact
                   </p>
 
-                  <p className="mt-3 leading-7 text-ink-mid">
+                  <p className="mt-3 break-words leading-7 text-ink-mid [overflow-wrap:anywhere]">
                     WhatsApp: +91 7044815488
                     <br />
                     Email: contact@khushionline.net
@@ -353,8 +353,8 @@ export default function AboutPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-center bg-gradient-to-br from-gold-pale via-white to-paper p-6 sm:p-8 lg:p-12">
-              <div className="flex min-h-[360px] w-full max-w-md flex-col justify-between rounded-[1.75rem] border border-carbon/10 bg-white p-8 shadow-sm">
+            <div className="flex min-w-0 items-center justify-center bg-gradient-to-br from-gold-pale via-white to-paper p-5 sm:p-8 lg:p-10 xl:p-12">
+              <div className="flex min-h-[320px] min-w-0 w-full max-w-md flex-col justify-between rounded-[1.75rem] border border-carbon/10 bg-white p-6 shadow-sm sm:min-h-[360px] sm:p-8">
                 <div>
                   <p className="font-display text-5xl leading-none text-carbon">
                     BI

@@ -121,7 +121,7 @@ export default function CustomerReviewVideo() {
               In Their Own Words
             </p>
 
-            <h2 className="font-serif text-4xl font-semibold uppercase tracking-[0.08em] text-carbon sm:text-5xl">
+            <h2 className="font-serif text-3xl font-semibold uppercase tracking-[0.06em] text-carbon min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.08em]">
               Hear From Our Customers
             </h2>
 
@@ -140,7 +140,7 @@ export default function CustomerReviewVideo() {
 
               <div
                 data-review-video
-                className="relative w-64 overflow-hidden rounded-sm border border-gold/30 bg-carbon-dark shadow-xl sm:w-72 lg:w-80"
+                className="relative w-[min(16rem,calc(100vw-2rem))] overflow-hidden rounded-sm border border-gold/30 bg-carbon-dark shadow-xl sm:w-72 lg:w-80"
               >
                 <video
                   ref={videoRef}

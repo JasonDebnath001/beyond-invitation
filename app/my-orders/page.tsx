@@ -58,13 +58,13 @@ export default async function MyOrdersPage() {
 
   if (!email) {
     return (
-      <main className="min-h-screen bg-paper px-4 py-12">
-        <div className="mx-auto max-w-4xl rounded-3xl border border-gold/20 bg-white p-8 text-center shadow-sm">
+      <main className="min-h-screen bg-paper px-4 py-8 sm:py-12">
+        <div className="mx-auto max-w-4xl rounded-3xl border border-gold/20 bg-white p-6 text-center shadow-sm sm:p-8">
           <p className="text-sm uppercase tracking-[0.25em] text-gold">
             My Orders
           </p>
 
-          <h1 className="mt-3 font-serif text-4xl font-semibold text-maroon">
+          <h1 className="mt-3 break-words font-serif text-3xl font-semibold text-maroon sm:text-4xl">
             Email address missing
           </h1>
 
@@ -80,15 +80,15 @@ export default async function MyOrdersPage() {
   const orders = await fetchCustomerOrdersByEmail(email);
 
   return (
-    <main className="min-h-screen bg-paper px-4 py-12">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen overflow-x-clip bg-paper px-4 py-8 sm:py-12">
+      <div className="mx-auto min-w-0 max-w-6xl">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm uppercase tracking-[0.25em] text-gold">
               My Orders
             </p>
 
-            <h1 className="mt-3 font-serif text-4xl font-semibold text-maroon md:text-5xl">
+            <h1 className="mt-3 font-serif text-3xl font-semibold text-maroon sm:text-4xl md:text-5xl">
               Your Order History
             </h1>
 
@@ -112,7 +112,7 @@ export default async function MyOrdersPage() {
               No orders found
             </h2>
 
-            <p className="mx-auto mt-3 max-w-xl text-sm text-ink-light">
+            <p className="mx-auto mt-3 max-w-xl break-words text-sm text-ink-light [overflow-wrap:anywhere]">
               We could not find any ERPNext Sales Orders connected to{" "}
               <span className="font-medium text-ink">{email}</span>.
             </p>
@@ -129,7 +129,7 @@ export default async function MyOrdersPage() {
             {orders.map((order) => (
               <article
                 key={order.name}
-                className="overflow-hidden rounded-3xl border border-gold/20 bg-white shadow-sm"
+                className="min-w-0 overflow-hidden rounded-3xl border border-gold/20 bg-white shadow-sm"
               >
                 <div className="border-b border-gold/15 p-5 md:p-6">
                   <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
@@ -138,7 +138,7 @@ export default async function MyOrdersPage() {
                         Order ID
                       </p>
 
-                      <h2 className="mt-1 font-serif text-2xl font-semibold text-maroon">
+                      <h2 className="mt-1 break-all font-serif text-2xl font-semibold text-maroon">
                         {order.name}
                       </h2>
 
@@ -191,16 +191,16 @@ export default async function MyOrdersPage() {
                     {order.items.map((item) => (
                       <div
                         key={`${order.name}-${item.itemCode}`}
-                        className="flex gap-4 rounded-2xl border border-gold/10 bg-cream/30 p-3"
+                        className="grid min-w-0 grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-2xl border border-gold/10 bg-cream/30 p-3 sm:flex sm:gap-4"
                       >
-                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white sm:h-20 sm:w-20">
                           {item.image ? (
                             <Image
                               src={item.image}
                               alt={item.itemName}
                               fill
                               className="object-cover"
-                              sizes="80px"
+                              sizes="(max-width: 639px) 64px, 80px"
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-xl">
@@ -212,12 +212,12 @@ export default async function MyOrdersPage() {
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/products/${item.slug}`}
-                            className="font-semibold text-ink transition hover:text-maroon"
+                            className="break-words font-semibold text-ink transition hover:text-maroon"
                           >
                             {item.itemName}
                           </Link>
 
-                          <p className="mt-1 text-xs text-ink-light">
+                          <p className="mt-1 break-all text-xs text-ink-light">
                             Item Code: {item.itemCode}
                           </p>
 
@@ -226,14 +226,14 @@ export default async function MyOrdersPage() {
                           </p>
                         </div>
 
-                        <div className="shrink-0 text-right">
+                        <div className="col-span-2 flex shrink-0 items-center justify-between gap-4 text-left sm:block sm:text-right">
                           <p className="font-semibold text-maroon">
                             ₹{formatPrice(item.amount)}
                           </p>
 
                           <Link
                             href={`/products/${item.slug}`}
-                            className="mt-2 inline-flex text-xs font-semibold text-maroon hover:text-maroon-dark"
+                            className="inline-flex text-xs font-semibold text-maroon hover:text-maroon-dark sm:mt-2"
                           >
                             Buy again
                           </Link>
@@ -247,7 +247,7 @@ export default async function MyOrdersPage() {
                       View order details
                     </summary>
 
-                    <div className="space-y-3 border-t border-gold/15 px-4 py-4 text-sm text-ink-light">
+                    <div className="space-y-3 break-words border-t border-gold/15 px-4 py-4 text-sm text-ink-light [overflow-wrap:anywhere]">
                       {order.contactEmail && (
                         <p>
                           <span className="font-semibold text-ink">

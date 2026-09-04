@@ -28,7 +28,7 @@ export default async function ErpProductsPage() {
     }
 
     return (
-        <main className="bg-paper min-h-screen">
+        <main className="min-h-screen overflow-x-clip bg-paper">
             <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mb-10 text-center">
                     <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-gold">
@@ -46,7 +46,7 @@ export default async function ErpProductsPage() {
                 </div>
 
                 {errorMessage ? (
-                    <div className="mx-auto max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+                    <div className="mx-auto max-w-3xl break-words rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700 [overflow-wrap:anywhere] sm:p-6">
                         <h2 className="mb-2 text-lg font-semibold">
                             ERPNext connection problem
                         </h2>
@@ -102,13 +102,13 @@ export default async function ErpProductsPage() {
                                 return (
                                     <div
                                         key={product.itemCode}
-                                        className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gold/15 transition hover:-translate-y-1 hover:shadow-lg"
+                                        className="min-w-0 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gold/15 transition hover:-translate-y-1 hover:shadow-lg"
                                     >
                                         <ProductCard product={product} />
 
                                         <div className="border-t border-gold/10 px-5 py-4">
                                             <div className="space-y-2 text-xs text-ink/70">
-                                                <p>
+                                                <p className="break-all">
                                                     <span className="font-semibold text-carbon">
                                                         Item Code:
                                                     </span>{" "}

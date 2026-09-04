@@ -168,7 +168,7 @@ export default function ResellerPage() {
     }
 
     return (
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+        <div className="mx-auto min-w-0 max-w-3xl overflow-x-clip px-4 py-8 sm:py-14">
             <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
                 Partner Program
             </p>
@@ -186,7 +186,7 @@ export default function ResellerPage() {
                 /* ---------------- Registration ---------------- */
                 <form
                     onSubmit={handleRegister}
-                    className="mt-8 space-y-5 rounded-2xl border border-gold/15 bg-white p-6 shadow-sm"
+                    className="mt-8 min-w-0 space-y-5 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6"
                 >
                     <p className="text-sm text-ink-light">
                         Create your reseller account. You will get a personal referral
@@ -240,7 +240,7 @@ export default function ResellerPage() {
                     <button
                         type="submit"
                         disabled={submitting}
-                        className="rounded-full bg-carbon px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-carbon/90 disabled:opacity-60"
+                        className="w-full rounded-full bg-carbon px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-carbon/90 disabled:opacity-60 sm:w-auto"
                     >
                         {submitting ? "Creating…" : "Create reseller account"}
                     </button>
@@ -248,12 +248,12 @@ export default function ResellerPage() {
             ) : (
                 /* ---------------- Dashboard ---------------- */
                 <div className="mt-8 space-y-6">
-                    <section className="rounded-2xl border border-gold/15 bg-white p-6 shadow-sm">
+                    <section className="min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
                         <h2 className="font-display text-lg font-semibold text-carbon">
                             Your referral code
                         </h2>
-                        <div className="mt-3 inline-flex items-center gap-3 rounded-xl bg-carbon px-5 py-3">
-                            <span className="font-mono text-xl tracking-[0.3em] text-gold">
+                        <div className="mt-3 inline-flex max-w-full items-center gap-3 overflow-x-auto rounded-xl bg-carbon px-4 py-3 sm:px-5">
+                            <span className="whitespace-nowrap font-mono text-lg tracking-[0.22em] text-gold sm:text-xl sm:tracking-[0.3em]">
                                 {profile.code}
                             </span>
                         </div>
@@ -264,7 +264,7 @@ export default function ResellerPage() {
                         )}
                     </section>
 
-                    <section className="rounded-2xl border border-gold/15 bg-white p-6 shadow-sm">
+                    <section className="min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
                         <h2 className="font-display text-lg font-semibold text-carbon">
                             Profit margin
                         </h2>
@@ -273,7 +273,7 @@ export default function ResellerPage() {
                             increased by this percentage. Max{" "}
                             {profile.maxMarginPercent}%.
                         </p>
-                        <div className="mt-4 flex items-center gap-3">
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
                             <input
                                 type="number"
                                 min={0}
@@ -303,7 +303,7 @@ export default function ResellerPage() {
                         </p>
                     </section>
 
-                    <section className="rounded-2xl border border-gold/15 bg-white p-6 shadow-sm">
+                    <section className="min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
                         <h2 className="font-display text-lg font-semibold text-carbon">
                             Create a shareable link
                         </h2>
@@ -321,16 +321,16 @@ export default function ResellerPage() {
                         />
 
                         {generatedLink ? (
-                            <div className="mt-3 flex items-center gap-2">
+                            <div className="mt-3 flex min-w-0 flex-col items-stretch gap-2 min-[420px]:flex-row min-[420px]:items-center">
                                 <input
                                     readOnly
                                     value={generatedLink}
                                     onFocus={(e) => e.currentTarget.select()}
-                                    className="w-full rounded-lg border border-gold/25 bg-gold/5 px-3 py-2 font-mono text-xs text-carbon outline-none"
+                                    className="min-w-0 w-full rounded-lg border border-gold/25 bg-gold/5 px-3 py-2 font-mono text-xs text-carbon outline-none"
                                 />
                                 <button
                                     onClick={() => copyText(generatedLink, "link")}
-                                    className="shrink-0 rounded-full border border-carbon px-4 py-2 text-xs font-semibold text-carbon transition hover:bg-carbon hover:text-white"
+                                    className="w-full shrink-0 rounded-full border border-carbon px-4 py-2 text-xs font-semibold text-carbon transition hover:bg-carbon hover:text-white min-[420px]:w-auto"
                                 >
                                     {copied === "link" ? "Copied ✓" : "Copy"}
                                 </button>
@@ -345,16 +345,16 @@ export default function ResellerPage() {
                             <p className="text-xs font-semibold uppercase tracking-wider text-ink-light">
                                 Quick link — whole store
                             </p>
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className="mt-2 flex min-w-0 flex-col items-stretch gap-2 min-[420px]:flex-row min-[420px]:items-center">
                                 <input
                                     readOnly
                                     value={homeLink}
                                     onFocus={(e) => e.currentTarget.select()}
-                                    className="w-full rounded-lg border border-gold/25 bg-gold/5 px-3 py-2 font-mono text-xs text-carbon outline-none"
+                                    className="min-w-0 w-full rounded-lg border border-gold/25 bg-gold/5 px-3 py-2 font-mono text-xs text-carbon outline-none"
                                 />
                                 <button
                                     onClick={() => copyText(homeLink, "home")}
-                                    className="shrink-0 rounded-full border border-carbon px-4 py-2 text-xs font-semibold text-carbon transition hover:bg-carbon hover:text-white"
+                                    className="w-full shrink-0 rounded-full border border-carbon px-4 py-2 text-xs font-semibold text-carbon transition hover:bg-carbon hover:text-white min-[420px]:w-auto"
                                 >
                                     {copied === "home" ? "Copied ✓" : "Copy"}
                                 </button>

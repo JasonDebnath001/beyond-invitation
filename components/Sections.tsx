@@ -95,13 +95,13 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:gap-4">
           {stats.map((s) => (
             <div
               key={s.label}
-              className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+              className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur sm:rounded-3xl sm:p-6"
             >
-              <p className="font-serif text-3xl text-white">{s.num}</p>
+              <p className="font-serif text-2xl text-white sm:text-3xl">{s.num}</p>
               <p className="mt-2 text-sm text-stone-300">{s.label}</p>
             </div>
           ))}
@@ -165,24 +165,24 @@ export function CelebrationGrid({
     <section className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-20 lg:py-24">
       <SectionHeading eyebrow="Browse by event" title="Shop by Category" />
 
-      <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-4 md:mt-12 md:grid-cols-4 md:gap-8 lg:grid-cols-8 lg:gap-6">
+      <div className="mt-6 grid grid-cols-4 gap-x-2 gap-y-5 min-[360px]:gap-x-3 sm:gap-x-4 md:mt-12 md:gap-8 xl:grid-cols-8 xl:gap-6">
         {categoryItems.map((cat) => (
           <Link
             key={cat.slug}
             href={`/collections/${cat.slug}`}
             className="group flex flex-col items-center text-center"
           >
-            <div className="relative h-16 w-16 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-neutral-200 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-lg md:h-32 md:w-32 lg:h-36 lg:w-36">
+            <div className="relative h-14 w-14 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-neutral-200 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-lg min-[360px]:h-16 min-[360px]:w-16 md:h-32 md:w-32">
               <Image
                 src={cat.image}
                 alt={cat.name}
                 fill
-                sizes="(max-width: 768px) 64px, (max-width: 1024px) 128px, 144px"
+                sizes="(max-width: 359px) 56px, (max-width: 767px) 64px, 128px"
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
             </div>
 
-            <h3 className="mt-2 max-w-[74px] text-[9px] font-medium uppercase leading-tight tracking-[0.04em] text-carbon md:mt-4 md:max-w-[150px] md:text-[12px] md:tracking-[0.1em]">
+            <h3 className="mt-2 max-w-[64px] text-[8px] font-medium uppercase leading-tight tracking-[0.03em] text-carbon min-[360px]:max-w-[74px] min-[360px]:text-[9px] md:mt-4 md:max-w-[140px] md:text-[12px] md:tracking-[0.08em]">
               {cat.name}
             </h3>
           </Link>
@@ -296,7 +296,7 @@ export function WhyUs() {
           {cards.map((c) => (
             <div
               key={c.no}
-              className="rounded-[2rem] border border-stone-200 bg-[#fbf7f0] p-8"
+              className="rounded-[1.5rem] border border-stone-200 bg-[#fbf7f0] p-6 sm:rounded-[2rem] sm:p-8"
             >
               <p className="font-serif text-4xl text-amber-700/50">{c.no}</p>
 
@@ -387,7 +387,7 @@ export function OurShowroom() {
     "Shop No. 8, Indra Kumar Karnani St, China Bazar, B.B.D. Bagh, Kolkata, West Bengal 700001";
 
   return (
-    <section className="bg-white px-6 py-16 sm:px-10 lg:px-16">
+    <section className="bg-white px-4 py-14 sm:px-8 sm:py-16 lg:px-10 xl:px-16">
       <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         {/* Left Side: Address */}
         <div>
@@ -395,13 +395,13 @@ export function OurShowroom() {
             Visit Us
           </p>
 
-          <h2 className="mb-8 font-serif text-4xl font-semibold uppercase tracking-[0.08em] text-carbon sm:text-5xl">
+          <h2 className="mb-8 font-serif text-3xl font-semibold uppercase tracking-[0.06em] text-carbon min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.08em]">
             Our Showroom
           </h2>
 
           <div className="border-y border-carbon/15 py-6">
-            <div className="flex gap-4">
-              <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold/10 text-xl">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/10 text-lg sm:h-12 sm:w-12 sm:text-xl">
                 📍
               </div>
 
@@ -491,7 +491,7 @@ export function Catalogue() {
             Explore
           </p>
 
-          <h2 className="font-serif text-4xl font-semibold uppercase tracking-[0.08em] text-carbon sm:text-5xl">
+          <h2 className="font-serif text-3xl font-semibold uppercase tracking-[0.06em] text-carbon min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.08em]">
             Catalogue
           </h2>
         </div>

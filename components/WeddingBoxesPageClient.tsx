@@ -243,7 +243,7 @@ export default function WeddingBoxesPageClient({
       ref={rootRef}
       data-wedding-boxes-page
       data-no-text-motion
-      className="min-h-screen overflow-hidden bg-[#fbf6ee] text-[#351119]"
+      className="min-h-screen overflow-x-clip bg-[#fbf6ee] text-[#351119]"
     >
       <section
         id="wedding-box-collection"
@@ -252,7 +252,7 @@ export default function WeddingBoxesPageClient({
         <div className="pointer-events-none absolute -right-40 top-10 h-96 w-96 rounded-full bg-[#dcb162]/10 blur-3xl" />
         <div className="relative mx-auto max-w-[1500px]">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.26em] text-[#a7772d] sm:text-[11px]">
                 <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Curated with intention
@@ -337,8 +337,8 @@ export default function WeddingBoxesPageClient({
         <div className="relative mx-auto max-w-[1500px] overflow-hidden rounded-[30px] bg-[#541122] px-6 py-10 text-white shadow-[0_26px_70px_rgba(74,18,34,0.18)] sm:rounded-[40px] sm:px-10 sm:py-12 lg:px-16 lg:py-14">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_50%,rgba(231,189,107,0.2),transparent_28%),linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.025)_60%,transparent_100%)]" />
           <FloralMark className="pointer-events-none absolute -right-14 -top-20 h-72 w-72 text-[#efcb82]/15" />
-          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl">
+          <div className="relative flex min-w-0 flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 max-w-3xl">
               <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-[#efcb82] sm:text-[10px]">
                 The bespoke atelier
               </p>
@@ -352,10 +352,10 @@ export default function WeddingBoxesPageClient({
             </div>
             <Link
               href="/contact"
-              className="group inline-flex h-12 shrink-0 items-center justify-center self-start rounded-full bg-[#e7bd6b] px-7 text-[10px] font-extrabold uppercase tracking-[0.17em] text-[#40101b] transition hover:-translate-y-0.5 hover:bg-[#f2d796] lg:self-auto"
+              className="group inline-flex min-h-12 w-full max-w-full shrink-0 items-center justify-center self-start rounded-full bg-[#e7bd6b] px-4 py-3 text-center text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#40101b] transition hover:-translate-y-0.5 hover:bg-[#f2d796] sm:w-auto sm:px-7 sm:text-[10px] sm:tracking-[0.17em] lg:self-auto"
             >
-              Create something bespoke
-              <ArrowUpRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <span>Create something bespoke</span>
+              <ArrowUpRight className="ml-2 h-4 w-4 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         </div>

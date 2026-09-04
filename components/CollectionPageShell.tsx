@@ -98,7 +98,7 @@ export default function CollectionPageShell({
 
       <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
         {errorMessage ? (
-          <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+          <div className="min-w-0 break-words rounded-3xl border border-red-200 bg-red-50 p-6 [overflow-wrap:anywhere]">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
               ERPNext Connection Problem
             </p>

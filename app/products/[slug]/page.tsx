@@ -643,7 +643,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
       <JsonLdScript data={relatedJsonLd} />
 
       <div className="bg-white">
-        <div className="mx-auto max-w-7xl overflow-hidden px-4 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:py-12">
+        <div className="mx-auto max-w-7xl overflow-x-clip px-4 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:py-12">
           {/* Breadcrumb */}
           <nav className="mb-5 flex min-w-0 items-center gap-1.5 overflow-hidden text-[11.5px] text-ink-light sm:mb-8 sm:text-[12.5px]">
             <Link
@@ -668,9 +668,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </nav>
 
           {/* Product layout */}
-          <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] xl:items-start xl:gap-10 2xl:gap-14">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] xl:gap-10 2xl:gap-14">
             {/* Left: Gallery */}
-            <div className="min-w-0 xl:sticky xl:top-24 xl:self-start">
+            <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
               <ProductGallery
                 images={product.images || []}
                 videos={product.videos}

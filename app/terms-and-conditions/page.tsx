@@ -244,7 +244,7 @@ export default function TermsAndConditionsPage() {
 
       {/* Content */}
       <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
+        <div className="grid min-w-0 gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
           {/* Sidebar */}
           <aside className="hidden lg:block">
             <div className="sticky top-24 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
@@ -270,7 +270,7 @@ export default function TermsAndConditionsPage() {
           </aside>
 
           {/* Main Article */}
-          <article className="rounded-3xl border border-amber-100 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
+          <article className="min-w-0 break-words rounded-3xl border border-amber-100 bg-white p-5 shadow-sm [overflow-wrap:anywhere] sm:p-8 lg:p-10">
             <div className="prose prose-neutral max-w-none">
               <p className="text-base leading-8 text-neutral-700">
                 These Terms and Conditions are a legal agreement between you and{" "}

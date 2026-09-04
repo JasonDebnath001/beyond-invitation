@@ -50,18 +50,18 @@ export default function HeroCarousel() {
   }, [goNext]);
 
   return (
-    <section className="relative overflow-hidden bg-carbon">
+    <section className="relative h-[clamp(360px,min(177.78vw,calc(100svh-5rem)),760px)] overflow-hidden bg-carbon md:h-[clamp(400px,min(56.25vw,calc(100svh-7rem)),760px)]">
       {/* Slide track */}
       <div
-        className="flex transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="flex h-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
         {SLIDES.map((slide, i) => (
           <div
             key={slide.src}
-            className="relative flex min-h-[560px] w-full min-w-full items-center justify-center overflow-hidden"
+            className="relative h-full w-full min-w-full overflow-hidden"
           >
-            <picture className="h-full w-full">
+            <picture className="block h-full w-full">
               <source media="(max-width: 767px)" srcSet={slide.mobileSrc} />
 
               <img
@@ -70,7 +70,7 @@ export default function HeroCarousel() {
                 loading={i === 0 ? "eager" : "lazy"}
                 decoding="async"
                 draggable={false}
-                className={`h-full w-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                className={`block h-full w-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   i === current ? "scale-100" : "scale-150"
                 }`}
               />
@@ -84,7 +84,7 @@ export default function HeroCarousel() {
         type="button"
         onClick={goPrev}
         aria-label="Previous slide"
-        className="absolute left-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/75"
+        className="absolute left-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/10 text-white backdrop-blur-sm transition hover:border-white hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/75 sm:left-4 md:left-5"
       >
         &#8592;
       </button>
@@ -93,13 +93,13 @@ export default function HeroCarousel() {
         type="button"
         onClick={goNext}
         aria-label="Next slide"
-        className="absolute right-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/75"
+        className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/10 text-white backdrop-blur-sm transition hover:border-white hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/75 sm:right-4 md:right-5"
       >
         &#8594;
       </button>
 
       {/* Progress dots */}
-      <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 gap-2.5">
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 sm:bottom-5 sm:gap-2 md:bottom-7 md:gap-2.5">
         {SLIDES.map((slide, i) => (
           <button
             key={slide.src}

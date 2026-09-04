@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 
-export default function WishlistNavLink() {
+type WishlistNavLinkProps = {
+  showLabel?: boolean;
+  onNavigate?: () => void;
+};
+
+export default function WishlistNavLink({
+  showLabel = false,
+  onNavigate,
+}: WishlistNavLinkProps) {
   const { isSignedIn, isLoaded } = useAuth();
   const [count, setCount] = useState(0);
 
@@ -46,8 +54,11 @@ export default function WishlistNavLink() {
   return (
     <Link
       href="/wishlist"
+      onClick={onNavigate}
       aria-label={`Wishlist${count > 0 ? `, ${count} items` : ""}`}
-      className="relative inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-carbon/10 bg-white px-3 text-[13px] font-bold text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus:ring-2 focus:ring-carbon/15 sm:px-4"
+      className={`relative inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-carbon/10 bg-white text-[13px] font-bold text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
+        showLabel ? "w-full px-4" : "px-3 sm:px-4"
+      }`}
     >
       <svg
         aria-hidden="true"
@@ -62,7 +73,9 @@ export default function WishlistNavLink() {
         <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
       </svg>
 
-      <span className="hidden sm:inline">Wishlist</span>
+      <span className={showLabel ? "inline" : "hidden sm:inline"}>
+        Wishlist
+      </span>
 
       {count > 0 && (
         <span className="ml-0.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-carbon px-1.5 text-[10px] font-extrabold leading-none text-white">

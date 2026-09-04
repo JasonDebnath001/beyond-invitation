@@ -7,11 +7,27 @@
     font-family: var(--font-assistant), sans-serif;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    /* Decorative artwork should never widen the page on narrow viewports. */
+    overflow-x: clip;
   }
 
   body {
     @apply bg-white text-ink antialiased;
     font-family: var(--font-assistant), sans-serif;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  main {
+    min-width: 0;
+  }
+
+  img,
+  video,
+  iframe,
+  canvas,
+  svg {
+    max-width: 100%;
   }
 
   html::-webkit-scrollbar {
@@ -83,5 +99,14 @@
   [data-wedding-boxes-page] [data-header-rule] {
     transform: scaleX(0);
     transform-origin: left center;
+  }
+}
+
+/* Prevent iOS from zooming the viewport when a compact form control is focused. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }

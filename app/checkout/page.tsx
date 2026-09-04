@@ -228,8 +228,8 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-16">
-        <section className="rounded-3xl border border-gold/20 bg-white p-8 text-center shadow-sm">
+      <main className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
+        <section className="rounded-3xl border border-gold/20 bg-white p-6 text-center shadow-sm sm:p-8">
           <h1 className="font-serif text-3xl font-semibold text-maroon">
             Checkout
           </h1>
@@ -250,7 +250,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10">
+    <main className="mx-auto min-w-0 max-w-7xl px-4 py-8 sm:py-10">
       <Link
         href="/cart"
         className="text-sm font-medium text-maroon transition hover:text-maroon-dark"
@@ -259,7 +259,7 @@ export default function CheckoutPage() {
       </Link>
 
       <div className="mt-6">
-        <h1 className="font-serif text-4xl font-semibold text-maroon">
+        <h1 className="font-serif text-3xl font-semibold text-maroon sm:text-4xl">
           Checkout Details
         </h1>
 
@@ -268,8 +268,8 @@ export default function CheckoutPage() {
         </p>
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
-        <section className="rounded-3xl border border-gold/20 bg-white p-5 shadow-sm md:p-7">
+      <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="min-w-0 rounded-3xl border border-gold/20 bg-white p-5 shadow-sm md:p-7">
           <h2 className="font-serif text-2xl font-semibold text-maroon">
             Customer Contact & Address
           </h2>
@@ -284,7 +284,7 @@ export default function CheckoutPage() {
             </p>
           )}
 
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <div className="mt-6 grid min-w-0 gap-5 md:grid-cols-2">
             <label className="block text-sm font-medium text-ink">
               Customer Name *
               <input
@@ -441,7 +441,7 @@ export default function CheckoutPage() {
           </div>
         </section>
 
-        <aside className="h-fit rounded-3xl border border-gold/20 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+        <aside className="h-fit min-w-0 rounded-3xl border border-gold/20 bg-white p-5 shadow-sm lg:sticky lg:top-24">
           <h2 className="font-serif text-2xl font-semibold text-maroon">
             Order Summary
           </h2>
@@ -451,10 +451,10 @@ export default function CheckoutPage() {
               {items.map((item) => (
                 <div
                   key={item.slug}
-                  className="flex justify-between gap-4 text-sm"
+                  className="flex min-w-0 justify-between gap-4 text-sm"
                 >
-                  <div>
-                    <p className="font-medium text-ink">{item.name}</p>
+                  <div className="min-w-0">
+                    <p className="break-words font-medium text-ink">{item.name}</p>
                     <p className="text-ink-light">
                       Qty: {item.quantity} × ₹{formatPrice(item.price)}
                     </p>
@@ -468,21 +468,21 @@ export default function CheckoutPage() {
             </div>
 
             <div className="border-t border-gold/20 pt-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-ink-light">
+              <div className="flex min-w-0 justify-between gap-4">
+                <span className="min-w-0 text-ink-light">
                   Subtotal ({totalItems} items)
                 </span>
-                <span className="font-medium">₹{formatPrice(totalPrice)}</span>
+                <span className="shrink-0 font-medium">₹{formatPrice(totalPrice)}</span>
               </div>
 
-              <div className="mt-3 flex justify-between">
+              <div className="mt-3 flex justify-between gap-4">
                 <span className="text-ink-light">Shipping</span>
-                <span className="font-medium">Free</span>
+                <span className="shrink-0 font-medium">Free</span>
               </div>
 
-              <div className="mt-4 flex justify-between border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
+              <div className="mt-4 flex justify-between gap-4 border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
                 <span>Total</span>
-                <span>₹{formatPrice(totalPrice)}</span>
+                <span className="shrink-0">₹{formatPrice(totalPrice)}</span>
               </div>
             </div>
           </div>

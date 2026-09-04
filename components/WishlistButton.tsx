@@ -150,7 +150,7 @@ export default function WishlistButton({
       <button
         type="button"
         disabled
-        className={`rounded-full border bg-white/90 px-3 py-2 text-sm text-gray-400 shadow-sm ${className}`}
+        className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white/90 p-0 text-sm text-gray-400 shadow-sm ${className}`}
         aria-label="Loading wishlist"
         title="Loading wishlist"
       >
@@ -164,7 +164,7 @@ export default function WishlistButton({
       <SignInButton mode="modal">
         <button
           type="button"
-          className={`rounded-full border bg-white/90 px-3 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-white ${className}`}
+          className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white/90 p-0 text-sm text-gray-700 shadow-sm transition hover:bg-white ${className}`}
           aria-label="Sign in to add wishlist"
           title="Sign in to add wishlist"
         >
@@ -179,7 +179,7 @@ export default function WishlistButton({
       type="button"
       onClick={toggleWishlist}
       disabled={loading}
-      className={`rounded-full border bg-white/90 px-3 py-2 text-sm shadow-sm transition hover:bg-white disabled:opacity-60 ${
+      className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white/90 p-0 text-sm shadow-sm transition hover:bg-white disabled:opacity-60 ${
         wishlisted ? "text-red-600" : "text-gray-700"
       } ${className}`}
       aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}

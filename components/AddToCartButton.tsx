@@ -43,8 +43,10 @@ export default function AddToCartButton({
   }
 
   const base =
-    "w-full font-semibold uppercase tracking-[0.13em] transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-carbon focus:ring-offset-2";
-  const size = large ? "py-4 text-[12.5px]" : "py-3 text-[11px]";
+    "w-full font-semibold uppercase tracking-[0.08em] transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-carbon focus:ring-offset-2 min-[400px]:tracking-[0.13em]";
+  const size = large
+    ? "py-4 text-[12.5px]"
+    : "py-2.5 text-[10px] min-[400px]:py-3 sm:text-[11px]";
   const colors = added
     ? "border border-carbon bg-carbon text-white"
     : "border border-carbon bg-white text-carbon hover:bg-carbon hover:text-white";

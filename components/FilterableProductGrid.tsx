@@ -130,7 +130,7 @@ export default function FilterableProductGrid({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto">
           <label htmlFor="sort-products" className="text-sm font-semibold text-ink">
             Sort
           </label>
@@ -139,7 +139,7 @@ export default function FilterableProductGrid({
             id="sort-products"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value)}
-            className="rounded-lg border border-gold/30 bg-cream px-3 py-1.5 text-[13px] text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold"
+            className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-cream px-3 py-1.5 text-[13px] text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold md:flex-none"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.key} value={opt.key}>

@@ -541,7 +541,7 @@ export default function SiteLoader() {
 
         <h1
           aria-label={BRAND}
-          className="max-w-4xl text-3xl font-extrabold tracking-[0.06em] text-cream sm:text-5xl lg:text-6xl"
+          className="max-w-full whitespace-nowrap text-[clamp(1.3rem,6.5vw,3rem)] font-extrabold tracking-[0.04em] text-cream sm:text-5xl sm:tracking-[0.06em] lg:text-6xl"
         >
           {Array.from(BRAND).map(
             (character, index) => (
@@ -565,7 +565,7 @@ export default function SiteLoader() {
 
         <p
           data-loader-copy
-          className="mt-4 text-xs font-semibold uppercase tracking-[0.28em] text-cream/65 sm:text-sm"
+          className="mt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-cream/65 min-[400px]:text-xs min-[400px]:tracking-[0.24em] sm:text-sm sm:tracking-[0.28em]"
         >
           {TAGLINE}
         </p>
@@ -594,7 +594,7 @@ export default function SiteLoader() {
 
           <div
             data-loader-status
-            className="mt-4 flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cream/55 sm:text-xs"
+            className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[9px] font-semibold uppercase leading-4 tracking-[0.14em] text-cream/55 min-[400px]:text-[10px] min-[400px]:tracking-[0.18em] sm:text-xs sm:tracking-[0.22em]"
           >
             <span>
               Preparing your invitation experience

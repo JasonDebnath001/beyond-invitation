@@ -139,7 +139,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const showImage = Boolean(src && !failed);
 
   return (
-    <article className="group overflow-hidden rounded-[28px] border border-carbon/10 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-carbon/15 hover:shadow-[0_18px_45px_rgba(0,0,0,0.10)]">
+    <article className="group min-w-0 overflow-hidden rounded-[18px] border border-carbon/10 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-carbon/15 hover:shadow-[0_18px_45px_rgba(0,0,0,0.10)] min-[400px]:rounded-[24px] sm:rounded-[28px]">
       <div className="relative aspect-[4/4.6] overflow-hidden bg-white">
         <Link
           href={`/products/${product.slug}`}
@@ -152,7 +152,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               src={src}
               alt={product.name}
               onError={() => setFailed(true)}
-              className="h-full w-full object-contain p-5 transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+              className="h-full w-full object-contain p-2.5 transition-transform duration-700 ease-out group-hover:scale-[1.06] min-[400px]:p-4 sm:p-5"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-6xl">
@@ -162,43 +162,43 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Link>
 
         {badge && (
-          <span className="absolute left-4 top-4 z-10 rounded-full border border-carbon/10 bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#85172b] shadow-sm">
+          <span className="absolute left-2 top-2 z-10 max-w-[calc(100%-4rem)] truncate rounded-full border border-carbon/10 bg-white/95 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.1em] text-[#85172b] shadow-sm min-[400px]:left-3 min-[400px]:top-3 min-[400px]:px-2.5 min-[400px]:text-[9px] sm:left-4 sm:top-4 sm:max-w-none sm:px-3 sm:text-[10px] sm:tracking-[0.16em]">
             {badge}
           </span>
         )}
 
         <WishlistButton
           productSlug={product.slug}
-          className="absolute right-4 top-4 z-20 rounded-full bg-white shadow-sm"
+          className="absolute right-2 top-2 z-20 rounded-full bg-white shadow-sm min-[400px]:right-3 min-[400px]:top-3 sm:right-4 sm:top-4"
         />
       </div>
 
-      <div className="border-t border-carbon/5 bg-white p-4 sm:p-5">
+      <div className="border-t border-carbon/5 bg-white p-3 min-[400px]:p-4 sm:p-5">
         <Link href={`/products/${product.slug}`} className="block">
-          <h3 className="line-clamp-2 min-h-[42px] text-[15px] font-semibold leading-snug text-[#85172b] transition-colors group-hover:text-carbon">
+          <h3 className="line-clamp-2 min-h-[36px] break-words text-[13px] font-semibold leading-snug text-[#85172b] transition-colors group-hover:text-carbon min-[400px]:min-h-[39px] min-[400px]:text-[14px] sm:min-h-[42px] sm:text-[15px]">
             {product.name}
           </h3>
         </Link>
 
-        <div className="mt-3 flex min-h-[28px] flex-wrap items-center gap-2">
-          <span className="text-[18px] font-bold text-carbon">
+        <div className="mt-2.5 flex min-h-[24px] flex-wrap items-center gap-x-1.5 gap-y-1 min-[400px]:mt-3 min-[400px]:gap-2 sm:min-h-[28px]">
+          <span className="text-[15px] font-bold text-carbon min-[400px]:text-[17px] sm:text-[18px]">
             ₹{product.price.toLocaleString("en-IN")}
           </span>
 
           {product.mrp > product.price && (
-            <span className="text-sm text-carbon/35 line-through">
+            <span className="text-[11px] text-carbon/35 line-through min-[400px]:text-xs sm:text-sm">
               ₹{product.mrp.toLocaleString("en-IN")}
             </span>
           )}
 
           {!isSaleCard && discount > 0 && (
-            <span className="rounded-full bg-[#f8ead0] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#85172b]">
+            <span className="rounded-full bg-[#f8ead0] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#85172b] min-[400px]:px-2 min-[400px]:text-[10px] sm:text-[11px]">
               {discount}% off
             </span>
           )}
         </div>
 
-        <div className="mt-4">
+        <div className="mt-3 min-[400px]:mt-4">
           <AddToCartButton product={product} />
         </div>
       </div>

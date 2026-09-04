@@ -10,39 +10,19 @@ import {
 } from "react";
 
 import type { Product } from "@/types";
+import {
+  getProductQuantityRules,
+  normalizeProductQuantity,
+  type MinimumQuantity,
+  type QuantityStep,
+} from "@/lib/product-quantity";
 
-export const MIN_QTY = 50;
-
-export type QuantityStep = 25 | 50;
+export type { QuantityStep } from "@/lib/product-quantity";
 
 export type CartProduct = Product & {
   itemCode?: string;
   subject?: string;
 };
-
-/**
- * Quantity rules based only on the ERPNext Subject field:
- *
- * Subject = "Shagun Envelopes" → step 50
- * Every other subject → step 25
- */
-export function getQuantityStepFromSubject(
-  subject?: string,
-): QuantityStep {
-  const normalizedSubject = (subject ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-
-  if (
-    normalizedSubject === "shagun envelopes" ||
-    normalizedSubject === "shagun envelope"
-  ) {
-    return 50;
-  }
-
-  return 25;
-}
 
 export interface CartItem {
   slug: string;
@@ -53,6 +33,7 @@ export interface CartItem {
   image: string;
   emoji: string;
   quantity: number;
+  minimumQuantity: MinimumQuantity;
   quantityStep: QuantityStep;
 }
 
@@ -89,28 +70,18 @@ type CartAction =
  */
 const STORAGE_KEY = "beyond-invitation-cart-v2";
 
-function sanitizeQuantity(quantity: number): number {
-  if (!Number.isFinite(quantity)) {
-    return MIN_QTY;
-  }
-
-  return Math.max(MIN_QTY, Math.floor(quantity));
-}
-
 function cartReducer(
   state: CartState,
   action: CartAction,
 ): CartState {
   switch (action.type) {
     case "ADD": {
-      const quantityToAdd = sanitizeQuantity(
-        action.quantity,
-      );
-
       const subject = action.product.subject ?? "";
-
-      const quantityStep =
-        getQuantityStepFromSubject(subject);
+      const quantityRules = getProductQuantityRules(action.product);
+      const quantityToAdd = normalizeProductQuantity(
+        action.quantity,
+        action.product,
+      );
 
       const existingItem = state.items.find(
         (item) =>
@@ -129,9 +100,10 @@ function cartReducer(
                   subject:
                     action.product.subject ??
                     item.subject,
-                  quantityStep,
+                  minimumQuantity: quantityRules.minimum,
+                  quantityStep: quantityRules.step,
                   quantity:
-                    item.quantity +
+                    normalizeProductQuantity(item.quantity, action.product) +
                     quantityToAdd,
                 }
               : item,
@@ -153,7 +125,8 @@ function cartReducer(
               action.product.images[0] ?? "",
             emoji: action.product.emoji,
             quantity: quantityToAdd,
-            quantityStep,
+            minimumQuantity: quantityRules.minimum,
+            quantityStep: quantityRules.step,
           },
         ],
       };
@@ -169,16 +142,12 @@ function cartReducer(
     }
 
     case "SET_QTY": {
-      const nextQuantity = sanitizeQuantity(
-        action.quantity,
-      );
-
       return {
         items: state.items.map((item) =>
           item.slug === action.slug
             ? {
                 ...item,
-                quantity: nextQuantity,
+                quantity: normalizeProductQuantity(action.quantity, item),
               }
             : item,
         ),
@@ -196,23 +165,26 @@ function cartReducer(
         items: action.items.map((item) => {
           const subject =
             item.subject ?? "";
+          const quantityRules = getProductQuantityRules({
+            ...item,
+            subject,
+          });
 
           return {
             ...item,
             itemCode: item.itemCode ?? "",
             subject,
-            quantity: sanitizeQuantity(
+            quantity: normalizeProductQuantity(
               Number(item.quantity),
+              { ...item, subject },
             ),
+            minimumQuantity: quantityRules.minimum,
 
             /**
              * Always calculate it again from Subject.
              * Do not trust an older stored quantityStep.
              */
-            quantityStep:
-              getQuantityStepFromSubject(
-                subject,
-              ),
+            quantityStep: quantityRules.step,
           };
         }),
       };
@@ -320,18 +292,13 @@ export function CartProvider({
   const value: CartContextValue = {
     items: state.items,
 
-    /**
-     * Default quantity is 50 because that is the minimum
-     * order quantity used by ProductBuyBox.
-     */
-    addItem: (
-      product,
-      quantity = MIN_QTY,
-    ) => {
+    addItem: (product, quantity) => {
+      const defaultQuantity = getProductQuantityRules(product).minimum;
+
       dispatch({
         type: "ADD",
         product,
-        quantity,
+        quantity: quantity ?? defaultQuantity,
       });
     },
 

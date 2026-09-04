@@ -9,12 +9,9 @@ import {
 import { useRouter } from "next/navigation";
 
 import type { Product } from "@/types";
+import { getProductQuantityRules } from "@/lib/product-quantity";
 
-import {
-  getQuantityStepFromSubject,
-  MIN_QTY,
-  useCart,
-} from "./CartProvider";
+import { useCart } from "./CartProvider";
 
 type ProductBuyBoxProduct = Product & {
   itemCode?: string;
@@ -29,17 +26,12 @@ export default function ProductBuyBox({
   const { addItem } = useCart();
   const router = useRouter();
 
-  /**
-   * Subject = Shagun Envelopes → 50
-   * Hindu/Muslim/Christian/anything else → 25
-   */
-  const quantityStep =
-    getQuantityStepFromSubject(
-      product.subject,
-    );
+  /** Wedding boxes start at 25 and move in increments of 25. */
+  const { minimum: minimumQuantity, step: quantityStep } =
+    getProductQuantityRules(product);
 
   const [qty, setQty] =
-    useState(MIN_QTY);
+    useState<number>(minimumQuantity);
 
   const [added, setAdded] =
     useState(false);
@@ -52,8 +44,8 @@ export default function ProductBuyBox({
    * product page to another.
    */
   useEffect(() => {
-    setQty(MIN_QTY);
-  }, [product.slug]);
+    setQty(minimumQuantity);
+  }, [minimumQuantity, product.slug]);
 
   useEffect(() => {
     return () => {
@@ -68,7 +60,7 @@ export default function ProductBuyBox({
   function decreaseQuantity() {
     setQty((currentQuantity) =>
       Math.max(
-        MIN_QTY,
+        minimumQuantity,
         currentQuantity -
           quantityStep,
       ),
@@ -124,7 +116,7 @@ export default function ProductBuyBox({
           type="button"
           onClick={decreaseQuantity}
           aria-label={`Decrease quantity by ${quantityStep}`}
-          disabled={qty <= MIN_QTY}
+          disabled={qty <= minimumQuantity}
           className="flex h-10 w-10 items-center justify-center text-lg text-carbon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
         >
           −

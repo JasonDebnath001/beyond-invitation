@@ -1,4 +1,8 @@
 import { buildErpProductList, type ErpProduct } from "@/lib/erpnext";
+import {
+  getProductQuantityRules,
+  isValidProductQuantity,
+} from "@/lib/product-quantity";
 import { applyMarginToPrice, type Reseller } from "@/lib/reseller";
 
 export interface CheckoutLineInput {
@@ -51,14 +55,23 @@ export async function resolveCartProducts(
 
   const lines: ResolvedLine[] = [];
   for (const it of Array.isArray(items) ? items : []) {
-    const qty = Math.min(Math.floor(Number(it?.quantity) || 0), 10000);
-    if (qty < 1) continue;
-
     const product =
       (it.itemCode && byCode.get(it.itemCode)) ||
       (it.slug && bySlug.get(it.slug)) ||
       null;
     if (!product) continue;
+
+    const qty = Number(it?.quantity);
+    const quantityRules = getProductQuantityRules(product);
+
+    if (
+      qty > 10000 ||
+      !isValidProductQuantity(qty, product)
+    ) {
+      throw new Error(
+        `${product.name} must be ordered in quantities of at least ${quantityRules.minimum}, increasing by ${quantityRules.step}.`,
+      );
+    }
 
     const basePrice = product.price;
     const price =

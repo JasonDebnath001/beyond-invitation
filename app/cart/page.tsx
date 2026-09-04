@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 
 import {
-  MIN_QTY,
   useCart,
   type CartItem,
 } from "@/components/CartProvider";
@@ -47,7 +46,7 @@ export default function CartPage() {
     setQuantity(
       item.slug,
       Math.max(
-        MIN_QTY,
+        item.minimumQuantity,
         nextQuantity,
       ),
     );
@@ -177,7 +176,7 @@ export default function CartPage() {
                       aria-label={`Decrease quantity by ${item.quantityStep}`}
                       disabled={
                         item.quantity <=
-                        MIN_QTY
+                        item.minimumQuantity
                       }
                       className="flex h-8 w-8 items-center justify-center rounded-full text-maroon transition hover:bg-gold-pale disabled:cursor-not-allowed disabled:opacity-40"
                     >

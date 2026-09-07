@@ -1196,25 +1196,22 @@ async function fetchErpItemAttachments(
     }
   };
 
-  const toNum = (value: unknown): number | null => {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
+  const toPhotoPosition = (value: unknown): number | null => {
+    if (typeof value !== "number" && typeof value !== "string") return null;
+    if (typeof value === "string" && value.trim() === "") return null;
 
-    if (
-      typeof value === "string" &&
-      value.trim() !== "" &&
-      Number.isFinite(Number(value))
-    ) {
-      return Number(value);
-    }
+    const position = Number(value);
 
-    return null;
+    // ERP integer fields default to zero. Only positive whole numbers are
+    // assigned positions, including when choosing between duplicate File rows.
+    return Number.isSafeInteger(position) && position > 0 ? position : null;
   };
 
   const getFilePhotoOrder = (file: ErpFileAttachment): number | null => {
     // First use configured env field
-    const configuredOrder = toNum(file[ERPNEXT_FILE_PHOTO_ORDER_FIELD]);
+    const configuredOrder = toPhotoPosition(
+      file[ERPNEXT_FILE_PHOTO_ORDER_FIELD],
+    );
 
     if (configuredOrder !== null) {
       return configuredOrder;
@@ -1232,7 +1229,7 @@ async function fetchErpItemAttachments(
     ];
 
     for (const field of fallbackFields) {
-      const value = toNum(file[field]);
+      const value = toPhotoPosition(file[field]);
 
       if (value !== null) {
         return value;
@@ -1279,14 +1276,21 @@ async function fetchErpItemAttachments(
   const fetchFiles = async (
     filters: unknown[][],
   ): Promise<ErpFileAttachment[]> => {
-    // Try with the custom photo order field first.
-    // If the fieldname is wrong, ERPNext may reject the query, so we fall back safely.
-    for (const photoOrderField of photoOrderFieldCandidates) {
+    // Fetch all permitted fields so a default/empty custom_photo_order does
+    // not hide a populated alternate field. Keep explicit-field fallbacks for
+    // ERP installations that reject wildcard queries.
+    const fieldSelections = [
+      ["*"],
+      ...photoOrderFieldCandidates.map((field) => [...baseFileFields, field]),
+      baseFileFields,
+    ];
+
+    for (const fields of fieldSelections) {
       try {
         const json = await erpFetch<ErpNextListResponse<ErpFileAttachment>>(
           "/api/resource/File",
           {
-            fields: JSON.stringify([...baseFileFields, photoOrderField]),
+            fields: JSON.stringify(fields),
             filters: JSON.stringify(filters),
             limit_page_length: "100",
             order_by: "creation asc",
@@ -1295,26 +1299,11 @@ async function fetchErpItemAttachments(
 
         return json.data || [];
       } catch {
-        // Try next possible fieldname.
+        // Try the next supported field selection.
       }
     }
 
-    // Final fallback: fetch files without photo order field.
-    try {
-      const json = await erpFetch<ErpNextListResponse<ErpFileAttachment>>(
-        "/api/resource/File",
-        {
-          fields: JSON.stringify(baseFileFields),
-          filters: JSON.stringify(filters),
-          limit_page_length: "100",
-          order_by: "creation asc",
-        },
-      );
-
-      return json.data || [];
-    } catch {
-      return [];
-    }
+    return [];
   };
 
   const fetchFilesForItem = (name: string) =>
@@ -1514,7 +1503,7 @@ async function fetchErpItemAttachments(
   const claimedPhotoPositions = new Set<number>();
 
   for (const { photoOrder } of photoEntries) {
-    if (photoOrder !== null && Number.isInteger(photoOrder) && photoOrder > 0) {
+    if (photoOrder !== null) {
       claimedPhotoPositions.add(photoOrder);
     }
   }
@@ -1523,12 +1512,7 @@ async function fetchErpItemAttachments(
 
   const orderedPhotos = photoEntries
     .map((entry) => {
-      const requestedPosition =
-        entry.photoOrder !== null &&
-        Number.isInteger(entry.photoOrder) &&
-        entry.photoOrder > 0
-          ? entry.photoOrder
-          : null;
+      const requestedPosition = entry.photoOrder;
 
       if (requestedPosition !== null) {
         return {

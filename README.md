@@ -609,6 +609,15 @@ ERPNext products can use:
 
 Private ERPNext files are not intentionally exposed as public product images.
 
+Set each File's **Photo Order** to a positive whole number: `1` is the main
+product image, `2` is the second photo, and so on. Empty, zero, or invalid
+positions are unassigned and fill the remaining positions. A numbered File
+record takes precedence over an unnumbered duplicate of the same image.
+The configured `ERPNEXT_FILE_PHOTO_ORDER_FIELD` is preferred, with common
+alternate fieldnames supported when it is unassigned. Videos follow all photos.
+
+Run `npm test` to check photo ordering in both catalog and product-detail loaders.
+
 Remote HTTPS images are allowed by the Next.js image configuration.
 
 ---

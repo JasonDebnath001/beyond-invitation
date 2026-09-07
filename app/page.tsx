@@ -101,19 +101,6 @@ export const metadata: Metadata = {
   },
 };
 
-function getNormalProducts(products: ErpProduct[]): ErpProduct[] {
-  return products.map((product) => {
-    const originalPrice = Number(product.price || 0);
-
-    return {
-      ...product,
-      mrp: originalPrice,
-      badge: product.badge === "SALE" ? undefined : product.badge,
-      onSale: false,
-    };
-  });
-}
-
 function getAbsoluteImageUrl(image?: string) {
   if (!image) return undefined;
 
@@ -144,11 +131,9 @@ export default async function HomePage() {
         : "Unknown ERPNext product fetch error";
   }
 
-  const normalProducts = getNormalProducts(erpProducts);
+  const featuredProducts = erpProducts.slice(0, 10);
 
-  const featuredProducts = normalProducts.slice(0, 10);
-
-  const homepageProducts = normalProducts;
+  const homepageProducts = erpProducts;
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",

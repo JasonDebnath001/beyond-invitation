@@ -8,7 +8,7 @@ export interface Product {
   /** Current selling price in INR */
   price: number;
 
-  /** Original MRP in INR (for showing the strikethrough) */
+  /** Original price in INR, from ERPNext Strikethrough Price when available */
   mrp: number;
 
   /** Image file names located in /public/products/ or absolute ERPNext image URLs */
@@ -75,7 +75,12 @@ export interface Category {
 export function discountPercent(
   product: Pick<Product, "price" | "mrp">,
 ): number {
-  if (product.mrp <= 0 || product.mrp <= product.price) return 0;
+  if (
+    !Number.isFinite(product.price) ||
+    !Number.isFinite(product.mrp) ||
+    product.price <= 0 ||
+    product.mrp <= product.price
+  ) return 0;
 
   return Math.round(((product.mrp - product.price) / product.mrp) * 100);
 }

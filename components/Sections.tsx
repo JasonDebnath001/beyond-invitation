@@ -192,23 +192,15 @@ export function CelebrationGrid({
   );
 }
 
-/** Sale collection section.
- *
- * Only this section creates sale pricing:
- * - price = original ERP price
- * - mrp = 20% increased price, shown as strikethrough
- */
+/** Sale collection section, using the prices supplied by the catalogue. */
 export function SaleCollection({ products }: { products: Product[] }) {
   const saleProducts: Product[] = products.map((product) => {
-    const originalPrice = Number(product.price || 0);
-    const increasedMrp = Math.ceil(originalPrice * 1.2);
+    const onSale = product.price > 0 && product.mrp > product.price;
 
     return {
       ...product,
-      price: originalPrice,
-      mrp: increasedMrp,
-      badge: "SALE",
-      onSale: true,
+      badge: onSale ? "SALE" : product.badge,
+      onSale,
     };
   });
 

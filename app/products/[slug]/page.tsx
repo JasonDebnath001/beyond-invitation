@@ -18,6 +18,7 @@ import { BRAND } from "@/components/siteConfig";
 import { ProductGrid } from "@/components/ProductGrid";
 import ProductGallery from "@/components/ProductGallery";
 import ProductBuyBox from "@/components/ProductBuyBox";
+import ProductPrice from "@/components/ProductPrice";
 import {
   applyResellerPricingToProduct,
   applyResellerPricingToProducts,
@@ -706,15 +707,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-end gap-3">
-                  <span className="font-display text-[30px] font-bold leading-none text-carbon sm:text-[34px]">
-                    ₹{product.price.toLocaleString("en-IN")}
-                  </span>
-
-                  {product.mrp > product.price && (
-                    <span className="pb-0.5 text-lg text-ink-light line-through">
-                      ₹{product.mrp.toLocaleString("en-IN")}
-                    </span>
-                  )}
+                  <ProductPrice
+                    price={product.price}
+                    mrp={product.mrp}
+                    priceClassName="font-display text-[30px] font-bold leading-none text-carbon sm:text-[34px]"
+                    oldPriceClassName="pb-0.5 text-lg text-ink-light"
+                  />
 
                   {discount > 0 && (
                     <span className="mb-0.5 rounded-md bg-[#E8F7EE] px-2.5 py-1 text-[13px] font-semibold text-[#27A060]">

@@ -359,6 +359,7 @@ ERPNEXT_API_SECRET=
 
 ERPNEXT_PRICE_LIST=Standard Selling
 ERPNEXT_PRODUCT_PRICE_FIELD=custom_price
+ERPNEXT_STRIKETHROUGH_PRICE_FIELD=custom_strikethrough_price
 
 ERPNEXT_WEBSITE_FIELD=custom_show_on_website
 ERPNEXT_SUBJECT_FIELD=custom_subject
@@ -533,6 +534,20 @@ The product price field defaults to:
 ```env
 ERPNEXT_PRODUCT_PRICE_FIELD=custom_price
 ```
+
+The Item custom field **Strikethrough Price** supplies the old price shown beside
+the current selling price throughout the storefront, including cart and checkout:
+
+```env
+ERPNEXT_STRIKETHROUGH_PRICE_FIELD=custom_strikethrough_price
+```
+
+Use the actual ERPNext fieldname (not its label) if it differs from this default.
+The old price is shown only when it is positive and greater than the selling price.
+Empty, zero, invalid, equal, or lower values do not show a crossed-out price.
+Homepage sections preserve the ERP prices without calculating an artificial old price.
+Existing saved cart items gain the old price when the product is added again.
+Checkout totals and payment amounts use only the current selling price.
 
 The configured selling price list defaults to:
 

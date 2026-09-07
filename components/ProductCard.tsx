@@ -7,6 +7,7 @@ import type { Product } from "@/types";
 import { discountPercent } from "@/types";
 import AddToCartButton from "./AddToCartButton";
 import WishlistButton from "./WishlistButton";
+import ProductPrice from "./ProductPrice";
 
 interface ProductCardProps {
   product: Product;
@@ -181,15 +182,12 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Link>
 
         <div className="mt-2.5 flex min-h-[24px] flex-wrap items-center gap-x-1.5 gap-y-1 min-[400px]:mt-3 min-[400px]:gap-2 sm:min-h-[28px]">
-          <span className="text-[15px] font-bold text-carbon min-[400px]:text-[17px] sm:text-[18px]">
-            ₹{product.price.toLocaleString("en-IN")}
-          </span>
-
-          {product.mrp > product.price && (
-            <span className="text-[11px] text-carbon/35 line-through min-[400px]:text-xs sm:text-sm">
-              ₹{product.mrp.toLocaleString("en-IN")}
-            </span>
-          )}
+          <ProductPrice
+            price={product.price}
+            mrp={product.mrp}
+            priceClassName="text-[15px] font-bold text-carbon min-[400px]:text-[17px] sm:text-[18px]"
+            oldPriceClassName="text-[11px] text-carbon/35 min-[400px]:text-xs sm:text-sm"
+          />
 
           {!isSaleCard && discount > 0 && (
             <span className="rounded-full bg-[#f8ead0] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#85172b] min-[400px]:px-2 min-[400px]:text-[10px] sm:text-[11px]">

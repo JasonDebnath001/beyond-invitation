@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ProductPrice from "@/components/ProductPrice";
 
 import {
   useCart,
@@ -143,12 +144,9 @@ export default function CartPage() {
                     {item.name}
                   </h3>
 
-                  <p className="mt-1 text-sm text-ink-light">
-                    ₹
-                    {formatPrice(
-                      item.price,
-                    )}{" "}
-                    / pc
+                  <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-ink-light">
+                    <ProductPrice price={item.price} mrp={item.mrp} />
+                    <span>/ pc</span>
                   </p>
 
                   <button

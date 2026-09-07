@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ErpProduct, fetchErpProducts } from "@/lib/erpnext";
 import ProductCard from "@/components/ProductCard";
+import ProductPrice from "@/components/ProductPrice";
 import { discountPercent } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +10,6 @@ export const metadata = {
     title: "ERPNext Products – Beyond Invitation",
     description: "Products loaded directly from ERPNext.",
 };
-
-function formatCurrency(value: number) {
-    return `₹${value.toLocaleString("en-IN")}`;
-}
 
 export default async function ErpProductsPage() {
     let products: ErpProduct[] = [];
@@ -133,18 +130,11 @@ export default async function ErpProductsPage() {
                                                     {product.category}
                                                 </p>
 
-                                                <p>
+                                                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                                     <span className="font-semibold text-carbon">
                                                         Price:
                                                     </span>{" "}
-                                                    {formatCurrency(product.price)}
-                                                </p>
-
-                                                <p>
-                                                    <span className="font-semibold text-carbon">
-                                                        MRP:
-                                                    </span>{" "}
-                                                    {formatCurrency(product.mrp)}
+                                                    <ProductPrice price={product.price} mrp={product.mrp} />
                                                 </p>
 
                                                 {discount > 0 && (

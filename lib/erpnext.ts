@@ -20,6 +20,10 @@ const ERPNEXT_PRICE_LIST =
 const ERPNEXT_PRODUCT_PRICE_FIELD =
   cleanEnv(process.env.ERPNEXT_PRODUCT_PRICE_FIELD) || "custom_price";
 
+const ERPNEXT_STRIKETHROUGH_PRICE_FIELD =
+  cleanEnv(process.env.ERPNEXT_STRIKETHROUGH_PRICE_FIELD) ||
+  "custom_strikethrough_price";
+
 // Fieldname (NOT the form label) of the "Show on Website" checkbox on Item.
 const ERPNEXT_WEBSITE_FIELD =
   process.env.ERPNEXT_WEBSITE_FIELD ?? "custom_show_on_website";
@@ -894,6 +898,15 @@ function getCustomProductPrice(item: Record<string, unknown>): number | null {
   return parseProductPrice(item.price);
 }
 
+function getStrikethroughProductPrice(item: Record<string, unknown>): number | null {
+  const value =
+    parseProductPrice(item[ERPNEXT_STRIKETHROUGH_PRICE_FIELD]) ??
+    parseProductPrice(item.custom_strikethrough_price) ??
+    parseProductPrice(item.strikethrough_price);
+
+  return value !== null && value > 0 ? value : null;
+}
+
 function mapErpItemToProduct(
   item: ErpItem,
   priceMap: Map<string, number>,
@@ -907,13 +920,10 @@ function mapErpItemToProduct(
     Number(item.standard_rate || 0) ??
     Number(item.valuation_rate || 0);
 
-  /*
-   * Custom Price field is now the primary source.
-   * The old ERP price is used only when custom_price is empty.
-   */
+  // Price is the selling price; Strikethrough Price is display-only.
   const price = customFieldPrice ?? 0;
 
-  const mrp = price;
+  const mrp = getStrikethroughProductPrice(item) ?? price;
 
   return {
     erpName: item.name,
@@ -1852,6 +1862,7 @@ export async function buildErpProductList(): Promise<ErpProduct[]> {
         ERPNEXT_MATERIAL_FIELD,
         ERPNEXT_INCLUDES_FIELD,
         ERPNEXT_PRODUCT_PRICE_FIELD,
+        ERPNEXT_STRIKETHROUGH_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),
@@ -1990,6 +2001,8 @@ export async function fetchErpProductsBySubject(
         "disabled",
         ERPNEXT_WEBSITE_FIELD,
         ERPNEXT_SUBJECT_FIELD,
+        ERPNEXT_PRODUCT_PRICE_FIELD,
+        ERPNEXT_STRIKETHROUGH_PRICE_FIELD,
         "standard_rate",
         "valuation_rate",
       ]),

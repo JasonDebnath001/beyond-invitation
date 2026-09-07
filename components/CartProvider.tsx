@@ -30,6 +30,7 @@ export interface CartItem {
   subject: string;
   name: string;
   price: number;
+  mrp?: number;
   image: string;
   emoji: string;
   quantity: number;
@@ -94,6 +95,8 @@ function cartReducer(
             item.slug === action.product.slug
               ? {
                   ...item,
+                  price: action.product.price,
+                  mrp: action.product.mrp,
                   itemCode:
                     action.product.itemCode ??
                     item.itemCode,
@@ -121,6 +124,7 @@ function cartReducer(
             subject,
             name: action.product.name,
             price: action.product.price,
+            mrp: action.product.mrp,
             image:
               action.product.images[0] ?? "",
             emoji: action.product.emoji,

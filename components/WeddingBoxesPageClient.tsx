@@ -6,6 +6,7 @@ import gsap from "gsap";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 
 import type { ErpProduct } from "@/lib/erpnext";
+import ProductPrice from "@/components/ProductPrice";
 
 type WeddingBoxesPageClientProps = {
   products: ErpProduct[];
@@ -20,14 +21,6 @@ function isPrivateFileUrl(image?: string) {
   return (
     value.startsWith("/private/files/") || value.includes("/private/files/")
   );
-}
-
-function formatPrice(price: number) {
-  if (!price || price <= 0) {
-    return null;
-  }
-
-  return `₹${price.toLocaleString("en-IN")}`;
 }
 
 function getImageSrc(image?: string) {
@@ -107,7 +100,6 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
   const [imageFailed, setImageFailed] = useState(false);
 
   const image = getPrimaryImage(product);
-  const price = formatPrice(product.price);
   const showImage = Boolean(image && !imageFailed);
   const detail =
     stripHtml(product.material) ||
@@ -170,11 +162,14 @@ function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
             </p>
           ) : null}
 
-          {price ? (
-            <div className="mt-2.5 border-t border-[#64172a]/10 pt-2.5 sm:mt-4 sm:pt-3.5">
-              <span className="block text-[13px] font-extrabold tracking-tight text-[#351119] sm:text-[17px]">
-                {price}
-              </span>
+          {product.price > 0 ? (
+            <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-[#64172a]/10 pt-2.5 sm:mt-4 sm:pt-3.5">
+              <ProductPrice
+                price={product.price}
+                mrp={product.mrp}
+                priceClassName="text-[13px] font-extrabold tracking-tight text-[#351119] sm:text-[17px]"
+                oldPriceClassName="text-[11px] text-[#7a685e] sm:text-sm"
+              />
             </div>
           ) : null}
         </div>

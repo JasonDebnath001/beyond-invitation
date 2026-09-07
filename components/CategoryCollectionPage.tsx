@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import type { ErpProduct } from "@/lib/erpnext";
+import ProductPrice from "@/components/ProductPrice";
 
 type CategoryCollectionPageClientProps = {
   categoryName: string;
@@ -20,14 +21,6 @@ function isPrivateFileUrl(image?: string) {
   return (
     value.startsWith("/private/files/") || value.includes("/private/files/")
   );
-}
-
-function formatPrice(price: number) {
-  if (!price || price <= 0) {
-    return "Price on request";
-  }
-
-  return `₹${price.toLocaleString("en-IN")}`;
 }
 
 function getImageSrc(image?: string) {
@@ -134,8 +127,13 @@ function CollectionProductCard({
             {product.name}
           </h2>
 
-          <span className="shrink-0 rounded-full bg-[#2a1810] px-3.5 py-1.5 text-xs font-semibold text-[#f6d889]">
-            {formatPrice(product.price)}
+          <span className="flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 rounded-full bg-[#2a1810] px-3.5 py-1.5 text-xs font-semibold text-[#f6d889]">
+            <ProductPrice
+              price={product.price}
+              mrp={product.mrp}
+              oldPriceClassName="text-[11px] font-normal text-[#f6d889]/65"
+              unavailableLabel="Price on request"
+            />
           </span>
         </div>
 

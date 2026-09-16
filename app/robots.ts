@@ -20,6 +20,10 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           "/api/",
           "/account",
+          "/sign-in",
+          "/sign-up",
+          "/forgot-password",
+          "/auth/",
           "/checkout",
           "/cart",
           "/wishlist",

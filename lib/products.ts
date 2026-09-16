@@ -1,53 +1,16 @@
-import productsData from "@/data/products.json";
 import categoriesData from "@/data/categories.json";
-
-import type {
-  Product,
-  Category,
-  ProductCategory,
-} from "@/types";
-
+import type { Product, Category, ProductCategory } from "@/types";
 import {
   fetchErpProducts,
   fetchErpProductsBase,
-  type ErpProduct,
-} from "@/lib/erpnext";
+  fetchErpProductsByCategory,
+  fetchErpProductBySlug,
+  type CatalogProduct,
+} from "@/lib/catalog";
 import { applyResellerPricingToProducts } from "@/lib/reseller";
 
-const localProducts = productsData as Product[];
 const categories = categoriesData as Category[];
 
-/*
- * Small in-memory cache for navbar search.
- *
- * The navbar sends a request after the user stops typing.
- * Without this cache, every keystroke could trigger another
- * complete ERPNext product request.
- */
-let cachedErpProducts: ErpProduct[] | null = null;
-let cacheExpiresAt = 0;
-
-const SEARCH_CACHE_DURATION = 60 * 1000;
-
-async function getErpProductsForSearch(): Promise<ErpProduct[]> {
-  const now = Date.now();
-
-  if (cachedErpProducts && now < cacheExpiresAt) {
-    return cachedErpProducts;
-  }
-
-  const products = await fetchErpProductsBase();
-
-  cachedErpProducts = products;
-  cacheExpiresAt = now + SEARCH_CACHE_DURATION;
-
-  return products;
-}
-
-/*
- * Remove HTML, repeated spaces and letter accents so that
- * product-title searching is more reliable.
- */
 function normalizeSearchText(value: unknown): string {
   return String(value ?? "")
     .replace(/<[^>]*>/g, " ")
@@ -60,189 +23,55 @@ function normalizeSearchText(value: unknown): string {
     .toLowerCase();
 }
 
-type SearchableProduct = Product &
-  Partial<{
-    itemCode: string;
-    itemGroup: string;
-    erpName: string;
-    subject: string;
-  }>;
+type SearchableProduct = CatalogProduct;
 
-/**
- * Return every local product.
- *
- * This remains unchanged because other older sections of the
- * website may still depend on the local product fixtures.
- */
 export async function getAllProducts(): Promise<Product[]> {
-  return localProducts;
+  return fetchErpProducts();
 }
 
-/**
- * Return the full product catalog from local fixtures and ERPNext.
- *
- * ERPNext failures are treated as a non-blocking fallback so sitemap and
- * other catalog-driven routes still render with the local catalog.
- */
-export async function getCatalogProducts(): Promise<Product[]> {
-  const catalogProducts = [...localProducts];
-
-  try {
-    const erpProducts = await fetchErpProducts();
-
-    const merged = [...catalogProducts, ...erpProducts];
-    const seen = new Set<string>();
-
-    return merged.filter((product) => {
-      const key = product.slug?.trim().toLowerCase();
-
-      if (!key || seen.has(key)) {
-        return false;
-      }
-
-      seen.add(key);
-      return true;
-    });
-  } catch (error) {
-    console.error("Failed to load ERPNext products for catalog", error);
-    return catalogProducts;
-  }
+export async function getCatalogProducts(): Promise<CatalogProduct[]> {
+  return fetchErpProducts();
 }
 
-/**
- * Find a local product using its slug.
- */
-export async function getProductBySlug(
-  slug: string,
-): Promise<Product | null> {
-  return (
-    localProducts.find((product) => product.slug === slug) ??
-    null
-  );
+export async function getProductBySlug(slug: string): Promise<Product | null> {
+  return fetchErpProductBySlug(slug);
 }
 
-/**
- * Products flagged for the homepage Sale section.
- */
 export async function getSaleProducts(): Promise<Product[]> {
-  return localProducts.filter((product) => product.onSale);
+  return (await fetchErpProducts()).filter((product) => product.onSale);
 }
 
-/**
- * Products flagged for the homepage Premium section.
- */
 export async function getPremiumProducts(): Promise<Product[]> {
-  return localProducts.filter(
-    (product) => product.isPremium,
-  );
+  return (await fetchErpProducts()).filter((product) => product.isPremium);
 }
 
-/**
- * Local products belonging to one category.
- */
-export async function getProductsByCategory(
-  category: ProductCategory,
-): Promise<Product[]> {
-  return localProducts.filter(
-    (product) => product.category === category,
-  );
+export async function getProductsByCategory(category: ProductCategory): Promise<Product[]> {
+  return fetchErpProductsByCategory(category);
 }
 
-/**
- * Related local products from the same category.
- */
-export async function getRelatedProducts(
-  product: Product,
-  limit = 4,
-): Promise<Product[]> {
-  return localProducts
-    .filter(
-      (candidate) =>
-        candidate.category === product.category &&
-        candidate.slug !== product.slug,
-    )
-    .slice(0, limit);
+export async function getRelatedProducts(product: Product, limit = 4): Promise<Product[]> {
+  return (await fetchErpProductsByCategory(product.category))
+    .filter((candidate) => candidate.slug !== product.slug).slice(0, limit);
 }
 
-/**
- * Return every category.
- */
 export async function getAllCategories(): Promise<Category[]> {
   return categories;
 }
 
-/**
- * Find a category by slug.
- */
-export async function getCategoryBySlug(
-  slug: string,
-): Promise<Category | null> {
-  return (
-    categories.find((category) => category.slug === slug) ??
-    null
-  );
+export async function getCategoryBySlug(slug: string): Promise<Category | null> {
+  return categories.find((category) => category.slug === slug) ?? null;
 }
 
-/**
- * Return all local product slugs.
- */
 export async function getAllProductSlugs(): Promise<string[]> {
-  return localProducts.map((product) => product.slug);
+  return (await fetchErpProductsBase()).map((product) => product.slug);
 }
 
-/**
- * Search live ERPNext products.
- *
- * Searchable fields:
- * - Product title
- * - Item code
- * - ERP document name
- * - Description
- * - Category
- * - ERP item group
- * - Subject
- * - Material
- * - Customisation
- * - Includes
- * - Product slug
- */
-export async function searchProducts(
-  query: string,
-): Promise<Product[]> {
+/** Search the cached public catalogue, retaining the existing field scores. */
+export async function searchProducts(query: string): Promise<Product[]> {
   const normalizedQuery = normalizeSearchText(query);
-
-  if (!normalizedQuery) {
-    return [];
-  }
-
-  const terms = normalizedQuery
-    .split(" ")
-    .filter(Boolean);
-
-  let searchableProducts: SearchableProduct[];
-
-  try {
-    /*
-     * Search the products currently displayed from ERPNext.
-     *
-     * fetchErpProducts() also loads the gallery images, so cards
-     * appearing on the search-results page continue using the same
-     * main image as the product gallery.
-     */
-    searchableProducts =
-      await getErpProductsForSearch();
-  } catch (error) {
-    /*
-     * Local products are only a fallback so that search does not
-     * completely crash when ERPNext is temporarily unavailable.
-     */
-    console.error(
-      "ERPNext search failed. Using local products as fallback:",
-      error,
-    );
-
-    searchableProducts = localProducts;
-  }
+  if (!normalizedQuery) return [];
+  const terms = normalizedQuery.split(" ").filter(Boolean);
+  const searchableProducts: SearchableProduct[] = await fetchErpProductsBase();
 
   const matchedProducts = searchableProducts
     .map((product, originalIndex) => {

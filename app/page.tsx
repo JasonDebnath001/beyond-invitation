@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 
 import { getAllCategories } from "@/lib/products";
-import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
+import { fetchErpProducts, type ErpProduct } from "@/lib/catalog";
 
 import JsonLd from "@/components/seo/JsonLd";
 import { getSiteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site-config";
@@ -118,22 +118,22 @@ function getAbsoluteImageUrl(image?: string) {
 export default async function HomePage() {
   const categories = await getAllCategories();
 
-  let erpProducts: ErpProduct[] = [];
-  let erpError = "";
+  let catalogProducts: ErpProduct[] = [];
+  let catalogError = "";
 
   try {
-    erpProducts = await fetchErpProducts();
+    catalogProducts = await fetchErpProducts();
   } catch (error) {
-    console.error("ERPNext product fetch failed on homepage:", error);
-    erpError =
+    console.error("Catalogue product fetch failed on homepage:", error);
+    catalogError =
       error instanceof Error
         ? error.message
-        : "Unknown ERPNext product fetch error";
+        : "Unknown Catalogue product fetch error";
   }
 
-  const featuredProducts = erpProducts.slice(0, 10);
+  const featuredProducts = catalogProducts.slice(0, 10);
 
-  const homepageProducts = erpProducts;
+  const homepageProducts = catalogProducts;
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
@@ -190,12 +190,12 @@ export default async function HomePage() {
         description: product.description || description,
         image: getAbsoluteImageUrl(product.images?.[0]),
         url: `${siteUrl}/products/${product.slug}`,
-        offers: {
+        offers: product.price > 0 ? {
           "@type": "Offer",
           priceCurrency: "INR",
           price: product.price,
           availability: "https://schema.org/InStock",
-        },
+        } : undefined,
       },
     })),
   };
@@ -205,7 +205,7 @@ export default async function HomePage() {
       <JsonLd data={localBusinessJsonLd} />
       <JsonLd data={websiteJsonLd} />
 
-      {!erpError && featuredProducts.length > 0 ? (
+      {!catalogError && featuredProducts.length > 0 ? (
         <JsonLd data={productListJsonLd} />
       ) : null}
 
@@ -218,31 +218,31 @@ export default async function HomePage() {
 
         <CelebrationGrid categories={categories} />
 
-        {erpError ? (
+        {catalogError ? (
           <section className="mx-auto max-w-6xl px-4 py-16">
             <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
               <p className="text-sm font-semibold uppercase tracking-[0.3em]">
-                ERPNext Error
+                Catalogue Error
               </p>
 
               <h2 className="mt-3 font-serif text-3xl">
-                ERP products could not be loaded
+                Products could not be loaded
               </h2>
 
               <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-2xl bg-white p-4 text-xs">
-                {erpError}
+                Please try again shortly.
               </pre>
             </div>
           </section>
         ) : (
           <>
-            <SaleCollection products={erpProducts} />
+            <SaleCollection products={catalogProducts} />
 
             <ProductSection
               label="Fresh from our catalogue"
               title="Trendy Collection"
               products={homepageProducts}
-              viewAllHref="/collections/wedding"
+              viewAllHref="/catalog"
               viewAllText="View All Products"
             />
 

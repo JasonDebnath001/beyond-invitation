@@ -4,7 +4,7 @@ import FilterableProductGrid from "@/components/FilterableProductGrid";
 import {
   fetchErpProductsBySubject,
   type ErpProduct,
-} from "@/lib/erpnext";
+} from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,12 +29,12 @@ export default async function WeddingCardPage() {
   try {
     products = await fetchErpProductsBySubject(SUBJECTS);
   } catch (error) {
-    console.error("ERPNext Wedding Card fetch failed:", error);
+    console.error("Catalogue Wedding Card fetch failed:", error);
 
     errorMessage =
       error instanceof Error
         ? error.message
-        : "Unable to fetch products from ERPNext.";
+        : "Unable to fetch products from Catalogue.";
   }
 
   return (
@@ -71,7 +71,7 @@ export default async function WeddingCardPage() {
         {errorMessage ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
-              ERPNext Error
+              Catalogue Error
             </p>
 
             <h2 className="mt-2 font-serif text-2xl font-semibold text-red-900">
@@ -79,7 +79,7 @@ export default async function WeddingCardPage() {
             </h2>
 
             <p className="mt-3 text-sm leading-6 text-red-700">
-              {errorMessage}
+              Please try again shortly.
             </p>
           </div>
         ) : products.length === 0 ? (
@@ -89,9 +89,7 @@ export default async function WeddingCardPage() {
             </h2>
 
             <p className="mt-2 text-sm text-ink-light">
-              ERPNext connected successfully, but no visible products were found
-              with Subject set to Wedding Card, Hindu Wedding Card, Muslim
-              Wedding Card or Christian Wedding Card.
+              This collection is being updated. Please check back soon or contact us for help finding your invitation.
             </p>
           </div>
         ) : (

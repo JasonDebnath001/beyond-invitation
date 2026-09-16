@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useCart } from "@/components/CartProvider";
+import { useAuth } from "@/components/AuthProvider";
 import ProductPrice from "@/components/ProductPrice";
 import { useRazorpayCheckout } from "@/components/useRazorpayCheckout";
 
@@ -46,7 +46,7 @@ const initialForm: CheckoutForm = {
 
 export default function CheckoutPage() {
   const { items, totalItems, totalPrice, clearCart } = useCart();
-  const { user } = useUser();
+  const { user } = useAuth();
   const router = useRouter();
   const { startCheckout, loading } = useRazorpayCheckout();
 
@@ -66,11 +66,15 @@ export default function CheckoutPage() {
   }, [form.state, cities.length]);
 
   useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      name: prev.name || user?.fullName || "",
-      email: prev.email || user?.primaryEmailAddress?.emailAddress || "",
-      contact: prev.contact || user?.primaryPhoneNumber?.phoneNumber || "",
+    if (!user) return;
+    const name = user.user_metadata.full_name || user.user_metadata.name;
+    setForm((current) => ({
+      ...current,
+      name: current.name || (typeof name === "string" ? name : ""),
+      email: current.email || user.email || "",
+      contact:
+        current.contact ||
+        (user.phone ? `+${user.phone.replace(/^\+/, "")}` : ""),
     }));
   }, [user]);
 
@@ -219,9 +223,12 @@ export default function CheckoutPage() {
         country: form.country.trim(),
         notes: form.notes.trim(),
       },
-      onSuccess: ({ paymentId }) => {
+      onSuccess: ({ paymentId, websiteOrderId, paymentPending }) => {
         clearCart();
-        router.push(`/checkout/success?payment_id=${paymentId}`);
+        const params = new URLSearchParams({ payment_id: paymentId });
+        if (websiteOrderId) params.set("order_id", websiteOrderId);
+        if (paymentPending) params.set("pending", "1");
+        router.push(`/checkout/success?${params}`);
       },
       onError: (message) => setError(message),
     });
@@ -276,7 +283,7 @@ export default function CheckoutPage() {
           </h2>
 
           <p className="mt-2 text-sm text-ink-light">
-            These details will be saved in ERPNext with the order.
+            We use these details to confirm your order and arrange delivery.
           </p>
 
           {locationError && (
@@ -359,7 +366,6 @@ export default function CheckoutPage() {
             <div>
               <label className="block text-sm font-medium text-ink">
                 City *
-
                 {!manualCityMode ? (
                   <select
                     value={form.city}
@@ -402,9 +408,7 @@ export default function CheckoutPage() {
                   }}
                   className="mt-2 text-xs font-medium text-maroon hover:text-maroon-dark"
                 >
-                  {manualCityMode
-                    ? "Choose city from dropdown"
-                    : ""}
+                  {manualCityMode ? "Choose city from dropdown" : ""}
                 </button>
               )}
             </div>
@@ -455,7 +459,9 @@ export default function CheckoutPage() {
                   className="flex min-w-0 justify-between gap-4 text-sm"
                 >
                   <div className="min-w-0">
-                    <p className="break-words font-medium text-ink">{item.name}</p>
+                    <p className="break-words font-medium text-ink">
+                      {item.name}
+                    </p>
                     <p className="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-ink-light">
                       <span>Qty: {item.quantity} ×</span>
                       <ProductPrice price={item.price} mrp={item.mrp} />
@@ -474,7 +480,9 @@ export default function CheckoutPage() {
                 <span className="min-w-0 text-ink-light">
                   Subtotal ({totalItems} items)
                 </span>
-                <span className="shrink-0 font-medium">₹{formatPrice(totalPrice)}</span>
+                <span className="shrink-0 font-medium">
+                  ₹{formatPrice(totalPrice)}
+                </span>
               </div>
 
               <div className="mt-3 flex justify-between gap-4">
@@ -505,7 +513,7 @@ export default function CheckoutPage() {
           )}
 
           <p className="mt-4 text-center text-xs text-ink-light">
-            Your order will be created in ERPNext before payment verification.
+            Your order details are saved securely before payment.
           </p>
         </aside>
       </div>

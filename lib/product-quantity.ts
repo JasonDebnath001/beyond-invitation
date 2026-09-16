@@ -53,7 +53,7 @@ export function getProductQuantityRules(
   const itemGroup = normalize(product.itemGroup);
 
   /*
-   * ERPNext may use either:
+   * Older saved carts may use either:
    * - Shagun Envelopes
    * - Sagun Envelopes
    */

@@ -9,13 +9,13 @@ export const metadata: Metadata = {
     "Read the Privacy Policy of Beyond Invitation, covering how we collect, use, store and protect customer information, order details, payment information, cookies and communication data.",
 };
 
-const lastUpdated = "03 June 2026";
+const lastUpdated = "16 September 2026";
 
 const sections = [
   {
     title: "1. Introduction",
     body: [
-      `${BRAND} respects your privacy and is committed to protecting the personal information you share with us when you visit our website, browse products, create an account, place an order, make a payment, contact us, or interact with us through phone, WhatsApp, email, social media or any other channel.`,
+      `${BRAND} respects your privacy and is committed to protecting the personal information you share with us when you visit our website, browse products, place an order, make a payment, contact us, or interact with us through phone, WhatsApp, email, social media or any other channel.`,
       `This Privacy Policy explains what information we collect, why we collect it, how we use it, how we share it, how long we keep it, and what choices you have regarding your personal information.`,
       `By using our website or services, you agree to the collection and use of information in accordance with this Privacy Policy.`,
     ],
@@ -32,7 +32,7 @@ const sections = [
   {
     title: "3. How We Use Your Information",
     body: [
-      `We use your information to operate our website, display products, process inquiries, prepare quotations, create and manage accounts, process orders, customize designs, prepare invoices, coordinate production, arrange delivery, provide customer support and communicate order updates.`,
+      `We use your information to operate our website, display products, process inquiries, prepare quotations, process orders, customize designs, prepare invoices, coordinate production, arrange delivery, provide customer support and communicate order updates.`,
       `We may use your contact details to communicate with you through phone, WhatsApp, SMS, email or other channels for order confirmation, design approval, payment confirmation, delivery updates, product availability, service support, feedback and promotional updates.`,
       `We may use website usage data to improve website performance, fix technical issues, understand customer preferences, improve product categories, improve search and filtering, prevent fraud and maintain website security.`,
       `We may use your information for internal business operations including ERP, CRM, inventory management, accounting, reporting, staff coordination, vendor coordination, job-work management, quality control and legal compliance.`,
@@ -48,19 +48,18 @@ const sections = [
     ],
   },
   {
-    title: "5. Account and Authentication",
+    title: "5. Accounts and Saved Items",
     body: [
-      `If our website allows account login, we may collect and process information required to create, authenticate and manage your account, including your name, email address, mobile number, login identifier, account activity, order history and session information.`,
-      `Authentication may be managed through third-party authentication services. Such providers may process your information according to their own privacy practices.`,
-      `You are responsible for keeping your login credentials confidential and for all activity that occurs under your account.`,
+      `You can create an account using your email address and password, or sign in with Google. You can optionally add your name to your profile. Supabase Auth manages authentication, email confirmation, password recovery and sessions. Google sign-in shares account details such as your name and email address. You can also shop as a guest.`,
+      `Your cart and guest wishlist are saved in this browser on this device. When you sign in, available guest wishlist items are added to your account wishlist, which is stored in Supabase and accessible across devices. Account wishlist records contain your account ID, saved product identifiers and the time they were added. Clearing browser storage removes device selections but does not delete your account wishlist; you can remove saved items while signed in.`,
     ],
   },
   {
     title: "6. Cookies and Tracking Technologies",
     body: [
-      `Our website may use cookies, local storage, session storage, pixels, tags and similar technologies to provide essential website functions, remember cart items, keep you logged in, improve performance, understand visitor behavior and measure marketing effectiveness.`,
+      `Our website may use cookies, local storage, session storage, pixels, tags and similar technologies to provide essential website functions, remember cart and wishlist items, maintain sign-in sessions, improve performance, understand visitor behavior and measure marketing effectiveness.`,
       `Some cookies are necessary for the website to function properly. Others may be used for analytics, preferences and marketing.`,
-      `You can control or disable cookies through your browser settings. However, disabling cookies may affect features such as login, cart, checkout, product recommendations and personalized browsing.`,
+      `You can control or disable cookies through your browser settings. However, disabling cookies may affect features such as sign-in, cart, wishlist, checkout, product recommendations and personalized browsing.`,
     ],
   },
   {

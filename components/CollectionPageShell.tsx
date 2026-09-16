@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-import type { ErpProduct } from "@/lib/erpnext";
+import type { ErpProduct } from "@/lib/catalog";
 
 type BreadcrumbItem = {
   label: string;
@@ -100,7 +100,7 @@ export default function CollectionPageShell({
         {errorMessage ? (
           <div className="min-w-0 break-words rounded-3xl border border-red-200 bg-red-50 p-6 [overflow-wrap:anywhere]">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
-              ERPNext Connection Problem
+              Collection unavailable
             </p>
 
             <h2 className="mt-2 font-serif text-2xl font-semibold text-red-900">
@@ -108,13 +108,11 @@ export default function CollectionPageShell({
             </h2>
 
             <p className="mt-3 text-sm leading-6 text-red-700">
-              {errorMessage}
+              We couldn&apos;t retrieve the products for this collection.
             </p>
 
             <div className="mt-4 rounded-2xl bg-white/80 p-4 text-sm leading-6 text-red-700">
-              Please check ERPNext credentials, Item permissions, Item Price
-              permissions, and whether the Subject field contains exactly{" "}
-              <span className="font-semibold">{subjectLabel}</span>.
+              Please try again shortly or contact us for help finding your invitation.
             </div>
           </div>
         ) : products.length === 0 ? (

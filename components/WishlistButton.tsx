@@ -1,191 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SignInButton, useAuth } from "@clerk/nextjs";
+import { MAX_WISHLIST_ITEMS } from "@/lib/wishlist";
+import { useWishlist } from "./WishlistProvider";
 
-type WishlistButtonProps = {
-  productSlug: string;
-  className?: string;
-};
+type WishlistButtonProps = { productSlug: string; className?: string };
 
-type WishlistApiItem = {
-  product_slug?: string;
-};
-
-type WishlistApiResponse = {
-  success?: boolean;
-  items?: WishlistApiItem[];
-  count?: number;
-  error?: string;
-  details?: string;
-  added?: boolean;
-  removed?: boolean;
-  wishlistRecordName?: string;
-};
-
-async function readApiResponse(res: Response) {
-  const rawText = await res.text();
-
-  let data: WishlistApiResponse | null = null;
-
-  try {
-    data = rawText ? JSON.parse(rawText) : null;
-  } catch {
-    data = null;
-  }
-
-  return {
-    rawText,
-    data,
-  };
-}
-
-export default function WishlistButton({
-  productSlug,
-  className = "",
-}: WishlistButtonProps) {
-  const { isSignedIn, isLoaded } = useAuth();
-
-  const [wishlisted, setWishlisted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    if (!isSignedIn) {
-      setChecking(false);
-      setWishlisted(false);
-      return;
-    }
-
-    async function checkWishlist() {
-      try {
-        setChecking(true);
-
-        const res = await fetch("/api/wishlist", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        const { rawText, data } = await readApiResponse(res);
-
-        if (!res.ok) {
-          console.error("Wishlist check failed:", {
-            status: res.status,
-            statusText: res.statusText,
-            rawText,
-            data,
-          });
-          return;
-        }
-
-        const found = Boolean(
-          data?.items?.some((item) => item.product_slug === productSlug),
-        );
-
-        setWishlisted(found);
-      } catch (error) {
-        console.error("Wishlist check exception:", error);
-      } finally {
-        setChecking(false);
-      }
-    }
-
-    checkWishlist();
-  }, [isLoaded, isSignedIn, productSlug]);
-
-  async function toggleWishlist() {
-    if (!isSignedIn || loading) return;
-
-    try {
-      setLoading(true);
-
-      const method = wishlisted ? "DELETE" : "POST";
-
-      const res = await fetch("/api/wishlist", {
-        method,
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productSlug,
-        }),
-      });
-
-      const { rawText, data } = await readApiResponse(res);
-
-      if (!res.ok) {
-        console.error("Wishlist API failed:", {
-          status: res.status,
-          statusText: res.statusText,
-          rawText,
-          data,
-        });
-
-        alert(
-          data?.details ||
-            data?.error ||
-            rawText ||
-            `Wishlist failed with status ${res.status}`,
-        );
-
-        return;
-      }
-
-      setWishlisted((current) => !current);
-      window.dispatchEvent(new Event("wishlist-updated"));
-    } catch (error) {
-      console.error("Wishlist toggle exception:", error);
-      alert("Could not update wishlist. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (!isLoaded || checking) {
-    return (
-      <button
-        type="button"
-        disabled
-        className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white/90 p-0 text-sm text-gray-400 shadow-sm ${className}`}
-        aria-label="Loading wishlist"
-        title="Loading wishlist"
-      >
-        ♡
-      </button>
-    );
-  }
-
-  if (!isSignedIn) {
-    return (
-      <SignInButton mode="modal">
-        <button
-          type="button"
-          className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white/90 p-0 text-sm text-gray-700 shadow-sm transition hover:bg-white ${className}`}
-          aria-label="Sign in to add wishlist"
-          title="Sign in to add wishlist"
-        >
-          ♡
-        </button>
-      </SignInButton>
-    );
-  }
+export default function WishlistButton({ productSlug, className = "" }: WishlistButtonProps) {
+  const { slugs, ready, syncing, toggleItem } = useWishlist();
+  const wishlisted = slugs.includes(productSlug);
+  const full = !wishlisted && slugs.length >= MAX_WISHLIST_ITEMS;
+  const label = !ready ? "Loading wishlist" : syncing ? "Saving wishlist" : full ? "Wishlist is full" : wishlisted ? "Remove from wishlist" : "Add to wishlist";
 
   return (
     <button
       type="button"
-      onClick={toggleWishlist}
-      disabled={loading}
-      className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white/90 p-0 text-sm shadow-sm transition hover:bg-white disabled:opacity-60 ${
-        wishlisted ? "text-red-600" : "text-gray-700"
-      } ${className}`}
-      aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-      title={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+      onClick={() => toggleItem(productSlug)}
+      disabled={!ready || syncing || full}
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#e9e1d7] bg-white/95 p-0 shadow-[0_2px_6px_rgba(42,24,16,0.04)] transition-colors duration-[240ms] hover:border-carbon/30 hover:bg-[#fbf5f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2 disabled:opacity-60 motion-reduce:transition-none ${wishlisted ? "text-carbon" : "text-[#78695d]"} ${className}`}
+      aria-label={label}
+      aria-pressed={wishlisted}
+      aria-busy={syncing}
+      title={label}
     >
-      {loading ? "…" : wishlisted ? "♥" : "♡"}
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
+        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
+      </svg>
     </button>
   );
 }

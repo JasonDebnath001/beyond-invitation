@@ -93,8 +93,8 @@ interface StartArgs {
   customer?: CheckoutCustomer;
   onSuccess?: (r: {
     paymentId: string;
-    erpOrder: string | null;
-    fulfilmentPending: boolean;
+    websiteOrderId: string | null;
+    paymentPending: boolean;
   }) => void;
   onError?: (message: string) => void;
   onDismiss?: () => void;
@@ -192,8 +192,8 @@ export function useRazorpayCheckout() {
 
               args.onSuccess?.({
                 paymentId: verifyData.paymentId,
-                erpOrder: verifyData.erpOrder ?? null,
-                fulfilmentPending: !!verifyData.fulfilmentPending,
+                websiteOrderId: verifyData.websiteOrderId ?? orderData.websiteOrderId ?? null,
+                paymentPending: !!verifyData.paymentPending,
               });
             } catch (e) {
               args.onError?.(

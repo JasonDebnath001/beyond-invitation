@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import {
   fetchErpProductsBySubject,
   type ErpProduct,
-} from "@/lib/erpnext";
+} from "@/lib/catalog";
 import CollectionPageShell from "@/components/CollectionPageShell";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +24,12 @@ export default async function ShagunEnvelopesPage() {
   try {
     products = await fetchErpProductsBySubject(SUBJECT);
   } catch (error) {
-    console.error("ERPNext Shagun Envelopes fetch failed:", error);
+    console.error("Catalogue Shagun Envelopes fetch failed:", error);
 
     errorMessage =
       error instanceof Error
         ? error.message
-        : "Unable to fetch Shagun Envelopes from ERPNext.";
+        : "Unable to fetch Shagun Envelopes from Catalogue.";
   }
 
   return (
@@ -40,7 +40,7 @@ export default async function ShagunEnvelopesPage() {
       products={products}
       errorMessage={errorMessage}
       emptyTitle="No Shagun Envelopes found"
-      emptyDescription="ERPNext connected successfully, but no visible products were found with Subject set to Shagun Envelopes."
+      emptyDescription="This collection is being updated. Please check back soon or contact us for help finding your invitation."
       subjectLabel={SUBJECT}
       accentIcon="✉"
       breadcrumb={[

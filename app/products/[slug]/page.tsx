@@ -4,25 +4,19 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import {
-  getProductBySlug,
-  getRelatedProducts,
-} from "@/lib/products";
-import {
   fetchErpProductBySlug,
   fetchErpProductsByCategory,
   type ErpProduct,
-} from "@/lib/erpnext";
+} from "@/lib/catalog";
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
 import { BRAND } from "@/components/siteConfig";
+import { BRAND_NAME } from "@/lib/site-config";
 import { ProductGrid } from "@/components/ProductGrid";
 import ProductGallery from "@/components/ProductGallery";
 import ProductBuyBox from "@/components/ProductBuyBox";
+import WishlistButton from "@/components/WishlistButton";
 import ProductPrice from "@/components/ProductPrice";
-import {
-  applyResellerPricingToProduct,
-  applyResellerPricingToProducts,
-} from "@/lib/reseller";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -70,15 +64,6 @@ function getSiteUrl() {
   return ensureAbsoluteUrl(fromEnv) || DEFAULT_SITE_URL;
 }
 
-function getErpPublicUrl() {
-  const fromEnv =
-    process.env.NEXT_PUBLIC_ERPNEXT_URL ||
-    process.env.ERPNEXT_URL ||
-    "";
-
-  return ensureAbsoluteUrl(fromEnv);
-}
-
 function absoluteUrl(pathOrUrl?: string | null) {
   if (!pathOrUrl) return undefined;
 
@@ -88,11 +73,6 @@ function absoluteUrl(pathOrUrl?: string | null) {
 
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
-  }
-
-  if (value.startsWith("/files/") || value.startsWith("/private/files/")) {
-    const erpUrl = getErpPublicUrl();
-    return erpUrl ? `${erpUrl}${value}` : `${getSiteUrl()}${value}`;
   }
 
   if (value.startsWith("/")) {
@@ -218,33 +198,16 @@ function productDetailValue(value: string | undefined | null) {
 }
 
 async function resolveProduct(slug: string): Promise<ProductLike | null> {
-  try {
-    const erp = await fetchErpProductBySlug(slug);
-    if (erp) return erp;
-  } catch (error) {
-    console.error("resolveProduct ERP fetch failed for slug:", slug, error);
-  }
-
-  const local = await getProductBySlug(slug);
-  if (local) {
-    return applyResellerPricingToProduct(local);
-  }
-
-  return null;
+  return fetchErpProductBySlug(slug);
 }
 
 async function resolveRelated(product: ProductLike): Promise<Product[]> {
-  if ("itemCode" in product) {
-    try {
-      const all = await fetchErpProductsByCategory(product.category);
-      return all.filter((p) => p.slug !== product.slug).slice(0, 4);
-    } catch {
-      return [];
-    }
+  try {
+    const all = await fetchErpProductsByCategory(product.category);
+    return all.filter((p) => p.slug !== product.slug).slice(0, 4);
+  } catch {
+    return [];
   }
-
-  const localRelated = await getRelatedProducts(product);
-  return applyResellerPricingToProducts(localRelated);
 }
 
 export async function generateMetadata({
@@ -311,12 +274,14 @@ export async function generateMetadata({
         images: images.slice(0, 1),
       },
       other: {
-        "product:brand": BRAND,
+        "product:brand": BRAND_NAME,
         "product:retailer_item_id": getSku(product),
-        "product:price:amount": String(product.price),
-        "product:price:currency": "INR",
-        "og:price:amount": String(product.price),
-        "og:price:currency": "INR",
+        ...(product.price > 0 ? {
+          "product:price:amount": String(product.price),
+          "product:price:currency": "INR",
+          "og:price:amount": String(product.price),
+          "og:price:currency": "INR",
+        } : {}),
       },
     };
   } catch {
@@ -390,12 +355,12 @@ function buildProductJsonLd(product: ProductLike) {
     // mpn property removed
     brand: {
       "@type": "Brand",
-      name: BRAND,
+      name: BRAND_NAME,
     },
     category: categoryLabel,
     material: product.material ? stripHtml(product.material) : undefined,
     additionalProperty,
-    offers: {
+    offers: product.price > 0 ? {
       "@type": "Offer",
       "@id": `${productUrl}#offer`,
       url: productUrl,
@@ -411,7 +376,7 @@ function buildProductJsonLd(product: ProductLike) {
         name: BRAND,
       },
       priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
-    },
+    } : undefined,
   };
 }
 
@@ -553,7 +518,7 @@ function SpecRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function formatMeasurement(value: number, unit: "cm" | "g") {
+function formatMeasurement(value: number, unit: "mm" | "g") {
   return `${value.toLocaleString("en-IN", {
     maximumFractionDigits: 2,
   })} ${unit}`;
@@ -598,17 +563,17 @@ export default async function ProductDetailPage({ params }: PageProps) {
     {
       label: "Height",
       value: product.dimensions?.height,
-      unit: "cm" as const,
+      unit: "mm" as const,
     },
     {
       label: "Width",
       value: product.dimensions?.width,
-      unit: "cm" as const,
+      unit: "mm" as const,
     },
     {
       label: "Depth",
       value: product.dimensions?.depth,
-      unit: "cm" as const,
+      unit: "mm" as const,
     },
     {
       label: "Weight",
@@ -618,12 +583,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
     {
       label: "Height (Inside Card)",
       value: product.dimensions?.heightInsideCard,
-      unit: "cm" as const,
+      unit: "mm" as const,
     },
     {
       label: "Width (Inside Card)",
       value: product.dimensions?.widthInsideCard,
-      unit: "cm" as const,
+      unit: "mm" as const,
     },
   ].filter(
     (row): row is typeof row & { value: number } => row.value !== undefined,
@@ -696,9 +661,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   )}
                 </div>
 
-                <h1 className="mt-3 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[36px] 2xl:text-[40px]">
-                  {product.name}
-                </h1>
+                <div className="mt-3 flex items-start justify-between gap-4">
+                  <h1 className="min-w-0 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[36px] 2xl:text-[40px]">
+                    {product.name}
+                  </h1>
+                  <WishlistButton productSlug={product.slug} className="shrink-0" />
+                </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[13px] text-ink-mid">
                   <span className="tracking-[0.15em] text-gold">★★★★★</span>

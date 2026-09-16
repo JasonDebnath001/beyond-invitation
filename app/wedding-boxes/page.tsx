@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchErpProducts } from "@/lib/erpnext";
-import type { ErpProduct } from "@/lib/erpnext";
+import { fetchErpProductsBySubject } from "@/lib/catalog";
+import type { ErpProduct } from "@/lib/catalog";
 import {
   DEFAULT_OG_IMAGE,
   SITE_NAME,
@@ -70,28 +70,6 @@ export const metadata: Metadata = {
   },
 };
 
-/*
- * Lenient Subject matching.
- *
- * ERPNext Subject values are not always identical strings:
- * "Wedding Box", "Wedding Boxes", "wedding box " must all match.
- *
- * Normalization: trim, collapse repeated spaces, lowercase.
- * A product matches when its normalized subject STARTS WITH "wedding box",
- * which covers both singular and plural.
- */
-const WEDDING_BOX_SUBJECT_PREFIX = "wedding box";
-
-function normalizeSubject(value: string | undefined) {
-  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function isWeddingBoxProduct(product: ErpProduct) {
-  return normalizeSubject(product.subject).startsWith(
-    WEDDING_BOX_SUBJECT_PREFIX,
-  );
-}
-
 function getProductImage(product: ErpProduct) {
   const image = product.images?.[0];
 
@@ -115,10 +93,10 @@ async function getWeddingBoxProducts(): Promise<{
   errorMessage: string;
 }> {
   try {
-    const products = await fetchErpProducts();
+    const products = await fetchErpProductsBySubject("Wedding Box");
 
     return {
-      products: products.filter(isWeddingBoxProduct),
+      products,
       errorMessage: "",
     };
   } catch (error) {
@@ -171,12 +149,12 @@ export default async function WeddingBoxesPage() {
         image: getProductImage(product),
         url: siteUrl(`/products/${product.slug}`),
         category: "Wedding Box",
-        offers: {
+        offers: product.price > 0 ? {
           "@type": "Offer",
           priceCurrency: "INR",
           price: product.price,
           availability: "https://schema.org/InStock",
-        },
+        } : undefined,
       },
     })),
   };

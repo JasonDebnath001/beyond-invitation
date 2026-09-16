@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyWebhookSignature } from "@/lib/razorpay";
-import { fulfillSalesOrder } from "@/lib/erpnext";
+import { confirmWebsiteOrderPayment } from "@/lib/website-orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,8 +10,13 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get("x-razorpay-signature") ?? "";
   const raw = await request.text();
 
-  if (!verifyWebhookSignature(raw, signature)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  try {
+    if (!verifyWebhookSignature(raw, signature)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
+  } catch (error) {
+    console.error("Razorpay webhook verification unavailable:", error);
+    return NextResponse.json({ error: "Webhook unavailable" }, { status: 503 });
   }
 
   let event: any;
@@ -29,18 +34,20 @@ export async function POST(request: NextRequest) {
         event?.payload?.order?.entity?.id ?? payment?.order_id ?? null;
       const paymentId = payment?.id ?? null;
 
-      if (orderId && paymentId) {
-        await fulfillSalesOrder({
-          razorpayOrderId: orderId,
-          razorpayPaymentId: paymentId,
-        });
+      if (typeof orderId !== "string" || typeof paymentId !== "string" ||
+        !orderId || !paymentId || (payment?.order_id && payment.order_id !== orderId)) {
+        return NextResponse.json({ error: "Missing or inconsistent payment references" }, { status: 400 });
       }
+      const order = await confirmWebsiteOrderPayment({
+        razorpayOrderId: orderId,
+        razorpayPaymentId: paymentId,
+      });
+      if (order.paymentStatus !== "paid") throw new Error("Payment capture not yet confirmed.");
     }
     return NextResponse.json({ received: true });
   } catch (e) {
-    // Non-2xx makes Razorpay retry later (e.g. if the draft SO isn't written
-    // yet). fulfillSalesOrder is idempotent, so retries are safe.
-    console.error("Webhook fulfilment error:", e);
-    return NextResponse.json({ error: "fulfilment failed" }, { status: 500 });
+    // A non-2xx response requests a retry; the database update is idempotent.
+    console.error("Webhook website order update failed:", e);
+    return NextResponse.json({ error: "Order update failed" }, { status: 500 });
   }
 }

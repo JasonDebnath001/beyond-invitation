@@ -38,7 +38,6 @@ export interface Reseller {
     /** ERP document name */
     docName: string;
     code: string;
-    clerkUserId: string;
     resellerName: string;
     email: string;
     phone: string;
@@ -49,7 +48,6 @@ export interface Reseller {
 type ErpResellerDoc = {
     name: string;
     reseller_code?: string;
-    clerk_user_id?: string;
     reseller_name?: string;
     email?: string;
     phone?: string;
@@ -85,41 +83,10 @@ function buildErpUrl(path: string, params?: Record<string, string>) {
     return url.toString();
 }
 
-/**
- * Frappe Phone-type fields validate the exact format +<code>-<number>,
- * e.g. +91-9876543210. Normalize common Indian inputs to that format.
- * If we can't confidently normalize, send "" (empty skips validation)
- * rather than blocking the signup.
- */
-function normalizePhoneForErp(raw?: string): string {
-    const digits = (raw ?? "").replace(/[^\d]/g, "");
-
-    if (!digits) return "";
-
-    // Already includes 91 country code (e.g. 919876543210)
-    if (digits.length === 12 && digits.startsWith("91")) {
-        return `+91-${digits.slice(2)}`;
-    }
-
-    // Plain 10-digit Indian mobile
-    if (digits.length === 10) {
-        return `+91-${digits}`;
-    }
-
-    // Leading 0 (e.g. 09876543210)
-    if (digits.length === 11 && digits.startsWith("0")) {
-        return `+91-${digits.slice(1)}`;
-    }
-
-    // Unrecognized format — skip rather than fail the whole registration.
-    return "";
-}
-
 function mapDoc(doc: ErpResellerDoc): Reseller {
     return {
         docName: doc.name,
         code: String(doc.reseller_code ?? "").toUpperCase(),
-        clerkUserId: String(doc.clerk_user_id ?? ""),
         resellerName: String(doc.reseller_name ?? ""),
         email: String(doc.email ?? ""),
         phone: String(doc.phone ?? ""),
@@ -138,7 +105,6 @@ async function erpList(
             fields: JSON.stringify([
                 "name",
                 "reseller_code",
-                "clerk_user_id",
                 "reseller_name",
                 "email",
                 "phone",
@@ -200,113 +166,9 @@ export function invalidateResellerCache(code?: string) {
     else codeCache.clear();
 }
 
-export async function getResellerByClerkId(
-    clerkUserId: string,
-): Promise<Reseller | null> {
-    if (!clerkUserId) return null;
-    const doc = await erpList([
-        [RESELLER_DOCTYPE, "clerk_user_id", "=", clerkUserId],
-    ]);
-    return doc ? mapDoc(doc) : null;
-}
-
-/* ------------------------------------------------------------------ */
-/* Create / update                                                     */
-/* ------------------------------------------------------------------ */
-
-function generateCode() {
-    // No 0/O/1/I to keep codes unambiguous when spoken or typed.
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let out = "";
-    for (let i = 0; i < 8; i++) {
-        out += alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
-    return out;
-}
-
 export function clampMargin(value: number): number {
     if (!Number.isFinite(value)) return 0;
     return Math.min(Math.max(Math.round(value * 100) / 100, 0), RESELLER_MAX_MARGIN);
-}
-
-export async function createReseller(args: {
-    clerkUserId: string;
-    resellerName: string;
-    email: string;
-    phone?: string;
-    marginPercent: number;
-}): Promise<Reseller> {
-    requireErpConfig();
-
-    const normalizedPhone = normalizePhoneForErp(args.phone);
-
-    const payload: Record<string, unknown> = {
-        reseller_code: generateCode(),
-        clerk_user_id: args.clerkUserId,
-        reseller_name: args.resellerName,
-        email: args.email,
-        margin_percent: clampMargin(args.marginPercent),
-        active: 1,
-    };
-
-    // Only send the phone when we have a validator-safe value —
-    // omitting the key entirely means ERPNext has nothing to validate.
-    if (normalizedPhone) {
-        payload.phone = normalizedPhone;
-    }
-
-    const res = await fetch(
-        buildErpUrl(`/api/resource/${encodeURIComponent(RESELLER_DOCTYPE)}`),
-        {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify(payload),
-        },
-    );
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(
-            `ERPNext reseller create failed: ${res.status} ${res.statusText}. ${text}`,
-        );
-    }
-
-    const json = (await res.json()) as { data: ErpResellerDoc };
-
-    return mapDoc({
-        ...(payload as ErpResellerDoc),
-        name: json.data.name,
-    });
-}
-
-export async function updateResellerMargin(
-    docName: string,
-    marginPercent: number,
-): Promise<number> {
-    requireErpConfig();
-
-    const clamped = clampMargin(marginPercent);
-
-    const res = await fetch(
-        buildErpUrl(
-            `/api/resource/${encodeURIComponent(RESELLER_DOCTYPE)}/${encodeURIComponent(docName)}`,
-        ),
-        {
-            method: "PUT",
-            headers: authHeaders(),
-            body: JSON.stringify({ margin_percent: clamped }),
-        },
-    );
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(
-            `ERPNext reseller update failed: ${res.status} ${res.statusText}. ${text}`,
-        );
-    }
-
-    invalidateResellerCache();
-    return clamped;
 }
 
 /* ------------------------------------------------------------------ */

@@ -14,19 +14,8 @@ interface ImageSliderProps {
 function getImageSrc(img: string) {
   if (!img) return "";
 
-  // ERPNext / external full image URL
+  // Absolute catalogue media URL
   if (img.startsWith("http://") || img.startsWith("https://")) {
-    return img;
-  }
-
-  // ERPNext relative public/private file path converted earlier or passed directly
-  if (img.startsWith("/files/") || img.startsWith("/private/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-
-    if (erpUrl) {
-      return `${erpUrl}${img}`;
-    }
-
     return img;
   }
 

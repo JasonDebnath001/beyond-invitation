@@ -1,9 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getRazorpay } from "@/lib/razorpay";
 import { resolveCartProducts } from "@/lib/checkout";
-import { createDraftSalesOrder, type BuyerInfo } from "@/lib/erpnext";
-import { getActiveResellerFromCookies } from "@/lib/reseller"
+import {
+  attachRazorpayOrder,
+  createWebsiteOrder,
+  type OrderCustomer,
+} from "@/lib/website-orders";
+import { getSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { getActiveResellerFromCookies } from "@/lib/reseller";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +16,7 @@ function safeTrim(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeCustomer(input: unknown): BuyerInfo {
+function normalizeCustomer(input: unknown): OrderCustomer {
   const customer =
     input && typeof input === "object"
       ? (input as Record<string, unknown>)
@@ -32,7 +36,7 @@ function normalizeCustomer(input: unknown): BuyerInfo {
   };
 }
 
-function validateCustomer(customer: BuyerInfo) {
+function validateCustomer(customer: OrderCustomer) {
   if (!customer.name) return "Customer name is required.";
   if (!customer.phone) return "Mobile number is required.";
   if (!customer.email) return "Email address is required.";
@@ -44,6 +48,21 @@ function validateCustomer(customer: BuyerInfo) {
 
   if (!/^\S+@\S+\.\S+$/.test(customer.email)) {
     return "Valid email address is required.";
+  }
+
+  if (
+    customer.name.length > 200 ||
+    customer.email.length > 254 ||
+    customer.phone.length > 40
+  ) {
+    return "Customer contact details are too long.";
+  }
+  if (
+    customer.notes.length > 2000 ||
+    [customer.addressLine1, customer.addressLine2, customer.city,
+      customer.state, customer.pincode, customer.country].some((value) => value.length > 500)
+  ) {
+    return "Address or order notes are too long.";
   }
 
   return "";
@@ -67,17 +86,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId } = await auth().catch(() => ({ userId: null }));
+    if (
+      !Array.isArray(body?.items) || body.items.length < 1 || body.items.length > 100 ||
+      body.items.some((item: unknown) => !item || typeof item !== "object")
+    ) {
+      return NextResponse.json({ error: "Provide between 1 and 100 cart items." }, { status: 400 });
+    }
 
     const reseller = await getActiveResellerFromCookies();
+    const cart = await resolveCartProducts(body.items, reseller);
+    const { lines, amountPaise, currency } = cart;
 
-    const { lines, amountPaise, currency, commission } =
-      await resolveCartProducts(body?.items ?? [], reseller);
-
-    if (lines.length === 0 || amountPaise < 100) {
+    if (
+      lines.length === 0 || !Number.isSafeInteger(amountPaise) ||
+      amountPaise < 100 || amountPaise > 2147483647
+    ) {
       return NextResponse.json(
         {
-          error: "Cart is empty or below the minimum amount.",
+          error: "Cart total is outside the supported payment amount.",
         },
         {
           status: 400,
@@ -85,33 +111,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fullAddress = [
-      customer.addressLine1,
-      customer.addressLine2,
-      customer.city,
-      customer.state,
-      customer.pincode,
-      customer.country,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    const razorpay = getRazorpay();
+    let websiteOrderId: string;
+    try {
+      const auth = await getSupabaseAuthServerClient();
+      const { data: { user } } = await auth.auth.getUser();
+      websiteOrderId = await createWebsiteOrder({
+        customer,
+        cart,
+        // Verified Auth identity only; never trust an email or a supplied user_id.
+        userId: user?.id ?? null,
+        resellerCode: reseller?.code,
+      });
+    } catch (error) {
+      console.error("Website order could not be saved before checkout:", error);
+      return NextResponse.json(
+        { error: "Checkout is temporarily unavailable. Please try again later." },
+        { status: 503 },
+      );
+    }
 
-    const razorpayOrder = (await getRazorpay().orders.create({
+    const razorpayOrder = (await razorpay.orders.create({
       amount: amountPaise,
       currency,
-      receipt: `rcpt_${Date.now()}`,
+      receipt: websiteOrderId,
       notes: {
         source: "beyond-invitation-web",
-        clerkUserId: userId ?? "",
-        customerName: customer.name ?? "",
-        customerEmail: customer.email ?? "",
-        customerPhone: customer.phone ?? "",
-        customerAddress: fullAddress,
-        customerCity: customer.city ?? "",
-        customerState: customer.state ?? "",
-        customerPincode: customer.pincode ?? "",
-        customerCountry: customer.country ?? "",
-        customerNotes: customer.notes ?? "",
+        websiteOrderId,
       },
     })) as {
       id: string;
@@ -120,21 +146,13 @@ export async function POST(request: NextRequest) {
     };
 
     try {
-      await createDraftSalesOrder({
-        razorpayOrderId: razorpayOrder.id,
-        items: lines.map((line) => ({
-          item_code: line.itemCode,
-          qty: line.quantity,
-          rate: line.price,
-        })),
-        buyer: customer,
-        reseller:
-          reseller && commission >= 0
-            ? { code: reseller.code, commission }
-            : undefined,
-      });
+      if (Number(razorpayOrder.amount) !== amountPaise || razorpayOrder.currency !== currency) {
+        throw new Error("Razorpay order amount or currency does not match the saved cart.");
+      }
+      await attachRazorpayOrder(websiteOrderId, razorpayOrder.id);
     } catch (createError) {
-      console.error("Failed to create ERP draft Sales Order", {
+      console.error("Failed to link website order to Razorpay", {
+        websiteOrderId,
         razorpayOrderId: razorpayOrder.id,
         createError,
       });
@@ -142,15 +160,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Payment order was created, but ERPNext Sales Order could not be created. Please retry or contact support.",
+            "Checkout could not be started. No payment has been taken. Please try again later.",
         },
         {
-          status: 500,
+          status: 503,
         },
       );
     }
 
     return NextResponse.json({
+      websiteOrderId,
       orderId: razorpayOrder.id,
       amount: Number(razorpayOrder.amount),
       currency: razorpayOrder.currency,

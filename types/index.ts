@@ -8,13 +8,13 @@ export interface Product {
   /** Current selling price in INR */
   price: number;
 
-  /** Original price in INR, from ERPNext Strikethrough Price when available */
+  /** Original price in INR, from the catalogue when available */
   mrp: number;
 
-  /** Image file names located in /public/products/ or absolute ERPNext image URLs */
+  /** Image file names located in /public/products/ or absolute catalogue image URLs */
   images: string[];
 
-  /** Video URLs from ERPNext Item or child table */
+  /** Video URLs from the catalogue */
   videos?: string[];
 
   /** Short emoji fallback shown when an image is missing */
@@ -29,12 +29,12 @@ export interface Product {
   /** Longer description shown on the product detail page */
   description: string;
 
-  /** ERPNext/custom product detail fields */
+  /** Optional product detail fields */
   customisation?: string;
   material?: string;
   includes?: string;
 
-  /** Physical package measurements supplied by ERPNext */
+  /** Physical package measurements: millimetres for lengths, grams for weight */
   dimensions?: ProductDimensions;
 
   /** Whether the product appears in the homepage "Sale" section */

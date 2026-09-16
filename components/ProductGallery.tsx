@@ -89,11 +89,6 @@ function getPublicFileSrc(src: string) {
     return value;
   }
 
-  if (value.startsWith("/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-    return erpUrl ? `${erpUrl}${value}` : value;
-  }
-
   if (value.startsWith("/")) {
     return value;
   }
@@ -257,7 +252,7 @@ function isDirectVideo(src: string) {
 
 function canRenderNativeVideo(src: string) {
   /*
-   * ERPNext can serve an uploaded video through an extensionless /files URL.
+   * A media host can serve an uploaded video through an extensionless /files URL.
    * Once a source is in the dedicated video list, that URL is safe to render
    * with the native video element even when the extension is unavailable.
    */
@@ -280,6 +275,7 @@ function isImageLikeUrl(src: string) {
   if (isPrivateFileUrl(value)) return false;
   if (isVideoLikeUrl(value)) return false;
   if (hasImageExtension(value)) return true;
+  if (value.includes("/storage/v1/object/public/")) return true;
 
   if (value.startsWith("/files/") || value.includes("/files/")) {
     return true;
@@ -368,7 +364,7 @@ export default function ProductGallery({
   const allMedia: GalleryItem[] = useMemo(() => {
     /*
      * IMPORTANT:
-     * Images now come from ERPNext already sorted by File.custom_photo_order.
+     * Images arrive in catalogue order, with the primary image first.
      *
      * photo order 1 = first image = main product image
      * photo order 2 = second gallery image

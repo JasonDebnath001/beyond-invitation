@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import type { Product } from "@/types";
 import { getProductQuantityRules } from "@/lib/product-quantity";
@@ -103,6 +104,17 @@ export default function ProductBuyBox({
   function handleBuyNow() {
     addToCart();
     router.push("/cart");
+  }
+
+  if (!Number.isFinite(product.price) || product.price <= 0) {
+    return (
+      <Link
+        href={`/contact?product=${encodeURIComponent(product.slug)}`}
+        className="block rounded-full bg-carbon px-6 py-3 text-center text-sm font-semibold uppercase tracking-[0.25em] text-paper transition hover:bg-gold hover:text-carbon"
+      >
+        Price on request
+      </Link>
+    );
   }
 
   return (

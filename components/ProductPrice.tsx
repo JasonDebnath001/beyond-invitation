@@ -13,7 +13,7 @@ export default function ProductPrice({
   mrp = price,
   priceClassName = "",
   oldPriceClassName = "text-ink-light",
-  unavailableLabel,
+  unavailableLabel = "Price on request",
 }: ProductPriceProps) {
   const hasPrice = Number.isFinite(price) && price > 0;
   const showOldPrice = hasPrice && Number.isFinite(mrp) && mrp > price;
@@ -23,7 +23,7 @@ export default function ProductPrice({
   return (
     <>
       <span className={priceClassName}>
-        {hasPrice || !unavailableLabel ? (
+        {hasPrice ? (
           <>
             <span className="sr-only">Current price: </span>
             {formatPrice(price)}

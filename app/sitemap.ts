@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { getAllCategories, getCatalogProducts } from "@/lib/products";
+import { getAllCategories } from "@/lib/products";
+import { fetchErpProductsBase } from "@/lib/catalog";
 import { getSiteUrl } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${siteUrl}/catalog`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
     {
       url: `${siteUrl}`,
       lastModified: now,
@@ -85,13 +92,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: category.slug.includes("wedding") ? 0.9 : 0.72,
   }));
 
-  const products = await getCatalogProducts();
+  const products = await fetchErpProductsBase();
 
   const productRoutes: MetadataRoute.Sitemap = products
     .filter((product) => Boolean(product.slug))
-    .map((product) => {
+    .map((product): MetadataRoute.Sitemap[number] => {
       const lastModified =
-        (product as any).modifiedAt || (product as any).updatedAt || now;
+        product.updatedAt || now;
 
       const text = [
         product.name,

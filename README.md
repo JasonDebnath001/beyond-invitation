@@ -2,9 +2,11 @@
 
 Production e-commerce storefront for **Beyond Invitation / Bharat Agency Wedding Cards Pvt. Ltd.**, built for premium Indian wedding invitations, wedding cards, shagun envelopes, boxes, celebration stationery, and related products.
 
-The storefront is built with **Next.js 15**, **React 19**, **TypeScript**, **Tailwind CSS**, **Clerk**, **Razorpay**, and **ERPNext**.
+The storefront is built with **Next.js 15**, **React 19**, **TypeScript**, **Tailwind CSS**, **Razorpay**, **Supabase**, and **ERPNext**.
 
-ERPNext acts as the primary commerce backend for products, pricing, customers, wishlists, reseller data, Sales Orders, order history, and optional payment accounting.
+Supabase supplies the product catalogue and Selling prices through a public view shared with Samriddhi, along with authentication, wishlists and website orders. Razorpay handles payments. Legacy ERPNext integrations remain for contact leads and referral pricing; checkout no longer creates ERPNext Sales Orders or Payment Entries.
+
+**Website order setup:** Apply [supabase/migrations/20260916_website_orders.sql](supabase/migrations/20260916_website_orders.sql), configure a server-only Supabase secret key and the Razorpay webhook, and restart the app. See [supabase/ORDERS_SETUP.md](supabase/ORDERS_SETUP.md). The migration is required even though the catalogue and authentication already work.
 
 ---
 
@@ -14,12 +16,12 @@ ERPNext acts as the primary commerce backend for products, pricing, customers, w
 
 - Next.js App Router storefront
 - Server-rendered and SEO-friendly product pages
-- Live product catalogue from ERPNext
+- Live product catalogue from Supabase
 - Product categories and collections
 - Product search
 - Product image galleries
 - Product video support
-- Website-specific ERPNext product titles and descriptions
+- Website-specific product titles and descriptions
 - Related products
 - Cart persisted in `localStorage`
 - Responsive navigation and layouts
@@ -29,81 +31,30 @@ ERPNext acts as the primary commerce backend for products, pricing, customers, w
 - Sitemap and robots metadata
 - Open Graph and structured SEO support
 
-### Authentication
+### Authentication and guest shopping
 
-Authentication is handled with **Clerk**.
+Supabase Auth supports Google sign-in and email/password registration, email password-reset links, optional profile names and sign-out. Registration asks only for email and password. Phone authentication is removed. See [supabase/AUTH_SETUP.md](supabase/AUTH_SETUP.md) for email confirmation, delivery and callback settings. Password changes require an authenticated session.
 
-Protected areas include:
+`/account` requires a server-verified Supabase user. Browsing, wishlist and checkout remain accessible to guests. The cart and guest wishlist save selections on this device; signed-in wishlists sync to the account through Supabase. `/my-orders` and `/reseller` provide contact options; private order-history retrieval and reseller self-service have not been reconnected to the new identities.
 
-- `/account`
-- `/wishlist`
-- `/my-orders`
-- `/checkout`
-- `/api/razorpay/order`
-- `/api/razorpay/verify`
-
-Public storefront browsing does not require authentication.
-
-The Razorpay webhook is intentionally public because it is called server-to-server by Razorpay and performs its own signature validation.
+Payment verification and the Razorpay webhook continue to require valid payment signatures.
 
 ### ERPNext integration
 
-ERPNext currently powers:
+Legacy ERPNext integrations still used outside order storage:
 
-- Product catalogue
-- Product pricing
-- Product custom fields
-- Product images
-- Product videos
-- Website visibility
 - Contact leads
-- Customers
-- Customer addresses
-- Customer contacts
-- Sales Orders
-- Razorpay payment metadata
-- Order history
-- Wishlists
-- Reseller accounts
 - Referral pricing
-- Optional Payment Entries
+
+Older customer, Sales Order, reseller-management and Payment Entry helpers remain in the repository, but the website order/payment routes use Supabase. ERPNext order environment variables in the legacy examples below no longer configure checkout.
 
 ### Wishlist
 
-Signed-in users can add products to a wishlist.
+Signed-in wishlists are stored in Supabase `public.wishlist_items`, protected by per-user row-level security. Guest selections remain in localStorage and merge into the account after sign-in. Product details and current prices are loaded through `POST /api/wishlist/products`. Apply the new table migration before deploying; see [supabase/WISHLIST_SETUP.md](supabase/WISHLIST_SETUP.md).
 
-Wishlist records are stored in ERPNext using the configurable doctype:
+### Order help
 
-```text
-Website Wishlist
-```
-
-The wishlist is associated with the user's Clerk user ID.
-
-### My Orders
-
-Signed-in users can view their ERPNext Sales Order history under:
-
-```text
-/my-orders
-```
-
-Orders are matched using the email address associated with the signed-in Clerk account.
-
-Displayed order information can include:
-
-- ERPNext Sales Order ID
-- Order date
-- Delivery date
-- Order status
-- Payment status
-- Grand total
-- Products
-- Quantities
-- Customer contact details
-- Shipping address
-- Razorpay Order ID
-- Razorpay Payment ID
+`/my-orders` provides a contact link for order enquiries. Customer order history is not publicly accessible.
 
 ### Reseller / referral pricing
 
@@ -115,7 +66,6 @@ Website Reseller
 
 Each reseller can have:
 
-- Clerk user ID
 - Reseller code
 - Business/reseller name
 - Email
@@ -153,8 +103,8 @@ The default referral-cookie lifetime is:
 | React 19 | UI |
 | TypeScript | Type safety |
 | Tailwind CSS 3 | Styling |
-| Clerk | Authentication |
-| ERPNext / Frappe | Commerce and operational backend |
+| Supabase Postgres | Product catalogue, account wishlists and website orders |
+| ERPNext / Frappe | Legacy referral and contact integrations |
 | Razorpay | Payments |
 | GSAP | Animations |
 | Lucide React | Icons |
@@ -188,7 +138,7 @@ beyond-invitation/
 │   ├── collections/
 │   │   └── [category]/
 │   ├── contact/
-│   ├── erp-products/
+│   ├── catalog/
 │   ├── my-orders/
 │   ├── privacy-policy/
 │   ├── products/
@@ -218,7 +168,9 @@ beyond-invitation/
 │
 ├── lib/
 │   ├── checkout.ts
-│   ├── erp-wishlist.ts
+│   ├── wishlist.ts
+│   ├── catalog.ts
+│   ├── supabase/server.ts
 │   ├── erpnext.ts
 │   ├── instagram.ts
 │   ├── product-quantity.ts
@@ -337,15 +289,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 
 # --------------------------------------------------
-# Clerk
-# --------------------------------------------------
-
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-
-
-# --------------------------------------------------
-# ERPNext - required
+# ERPNext - orders, customers, reseller and contact records
 # --------------------------------------------------
 
 ERPNEXT_URL=https://your-erpnext-domain.com
@@ -354,51 +298,11 @@ ERPNEXT_API_SECRET=
 
 
 # --------------------------------------------------
-# ERPNext product catalogue
+# Supabase product catalogue
 # --------------------------------------------------
 
-ERPNEXT_PRICE_LIST=Standard Selling
-ERPNEXT_PRODUCT_PRICE_FIELD=custom_price
-ERPNEXT_STRIKETHROUGH_PRICE_FIELD=custom_strikethrough_price
-
-ERPNEXT_WEBSITE_FIELD=custom_show_on_website
-ERPNEXT_SUBJECT_FIELD=custom_subject
-
-ERPNEXT_CUSTOMISATION_FIELD=custom_customisation
-ERPNEXT_MATERIAL_FIELD=custom_material
-ERPNEXT_INCLUDES_FIELD=custom_includes
-
-ERPNEXT_WEBSITE_TITLE_FIELD=
-ERPNEXT_WEBSITE_SHORT_DESCRIPTION_FIELD=
-
-ERPNEXT_REVALIDATE_SECONDS=60
-
-
-# --------------------------------------------------
-# ERPNext product images
-# --------------------------------------------------
-
-ERPNEXT_IMAGE_TABLE_FIELD=
-ERPNEXT_IMAGE_ROW_FIELD=image
-ERPNEXT_IMAGE_ORDER_FIELD=
-ERPNEXT_FILE_PHOTO_ORDER_FIELD=custom_photo_order
-
-
-# --------------------------------------------------
-# ERPNext product videos
-# --------------------------------------------------
-
-ERPNEXT_VIDEO_FIELD=custom_video_link
-ERPNEXT_VIDEO_TABLE_FIELD=
-ERPNEXT_VIDEO_ROW_FIELD=video
-ERPNEXT_VIDEO_ORDER_FIELD=
-
-
-# --------------------------------------------------
-# ERPNext wishlist
-# --------------------------------------------------
-
-ERPNEXT_WISHLIST_DOCTYPE=Website Wishlist
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 
 
 # --------------------------------------------------
@@ -488,78 +392,23 @@ Never expose the ERPNext API key or API secret to client-side code.
 
 ---
 
-# ERPNext Product Catalogue
+# Product catalogue (Supabase)
 
-The primary ERPNext integration lives in:
+`lib/catalog.ts` reads only `public.v_web_products` using the public anon/publishable key. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` and your deployment environment. Never use a `service_role` or secret key in this storefront.
 
-```text
-lib/erpnext.ts
-```
+The SQL contract is in `supabase/migrations/20260914_web_catalog.sql`. It intentionally uses the database owner's privileges to bypass ERP user RLS for this restricted public view. Base-table policies are unchanged. Lists, details, search and sitemap use this view; data is cached for 60 seconds, and reseller margins are applied afterwards for each visitor.
 
-Products are loaded from ERPNext `Item` records.
+To make an item appear on the site in Samriddhi:
 
-Only products intended for the website are loaded according to the configured website checkbox field:
+1. Keep the item active and tick **Show on Website**.
+2. Set **Subject** to Wedding Card, Hindu Wedding Card, Muslim Wedding Card, Christian Wedding Card, Shagun Envelopes, Wedding Box, or Rakhi. Language subjects and unassigned subjects appear only in all-product lists and search until re-tagged.
+3. Add an active **Selling** price on **Standard Sales List** (`PL0001`), or fill `website_price` on a qualifying Selling row. An explicit item website price list has first priority, then a populated `website_price`, then `PL0001`. Rows must have `row_status = 'Active'` and not be expired. The latest `effective_from` breaks preference ties; it is not a start-date filter.
 
-```env
-ERPNEXT_WEBSITE_FIELD=custom_show_on_website
-```
+Price is `website_price` when set, otherwise rate minus discount, rounded to two decimals. Unpriced items remain visible as **Price on request**, link to `/contact?product=<slug>`, and cannot be checked out. Checkout looks up base prices again on the server before applying the unchanged reseller margin.
 
-The product integration supports:
+Product URLs retain the design number (`items.name`), such as `/products/535093`. Supplier/year item groups are searchable metadata only. Brand metadata comes from `BRAND_NAME` in `lib/site-config.ts`.
 
-- Item code
-- Item name
-- Item group
-- Product description
-- Website title
-- Website short description
-- Subject
-- Customisation information
-- Material information
-- Included items
-- Price
-- MRP
-- Images
-- File attachments
-- Video URLs
-- Website visibility
-
-The frontend maps ERPNext item groups into application categories.
-
----
-
-# Product Pricing
-
-The product price field defaults to:
-
-```env
-ERPNEXT_PRODUCT_PRICE_FIELD=custom_price
-```
-
-The Item custom field **Strikethrough Price** supplies the old price shown beside
-the current selling price throughout the storefront, including cart and checkout:
-
-```env
-ERPNEXT_STRIKETHROUGH_PRICE_FIELD=custom_strikethrough_price
-```
-
-Use the actual ERPNext fieldname (not its label) if it differs from this default.
-The old price is shown only when it is positive and greater than the selling price.
-Empty, zero, invalid, equal, or lower values do not show a crossed-out price.
-Homepage sections preserve the ERP prices without calculating an artificial old price.
-Existing saved cart items gain the old price when the product is added again.
-Checkout totals and payment amounts use only the current selling price.
-
-The configured selling price list defaults to:
-
-```env
-ERPNEXT_PRICE_LIST=Standard Selling
-```
-
-Referral/reseller pricing can modify the price shown to a visitor when an active reseller referral is present.
-
-Prices used during checkout are resolved server-side instead of accepting a price supplied by the browser.
-
-This is important because cart data stored in the browser must never be trusted as the source of truth for payment amounts.
+Browse all products at `/catalog`. Existing category definitions remain in `data/categories.json`; collection membership is based on Subject. Specific religious collections also include the shared Wedding Card subject.
 
 ---
 
@@ -589,36 +438,15 @@ For Shagun/Sagun Envelope products:
 50
 ```
 
-The Shagun rule is determined primarily from the ERPNext item group, with a product-name/slug fallback for older cart data.
+Quantity rules retain the existing Subject-based behavior, with legacy cart fallbacks. Wedding boxes start at 25 in steps of 25; Shagun envelopes start at 50 in steps of 50; other items start at 50 in steps of 25. The catalogue also carries Samriddhi minimum and multiple fields for future quantity-rule changes.
 
 ---
 
 # Product Images and Videos
 
-ERPNext products can use:
+Images from `items.image_url` and non-deleted `item_images` are combined, with duplicates and empty references removed. The storefront sorts photos numerically by the trailing filename number (`1234_1.png`, `1234_2.png`, …, `1234_10.png`); the first photo becomes the main product image in galleries and product cards. Photos without a numbered suffix follow numbered photos in their original order. Absolute URLs point to Supabase's public `item_images` storage bucket. Videos come from `items.video_url` and follow the images in the gallery.
 
-- Primary `Item.image`
-- Child-table image galleries
-- Attached ERPNext `File` records
-- Configurable image-order fields
-- Direct product video fields
-- Video child tables
-- YouTube URLs
-- Vimeo URLs
-- Direct video files
-
-Private ERPNext files are not intentionally exposed as public product images.
-
-Set each File's **Photo Order** to a positive whole number: `1` is the main
-product image, `2` is the second photo, and so on. Empty, zero, or invalid
-positions are unassigned and fill the remaining positions. A numbered File
-record takes precedence over an unnumbered duplicate of the same image.
-The configured `ERPNEXT_FILE_PHOTO_ORDER_FIELD` is preferred, with common
-alternate fieldnames supported when it is unassigned. Videos follow all photos.
-
-Run `npm test` to check photo ordering in both catalog and product-detail loaders.
-
-Remote HTTPS images are allowed by the Next.js image configuration.
+Run `npm test` for catalogue mapping, caching, checkout price protection, and the retained legacy gallery tests.
 
 ---
 
@@ -638,236 +466,39 @@ The browser's stored price must not be treated as authoritative during payment c
 
 # Checkout Architecture
 
-The checkout flow is designed around ERPNext and Razorpay.
+Checkout uses Supabase for persistent website orders and Razorpay for payments. Before deploying, follow [supabase/ORDERS_SETUP.md](supabase/ORDERS_SETUP.md) to create the new table, configure the server-only Supabase key and enable the Razorpay webhook.
 
-```text
-Cart
-  ↓
-Checkout
-  ↓
-POST /api/razorpay/order
-  ↓
-Resolve products and prices from ERPNext
-  ↓
-Create Razorpay Order
-  ↓
-Create ERPNext Draft Sales Order
-  ↓
-Open Razorpay Checkout
-  ↓
-Payment succeeds
-  ↓
-POST /api/razorpay/verify
-  ↓
-Verify Razorpay signature
-  ↓
-Mark ERPNext Sales Order paid
-  ↓
-Submit Sales Order
-```
+1. POST /api/razorpay/order validates customer details and resolves cart prices from the Supabase catalogue.
+2. The server saves the cart, delivery details and verified account ID (or null for guests) in public.website_orders with pending payment status.
+3. It creates the Razorpay order using the website order UUID as the receipt, then saves the gateway ID before returning checkout details.
+4. POST /api/razorpay/verify validates the checkout signature and fetches the payment from Razorpay. Only a captured payment matching the stored order, amount and currency can mark it paid.
+5. POST /api/razorpay/webhook independently verifies the raw-body signature and reconciles payment.captured and order.paid events through the same database function.
 
-The Razorpay webhook provides a second fulfilment path:
+The payment update locks the stored row and is safe to repeat. A temporary confirmation failure shows a pending message with the payment reference instead of claiming the order is confirmed. Webhook failures return a non-2xx response so delivery can be retried.
 
-```text
-Razorpay
-  ↓
-POST /api/razorpay/webhook
-  ↓
-Verify webhook signature
-  ↓
-Locate ERPNext Sales Order
-  ↓
-Mark paid / submit order
-```
+A failed initial database write stops checkout before creating a gateway order. A failed gateway/link operation can leave an unpaid pending website order; it never opens checkout before storage is ready. Orders, customer snapshots and payment references no longer depend on ERPNext. Historical ERPNext orders are not imported.
 
-ERPNext fulfilment is written to be idempotent so the browser verification flow and webhook can safely reach the same order.
-
----
-
-# Razorpay
-
-Required variables:
+## Payment environment
 
 ```env
+SUPABASE_SECRET_KEY=
+# Alternatively: SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_RAZORPAY_KEY_ID=
 RAZORPAY_KEY_SECRET=
 RAZORPAY_WEBHOOK_SECRET=
 ```
 
-## Payment order
+Use the existing NEXT_PUBLIC_SUPABASE_URL and public Auth key for catalogue/account access. The additional secret key is for server-only order writes; never prefix it with NEXT_PUBLIC_. Configure payment.captured and order.paid on the public HTTPS /api/razorpay/webhook URL, using the same webhook secret in Razorpay and the hosting environment.
 
-Endpoint:
-
-```text
-POST /api/razorpay/order
-```
-
-Responsibilities include:
-
-1. Validate customer information.
-2. Resolve the cart against ERPNext.
-3. Determine the payment amount server-side.
-4. Create a Razorpay Order.
-5. Create an ERPNext draft Sales Order.
-6. Return the Razorpay Order ID to the client.
-
-## Payment verification
-
-Endpoint:
-
-```text
-POST /api/razorpay/verify
-```
-
-The route validates the Razorpay checkout signature before fulfilling the ERPNext Sales Order.
-
-## Webhook
-
-Endpoint:
-
-```text
-POST /api/razorpay/webhook
-```
-
-The webhook validates:
-
-```text
-x-razorpay-signature
-```
-
-against:
-
-```env
-RAZORPAY_WEBHOOK_SECRET
-```
-
-Supported fulfilment events include:
-
-```text
-order.paid
-payment.captured
-```
-
-The webhook route must remain publicly reachable by Razorpay.
-
----
-
-# ERPNext Sales Orders
-
-A draft Sales Order is created before payment is completed.
-
-The Sales Order can store:
-
-```text
-custom_razorpay_order_id
-custom_razorpay_payment_id
-custom_payment_status
-custom_reseller_code
-custom_reseller_commission
-```
-
-These fieldnames can be overridden using environment variables.
-
-After successful payment verification:
-
-1. The Razorpay Payment ID is written to the Sales Order.
-2. Payment status is changed to `Paid`.
-3. The Sales Order is submitted.
-4. An optional ERPNext Payment Entry can be created.
-
----
-
-# ERPNext Customer Handling
-
-Two customer modes are supported.
-
-## Default customer
-
-Set:
-
-```env
-ERPNEXT_DEFAULT_CUSTOMER=
-```
-
-to use a shared ERPNext Customer.
-
-## Automatic customer creation
-
-Enable:
-
-```env
-ERPNEXT_AUTO_CREATE_CUSTOMER=true
-```
-
-When enabled, the application can:
-
-1. Look for an ERPNext Customer by email.
-2. Create a new Customer when necessary.
-3. Create customer address/contact information.
-4. Associate the customer with the Sales Order.
-
-Supporting variables:
-
-```env
-ERPNEXT_CUSTOMER_GROUP=Individual
-ERPNEXT_TERRITORY=All Territories
-ERPNEXT_CUSTOMER_EMAIL_FIELD=custom_email
-```
-
----
-
-# Optional Payment Entry Creation
-
-ERPNext Payment Entry creation is disabled by default.
-
-Enable it with:
-
-```env
-ERPNEXT_CREATE_PAYMENT_ENTRY=true
-```
-
-Then configure:
-
-```env
-ERPNEXT_COMPANY=
-ERPNEXT_PAID_TO_ACCOUNT=
-ERPNEXT_MODE_OF_PAYMENT=Wire Transfer
-```
-
-A failure to create the optional Payment Entry does not undo an otherwise successfully paid order.
+The legacy ERPNext customer, Sales Order and Payment Entry environment variables shown elsewhere in this README are not used by the new order/payment storage flow.
 
 ---
 
 # Wishlist Integration
 
-Default doctype:
+`components/WishlistProvider.tsx` shares saved state between product hearts, navigation counts and the wishlist page. Guests persist slugs under `beyond-invitation-wishlist-v1`; signed-in users load and mutate their Supabase wishlist through the authenticated `/api/wishlist` endpoint. Guest items merge on sign-in, changes refresh across tabs and on window focus, and failed saves roll back with an error message. When browser storage is unavailable, guest selections last for the current visit.
 
-```env
-ERPNEXT_WISHLIST_DOCTYPE=Website Wishlist
-```
-
-Expected fields include:
-
-```text
-clerk_user_id
-user_email
-product_item_code
-product_name
-product_slug
-item_group
-product_image
-added_on
-active
-```
-
-Wishlist API endpoints support:
-
-```text
-GET    /api/wishlist
-POST   /api/wishlist
-DELETE /api/wishlist
-GET    /api/wishlist/products
-```
+`POST /api/wishlist/products` accepts `{ "slugs": ["313082"] }` and returns `{ "products": [...] }` from the current Supabase catalogue, including applicable referral prices. Unavailable products can be removed from the saved list. `/api/wishlist` now uses Supabase Auth and RLS rather than ERPNext. Apply [supabase/migrations/20260916_wishlist.sql](supabase/migrations/20260916_wishlist.sql) to create its table and policies; setup and verification are in [supabase/WISHLIST_SETUP.md](supabase/WISHLIST_SETUP.md).
 
 ---
 
@@ -883,7 +514,6 @@ Expected fields include:
 
 ```text
 reseller_code
-clerk_user_id
 reseller_name
 email
 phone
@@ -891,13 +521,7 @@ margin_percent
 active
 ```
 
-Authenticated reseller API:
-
-```text
-GET   /api/reseller
-POST  /api/reseller
-PATCH /api/reseller
-```
+Online reseller registration and profile editing are unavailable while authentication is disabled. `GET`, `POST` and `PATCH /api/reseller` return HTTP 410 without reading or changing reseller records. Contact the team to manage an existing reseller arrangement.
 
 Referral links use:
 
@@ -1021,43 +645,24 @@ Important application API routes include:
 | `POST /api/contact-lead` | ERPNext contact/lead creation |
 | `GET /api/instagram-reels` | Fetch Instagram reels |
 | `GET /api/refresh-instagram-token` | Refresh Instagram access token |
-| `GET /api/reseller` | Get reseller account |
-| `POST /api/reseller` | Create reseller account |
-| `PATCH /api/reseller` | Update reseller margin |
-| `GET /api/wishlist` | Fetch wishlist records |
-| `POST /api/wishlist` | Add wishlist item |
-| `DELETE /api/wishlist` | Remove wishlist item |
-| `GET /api/wishlist/products` | Fetch full wishlist products |
+| `GET /api/reseller` | Retired: HTTP 410 |
+| `POST /api/reseller` | Retired: HTTP 410 |
+| `PATCH /api/reseller` | Retired: HTTP 410 |
+| `POST /api/wishlist/products` | Resolve saved slugs against Supabase products |
+| `GET /api/wishlist` | Read the signed-in user's wishlist |
+| `POST /api/wishlist` | Save a product or merge guest selections |
+| `DELETE /api/wishlist` | Remove a product from the signed-in user's wishlist |
 | `POST /api/razorpay/order` | Create Razorpay + ERPNext draft order |
 | `POST /api/razorpay/verify` | Verify payment and fulfil order |
 | `POST /api/razorpay/webhook` | Razorpay webhook fulfilment |
 
 ---
 
-# Route Protection
+# Guest Routes and Payment Verification
 
-Clerk middleware protects authenticated customer functionality.
+The middleware refreshes Supabase Auth cookies and captures referral links. The account page verifies the session with Supabase before showing profile details. Browsing, wishlist and checkout remain public; private order-history retrieval and reseller account management are not exposed.
 
-Current protected route groups include:
-
-```text
-/account
-/wishlist
-/my-orders
-/checkout
-/api/razorpay/order
-/api/razorpay/verify
-```
-
-Do **not** protect:
-
-```text
-/api/razorpay/webhook
-```
-
-with Clerk authentication.
-
-Razorpay needs to call that endpoint directly.
+`POST /api/razorpay/verify` validates the Razorpay HMAC before fulfilment, and `/api/razorpay/webhook` verifies its independent webhook signature. Removing site authentication does not bypass these checks.
 
 ---
 
@@ -1069,15 +674,12 @@ Depending on configuration, this may include access to:
 
 ```text
 Item
-Item Price
-File
 Lead
 Customer
 Address
 Contact
 Sales Order
 Payment Entry
-Website Wishlist
 Website Reseller
 ```
 
@@ -1148,7 +750,6 @@ Never commit any of the following:
 ```env
 ERPNEXT_API_KEY=
 ERPNEXT_API_SECRET=
-CLERK_SECRET_KEY=
 RAZORPAY_KEY_SECRET=
 RAZORPAY_WEBHOOK_SECRET=
 INSTAGRAM_ACCESS_TOKEN=
@@ -1160,7 +761,6 @@ The repository already ignores:
 ```text
 .env
 .env.local
-.clerk/
 ```
 
 Only variables intentionally prefixed with:
@@ -1171,7 +771,7 @@ NEXT_PUBLIC_
 
 should be treated as browser-visible.
 
-Never prefix ERPNext, Razorpay secret, Clerk secret, cron secret, or Instagram access-token values with `NEXT_PUBLIC_`.
+Never prefix ERPNext, Razorpay secret, cron secret, or Instagram access-token values with `NEXT_PUBLIC_`.
 
 ---
 
@@ -1194,7 +794,7 @@ npm run build
 4. Deploy.
 5. Configure the production domain.
 6. Configure the Razorpay webhook.
-7. Test Clerk authentication.
+7. Configure and test Google and email/password sign-in, guest checkout and wishlist persistence.
 8. Test ERPNext authentication.
 9. Perform a complete test order.
 
@@ -1205,7 +805,6 @@ After changing server credentials such as:
 ```text
 ERPNEXT_API_SECRET
 RAZORPAY_KEY_SECRET
-CLERK_SECRET_KEY
 INSTAGRAM_ACCESS_TOKEN
 ```
 
@@ -1245,9 +844,11 @@ Before deploying production changes, verify:
 - Website visibility rules work
 - Quantity rules work
 - Search works
-- Clerk sign-in works
+- Google and email/password authentication work after provider setup
+- Account page requires a verified session
+- Guest browsing and checkout remain accessible
 - Wishlist works
-- Reseller account creation works
+- Retired reseller account API returns HTTP 410
 - Referral pricing works
 - Cart persists correctly
 - Checkout customer validation works
@@ -1277,38 +878,21 @@ Because of this, run code-quality and type checks before production deployment r
 
 # Data Sources
 
-The primary live product source is:
+The live product source is Supabase `public.v_web_products`, accessed through `lib/catalog.ts`. `data/categories.json` supplies category definitions; `data/products.json` is retained as a legacy fixture and is not merged into the live catalogue.
 
-```text
-ERPNext
-```
-
-Local data remains under:
-
-```text
-data/products.json
-data/categories.json
-```
-
-and is used by parts of the local/fixture product layer.
-
-The main live ERPNext data-access layer is:
-
-```text
-lib/erpnext.ts
-```
-
-UI components should generally consume application data helpers rather than implementing their own ERPNext authentication calls.
+ERPNext continues to handle orders, customers, reseller records and contact leads. Its existing integration remains in `lib/erpnext.ts`.
 
 ---
 
 # Important Files
 
+### `lib/catalog.ts` and `lib/supabase/server.ts`
+
+Public catalogue mapper, cached lists, collection filters, product lookup, and lazy server-only Supabase client.
+
 ### `lib/erpnext.ts`
 
-Main ERPNext integration.
-
-Handles product catalogue, product media, customers, orders, payment metadata, fulfilment, and order history.
+Retained ERPNext integration for customers, orders, payment metadata, fulfilment and order history. Legacy catalogue helpers remain for compatibility and gallery regression tests.
 
 ### `lib/checkout.ts`
 
@@ -1318,13 +902,13 @@ Resolves cart products and authoritative prices before creating a payment.
 
 Creates the Razorpay client and verifies checkout/webhook signatures.
 
-### `lib/erp-wishlist.ts`
+### `lib/wishlist.ts`
 
-ERPNext-backed wishlist operations.
+Browser wishlist storage normalization. See `components/WishlistProvider.tsx` for shared state.
 
 ### `lib/reseller.ts`
 
-Reseller accounts, referral-code lookup, cookie-based reseller detection, and margin pricing.
+Referral-code lookup, cookie-based reseller detection, and margin pricing.
 
 ### `lib/product-quantity.ts`
 
@@ -1344,7 +928,7 @@ Site URL, brand information, business address, and global SEO configuration.
 
 ### `middleware.ts`
 
-Clerk route protection.
+Supabase session refresh and referral-code cookie handling.
 
 ### `components/CartProvider.tsx`
 

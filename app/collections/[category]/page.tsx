@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import CategoryCollectionPageClient from "@/components/CategoryCollectionPage";
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchErpProducts, type ErpProduct } from "@/lib/erpnext";
+import { fetchErpProductsByCategory, type ErpProduct } from "@/lib/catalog";
 import { getAllCategories, getCategoryBySlug } from "@/lib/products";
 import {
   DEFAULT_OG_IMAGE,
@@ -169,11 +169,7 @@ export default async function CollectionPage({ params }: PageProps) {
   let errorMessage = "";
 
   try {
-    const allProducts = await fetchErpProducts();
-
-    products = allProducts.filter(
-      (product) => product.category === category.slug,
-    );
+    products = await fetchErpProductsByCategory(category.slug);
   } catch (error) {
     console.error(`${category.name} collection fetch failed:`, error);
     errorMessage = "Unable to load this collection.";
@@ -232,12 +228,12 @@ export default async function CollectionPage({ params }: PageProps) {
           image: getProductImage(product),
           url: siteUrl(`/products/${product.slug}`),
           category: category.name,
-          offers: {
+          offers: product.price > 0 ? {
             "@type": "Offer",
             priceCurrency: "INR",
             price: product.price,
             availability: "https://schema.org/InStock",
-          },
+          } : undefined,
         },
       })),
     },

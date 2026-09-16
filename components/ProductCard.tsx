@@ -2,16 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ImageOff } from "lucide-react";
 
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
+import { getProductQuantityRules } from "@/lib/product-quantity";
 import AddToCartButton from "./AddToCartButton";
 import WishlistButton from "./WishlistButton";
 import ProductPrice from "./ProductPrice";
 
 interface ProductCardProps {
-  product: Product;
+  product: Product & { subject?: string };
+  categoryLabel?: string;
 }
+
+const categoryLabels: Record<Product["category"], string> = {
+  wedding: "Wedding invitation",
+  housewarming: "Housewarming",
+  "thread-ceremony": "Thread ceremony",
+  "naming-ceremony": "Naming ceremony",
+  birthday: "Birthday invitation",
+  "baby-shower": "Baby shower",
+  luxe: "Luxe collection",
+};
 
 function isPrivateFileUrl(src?: string) {
   if (!src) return false;
@@ -34,11 +47,6 @@ function getImageSrc(img: string) {
 
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
-  }
-
-  if (value.startsWith("/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-    return erpUrl ? `${erpUrl}${value}` : value;
   }
 
   if (value.startsWith("/")) {
@@ -96,6 +104,7 @@ function isImageLikeUrl(src: string) {
 
   return (
     /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)$/i.test(cleanPath) ||
+    value.includes("/storage/v1/object/public/") ||
     value.startsWith("/files/") ||
     value.includes("/files/") ||
     value.startsWith("/") ||
@@ -104,16 +113,7 @@ function isImageLikeUrl(src: string) {
 }
 
 function getMainProductImage(images: string[] | undefined) {
-  /*
-   * Product images now arrive from ERPNext sorted by File.custom_photo_order.
-   *
-   * photo order 1 = main product image
-   * photo order 2 = second gallery image
-   * photo order 3 = third gallery image
-   *
-   * So the product card should use the FIRST valid image.
-   * Do NOT reverse the list here.
-   */
+  // The catalogue supplies the primary image first, followed by gallery order.
 
   const cleanImages = Array.from(
     new Set(
@@ -126,78 +126,88 @@ function getMainProductImage(images: string[] | undefined) {
   return cleanImages[0] ?? "";
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
-  const [failed, setFailed] = useState(false);
+export default function ProductCard({ product, categoryLabel }: ProductCardProps) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
   const discount = discountPercent(product);
-  const isSaleCard = product.badge === "SALE" || product.onSale === true;
-
-  const badge =
-    product.badge ?? (!isSaleCard && discount > 0 ? `${discount}% OFF` : undefined);
+  const hasPrice = Number.isFinite(product.price) && product.price > 0;
+  const { minimum } = getProductQuantityRules(product);
+  const badge = product.badge || (product.onSale ? "On sale" : product.isPremium ? "Premium" : "");
+  const label = categoryLabel || product.subject || categoryLabels[product.category];
 
   const mainImage = getMainProductImage(product.images);
   const src = mainImage ? getImageSrc(mainImage) : "";
-  const showImage = Boolean(src && !failed);
+  const showImage = Boolean(src && failedSrc !== src);
 
   return (
-    <article className="group min-w-0 overflow-hidden rounded-[18px] border border-carbon/10 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-carbon/15 hover:shadow-[0_18px_45px_rgba(0,0,0,0.10)] min-[400px]:rounded-[24px] sm:rounded-[28px]">
-      <div className="relative aspect-[4/4.6] overflow-hidden bg-white">
+    <article className="product-card group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-[#e9e1d7] bg-white transition-[border-color,box-shadow] duration-[240ms] hover:border-[#ccb894] hover:shadow-[0_8px_24px_rgba(42,24,16,0.08)] focus-within:border-carbon/40 focus-within:shadow-[0_8px_24px_rgba(42,24,16,0.08)] motion-reduce:transition-none">
+      <div className="relative isolate m-1.5 mb-0 overflow-hidden rounded-lg bg-[#f8f5f0] sm:m-2 sm:mb-0">
         <Link
           href={`/products/${product.slug}`}
           aria-label={`View ${product.name}`}
-          className="flex h-full w-full items-center justify-center"
+          className="product-card-image relative flex aspect-square w-full items-center justify-center overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-carbon"
         >
           {showImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={src}
               alt={product.name}
-              onError={() => setFailed(true)}
-              className="h-full w-full object-contain p-2.5 transition-transform duration-700 ease-out group-hover:scale-[1.06] min-[400px]:p-4 sm:p-5"
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailedSrc(src)}
+              className="h-full w-full object-contain p-2 transition-transform duration-[240ms] group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none sm:p-3"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl">
-              {product.emoji}
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center text-[#8b7561]">
+              <ImageOff aria-hidden="true" className="h-8 w-8" strokeWidth={1} />
+              <span className="text-xs">Image coming soon</span>
             </div>
           )}
         </Link>
 
         {badge && (
-          <span className="absolute left-2 top-2 z-10 max-w-[calc(100%-4rem)] truncate rounded-full border border-carbon/10 bg-white/95 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.1em] text-[#85172b] shadow-sm min-[400px]:left-3 min-[400px]:top-3 min-[400px]:px-2.5 min-[400px]:text-[9px] sm:left-4 sm:top-4 sm:max-w-none sm:px-3 sm:text-[10px] sm:tracking-[0.16em]">
+          <span title={badge} className="pointer-events-none absolute left-0 top-3 z-10 max-w-[calc(100%-3.5rem)] truncate rounded-r-sm border-l-2 border-[#b38a45] bg-[#f4e7cb] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-[#63491f] sm:px-2.5 sm:text-[10px]">
             {badge}
           </span>
         )}
 
         <WishlistButton
           productSlug={product.slug}
-          className="absolute right-2 top-2 z-20 rounded-full bg-white shadow-sm min-[400px]:right-3 min-[400px]:top-3 sm:right-4 sm:top-4"
+          className="absolute right-1 top-1 z-20 sm:right-2 sm:top-2"
         />
       </div>
 
-      <div className="border-t border-carbon/5 bg-white p-3 min-[400px]:p-4 sm:p-5">
-        <Link href={`/products/${product.slug}`} className="block">
-          <h3 className="line-clamp-2 min-h-[36px] break-words text-[13px] font-semibold leading-snug text-[#85172b] transition-colors group-hover:text-carbon min-[400px]:min-h-[39px] min-[400px]:text-[14px] sm:min-h-[42px] sm:text-[15px]">
+      <div className="flex flex-1 flex-col px-3 pb-3 pt-3.5 sm:px-4 sm:pb-4 sm:pt-4">
+        <p title={label} className="mb-1.5 truncate text-[9px] font-bold uppercase tracking-[0.12em] text-[#8b6f47] sm:text-[10px]">
+          {label}
+        </p>
+        <Link href={`/products/${product.slug}`} className="rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2">
+          <h3 title={product.name} className="line-clamp-2 min-h-[2.75rem] break-words text-sm font-semibold leading-[1.375rem] text-[#2a1810] transition-colors duration-[240ms] group-hover:text-carbon sm:text-[15px]">
             {product.name}
           </h3>
         </Link>
 
-        <div className="mt-2.5 flex min-h-[24px] flex-wrap items-center gap-x-1.5 gap-y-1 min-[400px]:mt-3 min-[400px]:gap-2 sm:min-h-[28px]">
+        <div className="mt-2.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 sm:gap-x-2">
           <ProductPrice
             price={product.price}
             mrp={product.mrp}
-            priceClassName="text-[15px] font-bold text-carbon min-[400px]:text-[17px] sm:text-[18px]"
-            oldPriceClassName="text-[11px] text-carbon/35 min-[400px]:text-xs sm:text-sm"
+            priceClassName={hasPrice ? "text-lg font-bold leading-6 tracking-tight text-[#2a1810] sm:text-xl" : "text-sm font-semibold leading-6 text-[#2a1810]"}
+            oldPriceClassName="text-xs text-[#85776b] sm:text-[13px]"
           />
-
-          {!isSaleCard && discount > 0 && (
-            <span className="rounded-full bg-[#f8ead0] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#85172b] min-[400px]:px-2 min-[400px]:text-[10px] sm:text-[11px]">
+          {discount > 0 && (
+            <span className="whitespace-nowrap text-[11px] font-bold text-[#3f6b4e] sm:text-xs">
               {discount}% off
             </span>
           )}
         </div>
 
-        <div className="mt-3 min-[400px]:mt-4">
-          <AddToCartButton product={product} />
+        <p className="mt-1 text-[11px] leading-4 text-[#78695d] sm:text-xs">
+          {hasPrice && <span>Per piece <span aria-hidden="true">&middot;</span> </span>}
+          Min. {minimum} pieces
+        </p>
+
+        <div className="mt-auto pt-3.5">
+          <AddToCartButton product={product} variant="card" />
         </div>
       </div>
     </article>

@@ -166,8 +166,8 @@ export default function CookieConsent() {
                 id="cookie-consent-description"
                 className="mt-1.5 text-[12px] leading-relaxed text-carbon/65 sm:text-[13px]"
               >
-                We use cookies and similar storage to keep sign-in,
-                cart and checkout reliable, and to remember your
+                We use cookies and similar storage to keep sign-in, your cart,
+                wishlist and checkout reliable, and to remember your
                 preferences.
               </p>
             </div>

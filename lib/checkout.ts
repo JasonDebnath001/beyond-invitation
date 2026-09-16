@@ -1,4 +1,4 @@
-import { buildErpProductList, type ErpProduct } from "@/lib/erpnext";
+import { buildErpProductList, type ErpProduct } from "@/lib/catalog";
 import {
   getProductQuantityRules,
   isValidProductQuantity,
@@ -14,7 +14,7 @@ export interface CheckoutLineInput {
 export interface ResolvedLine {
   itemCode: string;
   name: string;
-  /** Authoritative base unit price from ERPNext (INR). */
+  /** Authoritative base unit price from the public catalogue (INR). */
   basePrice: number;
   /** Unit price actually charged (base + reseller margin, if any). */
   price: number;
@@ -30,9 +30,9 @@ export interface ResolvedCart {
 }
 
 /**
- * Resolve client cart lines against the live ERPNext catalogue. The client
+ * Resolve client cart lines against the live product catalogue. The client
  * only supplies item code / slug + quantity; prices are looked up here so a
- * tampered client can never dictate the amount. One ERP list call.
+ * tampered client can never dictate the amount. One cached catalogue read.
  *
  * If a reseller is active (referral cookie), the same margin rule used for
  * display is applied here, so the charge always equals what was shown.
@@ -41,7 +41,7 @@ export async function resolveCartProducts(
   items: CheckoutLineInput[],
   reseller?: Reseller | null,
 ): Promise<ResolvedCart> {
-  const catalogue = await buildErpProductList(); // throws if ERP is unreachable
+  const catalogue = await buildErpProductList();
 
   const byCode = new Map<string, ErpProduct>();
   const bySlug = new Map<string, ErpProduct>();
@@ -60,6 +60,10 @@ export async function resolveCartProducts(
       (it.slug && bySlug.get(it.slug)) ||
       null;
     if (!product) continue;
+
+    if (product.hasPrice === false || !Number.isFinite(product.price) || product.price <= 0) {
+      throw new Error(`${product.name}: price on request. Please contact us for a quote before ordering.`);
+    }
 
     const qty = Number(it?.quantity);
     const quantityRules = getProductQuantityRules(product);

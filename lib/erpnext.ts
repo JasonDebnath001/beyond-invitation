@@ -2788,9 +2788,9 @@ function mapSalesOrderDocToCustomerOrder(doc: ErpSalesOrderDoc): CustomerOrder {
 }
 
 /**
- * Fetch the signed-in customer's order history from ERPNext.
+ * Fetch customer order history for trusted server-side callers.
  *
- * This uses Sales Order.contact_email because checkout writes the Clerk/user
+ * This uses Sales Order.contact_email because checkout writes the buyer
  * email into the ERPNext Sales Order.
  */
 export async function fetchCustomerOrdersByEmail(

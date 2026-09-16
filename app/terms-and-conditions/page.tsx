@@ -9,14 +9,14 @@ export const metadata: Metadata = {
     "Read the Terms and Conditions of Beyond Invitation, covering website use, product orders, customization, payment, delivery, cancellation, refunds and customer responsibilities.",
 };
 
-const lastUpdated = "03 June 2026";
+const lastUpdated = "16 September 2026";
 
 const sections = [
   {
     title: "1. Introduction",
     body: [
       `Welcome to ${BRAND}. These Terms and Conditions govern your use of our website, products, services, catalog, online ordering system, inquiry forms, payment options and communication channels.`,
-      `By accessing our website, browsing products, creating an account, submitting an inquiry, placing an order, making payment, uploading artwork or communicating with us, you agree to follow these Terms and Conditions.`,
+      `By accessing our website, browsing products, submitting an inquiry, placing an order, making payment, uploading artwork or communicating with us, you agree to follow these Terms and Conditions.`,
       `If you do not agree with these Terms and Conditions, please do not use our website or services.`,
     ],
   },
@@ -37,11 +37,10 @@ const sections = [
     ],
   },
   {
-    title: "4. Account Registration",
+    title: "4. Accounts and Guest Checkout",
     body: [
-      `Some features of the website may require account registration or login. You agree to provide accurate, current and complete information while creating or using your account.`,
-      `You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account.`,
-      `If you believe your account has been accessed without permission, you should contact us immediately.`,
+      `You can create an account or shop and checkout as a guest. Please provide accurate, current and complete account, contact and delivery information. Keep your password confidential, and contact us if you suspect unauthorized use of your account.`,
+      `Your cart and guest wishlist are saved on this device. When you sign in, available guest wishlist items are added to your account wishlist, which you can access across devices. Contact our team with your order or payment reference if you need assistance with an order.`,
     ],
   },
   {
@@ -157,7 +156,7 @@ const sections = [
   {
     title: "18. Third-Party Services",
     body: [
-      `Our website may use third-party services for payment processing, authentication, analytics, hosting, delivery, communication, maps, social media or other features.`,
+      `Our website may use third-party services for payment processing, analytics, hosting, delivery, communication, maps, social media or other features.`,
       `These third-party services may have their own terms, conditions and privacy policies. We are not responsible for the actions, policies, errors, downtime or services of third-party providers.`,
       `Your use of third-party services may be subject to their separate terms and conditions.`,
     ],
@@ -166,7 +165,7 @@ const sections = [
     title: "19. Limitation of Liability",
     body: [
       `To the maximum extent permitted by law, ${BRAND} shall not be liable for indirect, incidental, special, consequential or punitive damages arising from your use of the website, products or services.`,
-      `We shall not be responsible for losses caused by incorrect information provided by you, payment gateway failure, courier delay, third-party service error, unauthorized account access, technical issues, natural events, production delay due to circumstances beyond our control or misuse of our products.`,
+      `We shall not be responsible for losses caused by incorrect information provided by you, payment gateway failure, courier delay, third-party service error, technical issues, natural events, production delay due to circumstances beyond our control or misuse of our products.`,
       `Our maximum liability, if any, shall be limited to the amount paid by you for the specific product or order giving rise to the claim.`,
     ],
   },

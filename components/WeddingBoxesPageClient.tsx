@@ -1,72 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 
-import type { ErpProduct } from "@/lib/erpnext";
-import ProductPrice from "@/components/ProductPrice";
+import type { ErpProduct } from "@/lib/catalog";
+import ProductCard from "@/components/ProductCard";
 
 type WeddingBoxesPageClientProps = {
   products: ErpProduct[];
   errorMessage?: string;
 };
-
-function isPrivateFileUrl(image?: string) {
-  if (!image) return false;
-
-  const value = image.trim().toLowerCase();
-
-  return (
-    value.startsWith("/private/files/") || value.includes("/private/files/")
-  );
-}
-
-function getImageSrc(image?: string) {
-  if (!image) return "";
-
-  const value = image.trim();
-  if (!value) return "";
-
-  if (isPrivateFileUrl(value)) return "";
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-
-  if (value.startsWith("/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-    return erpUrl ? `${erpUrl}${value}` : value;
-  }
-
-  if (value.startsWith("/")) {
-    return value;
-  }
-
-  return `/products/${value}`;
-}
-
-function stripHtml(value?: string) {
-  return (value ?? "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getPrimaryImage(product: ErpProduct) {
-  const images = Array.from(
-    new Set(
-      (product.images ?? [])
-        .map((image) => image?.trim())
-        .filter((image): image is string => Boolean(image)),
-    ),
-  );
-
-  return images.map(getImageSrc).find(Boolean) ?? "";
-}
 
 function FloralMark({ className = "" }: { className?: string }) {
   return (
@@ -93,88 +38,6 @@ function FloralMark({ className = "" }: { className?: string }) {
       <circle cx="90" cy="90" r="10" stroke="currentColor" strokeWidth="0.8" />
       <circle cx="90" cy="90" r="3" fill="currentColor" />
     </svg>
-  );
-}
-
-function WeddingBoxProductCard({ product }: { product: ErpProduct }) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  const image = getPrimaryImage(product);
-  const showImage = Boolean(image && !imageFailed);
-  const detail =
-    stripHtml(product.material) ||
-    stripHtml(product.includes) ||
-    stripHtml(product.customisation);
-
-  return (
-    <article
-      data-wedding-box-card
-      className="group relative min-w-0 overflow-hidden rounded-[18px] border border-[#b98b42]/20 bg-white shadow-[0_10px_35px_rgba(73,25,31,0.07)] transition duration-500 hover:-translate-y-1 hover:border-[#b98b42]/45 hover:shadow-[0_22px_54px_rgba(73,25,31,0.13)] sm:rounded-[26px]"
-    >
-      <Link
-        href={`/products/${product.slug}`}
-        aria-label={`View ${product.name}`}
-        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#b98b42]"
-      >
-        <div className="relative aspect-[1/1.08] overflow-hidden bg-[#f4eadc] sm:aspect-[4/4.5]">
-          {showImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={image}
-              alt={product.name}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              onError={() => setImageFailed(true)}
-              className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.045]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_50%_35%,#fff9ee_0%,#efe0ca_72%,#e3cda9_100%)] px-3 text-center sm:px-6">
-              <div>
-                <FloralMark className="mx-auto h-16 w-16 text-[#a7772d]/45 sm:h-24 sm:w-24" />
-                <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.24em] text-[#6c3040]/70 sm:text-[10px]">
-                  Wedding Box
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#2f0a13]/35 via-transparent to-white/5 opacity-70" />
-          <span className="absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-white/35 bg-[#64172a]/95 text-white shadow-lg backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:bottom-4 sm:right-4 sm:h-10 sm:w-10">
-            <ArrowUpRight
-              className="h-3.5 w-3.5 sm:h-4 sm:w-4"
-              strokeWidth={1.7}
-            />
-          </span>
-        </div>
-
-        <div className="p-3 sm:p-5">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#a7772d] sm:text-[10px] sm:tracking-[0.22em]">
-            The wedding edit
-          </p>
-          <h2 className="mt-1.5 line-clamp-2 min-h-[36px] text-[13px] font-bold leading-[1.35] text-[#64172a] sm:mt-2 sm:min-h-[44px] sm:text-[16px]">
-            {product.name}
-          </h2>
-
-          {detail ? (
-            <p className="mt-1 hidden line-clamp-1 text-xs leading-5 text-[#7a685e] sm:block">
-              {detail}
-            </p>
-          ) : null}
-
-          {product.price > 0 ? (
-            <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-[#64172a]/10 pt-2.5 sm:mt-4 sm:pt-3.5">
-              <ProductPrice
-                price={product.price}
-                mrp={product.mrp}
-                priceClassName="text-[13px] font-extrabold tracking-tight text-[#351119] sm:text-[17px]"
-                oldPriceClassName="text-[11px] text-[#7a685e] sm:text-sm"
-              />
-            </div>
-          ) : null}
-        </div>
-      </Link>
-    </article>
   );
 }
 
@@ -320,7 +183,9 @@ export default function WeddingBoxesPageClient({
             ) : (
               <div className="grid grid-cols-2 gap-2.5 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:gap-7">
                 {products.map((product) => (
-                  <WeddingBoxProductCard key={product.slug} product={product} />
+                  <div key={product.slug} data-wedding-box-card className="min-w-0">
+                    <ProductCard product={product} categoryLabel="Wedding box" />
+                  </div>
                 ))}
               </div>
             )}

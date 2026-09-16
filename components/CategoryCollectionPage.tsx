@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-import type { ErpProduct } from "@/lib/erpnext";
-import ProductPrice from "@/components/ProductPrice";
+import type { ErpProduct } from "@/lib/catalog";
+import ProductCard from "@/components/ProductCard";
 
 type CategoryCollectionPageClientProps = {
   categoryName: string;
@@ -12,148 +12,6 @@ type CategoryCollectionPageClientProps = {
   products: ErpProduct[];
   errorMessage?: string;
 };
-
-function isPrivateFileUrl(image?: string) {
-  if (!image) return false;
-
-  const value = image.trim().toLowerCase();
-
-  return (
-    value.startsWith("/private/files/") || value.includes("/private/files/")
-  );
-}
-
-function getImageSrc(image?: string) {
-  if (!image) return "";
-
-  const value = image.trim();
-  if (!value) return "";
-
-  if (isPrivateFileUrl(value)) return "";
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-
-  if (value.startsWith("/files/")) {
-    const erpUrl = process.env.NEXT_PUBLIC_ERPNEXT_URL?.replace(/\/$/, "");
-    return erpUrl ? `${erpUrl}${value}` : value;
-  }
-
-  if (value.startsWith("/")) {
-    return value;
-  }
-
-  return `/products/${value}`;
-}
-
-function stripHtml(value?: string) {
-  return (value ?? "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getPrimaryImage(product: ErpProduct) {
-  const images = Array.from(
-    new Set(
-      (product.images ?? [])
-        .map((image) => image?.trim())
-        .filter((image): image is string => Boolean(image)),
-    ),
-  );
-
-  return images.map(getImageSrc).find(Boolean) ?? "";
-}
-
-function CollectionProductCard({
-  product,
-  categoryName,
-}: {
-  product: ErpProduct;
-  categoryName: string;
-}) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  const image = getPrimaryImage(product);
-  const showImage = Boolean(image && !imageFailed);
-
-  const detail =
-    stripHtml(product.material) ||
-    stripHtml(product.includes) ||
-    stripHtml(product.customisation);
-
-  return (
-    <Link
-      href={`/products/${product.slug}`}
-      data-category-card
-      className="group block overflow-hidden rounded-[1.75rem] border border-[#e4d2a5] bg-[#fffaf1] shadow-[0_18px_50px_rgba(49,28,13,0.09)] transition duration-500 hover:-translate-y-1 hover:border-[#c8a75d] hover:shadow-[0_26px_70px_rgba(49,28,13,0.15)]"
-    >
-      <div className="relative overflow-hidden bg-[#f1dfbd]">
-        <div className="aspect-[4/5]">
-          {showImage ? (
-            <img
-              src={image}
-              alt={product.name}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              onError={() => setImageFailed(true)}
-              className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.045]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#f4e5c8] px-6 text-center">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#7b604d]">
-                  {categoryName}
-                </p>
-                <p className="mt-4 text-5xl text-[#7b1c2e]">✦</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80" />
-
-        <span className="absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate rounded-full bg-white/85 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4a2715] shadow-sm backdrop-blur">
-          {categoryName}
-        </span>
-      </div>
-
-      <div className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
-          <h2 className="min-w-[10rem] flex-1 break-words text-lg font-semibold leading-tight tracking-[-0.025em] text-[#2a1810] sm:line-clamp-2 sm:text-xl">
-            {product.name}
-          </h2>
-
-          <span className="flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 rounded-full bg-[#2a1810] px-3.5 py-1.5 text-xs font-semibold text-[#f6d889]">
-            <ProductPrice
-              price={product.price}
-              mrp={product.mrp}
-              oldPriceClassName="text-[11px] font-normal text-[#f6d889]/65"
-              unavailableLabel="Price on request"
-            />
-          </span>
-        </div>
-
-        {detail ? (
-          <p className="mt-3 line-clamp-1 text-sm text-[#806553]">{detail}</p>
-        ) : null}
-
-        <div className="mt-5 flex items-center justify-between border-t border-[#e4d2a5] pt-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7b1c2e]">
-            View details
-          </span>
-
-          <span className="text-lg text-[#2a1810] transition duration-300 group-hover:translate-x-1">
-            →
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
 
 export default function CategoryCollectionPageClient({
   categoryName,
@@ -328,13 +186,11 @@ export default function CategoryCollectionPageClient({
               </p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => (
-                <CollectionProductCard
-                  key={product.slug}
-                  product={product}
-                  categoryName={categoryName}
-                />
+                <div key={product.slug} data-category-card className="min-w-0">
+                  <ProductCard product={product} categoryLabel={categoryName} />
+                </div>
               ))}
             </div>
           )}

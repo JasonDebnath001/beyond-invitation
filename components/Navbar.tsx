@@ -5,11 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
 import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
 import WishlistNavLink from "./WishlistNavLink";
+import AuthNavLink from "./AuthNavLink";
 import { BRAND, TAGLINE } from "./siteConfig";
 
 type DropdownItem = { label: string; href: string } | { section: string };
@@ -88,7 +88,7 @@ function isNavItemActive(pathname: string, item: NavItem) {
     isHrefActive(pathname, item.href) ||
     item.dropdown?.some(
       (dropdownItem) =>
-        "href" in dropdownItem && isHrefActive(pathname, dropdownItem.href)
+        "href" in dropdownItem && isHrefActive(pathname, dropdownItem.href),
     ) === true
   );
 }
@@ -114,105 +114,19 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-function DesktopAuthControls() {
-  return (
-    <div className="flex shrink-0 items-center gap-2">
-      <Show when="signed-out">
-        <SignInButton>
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full border border-carbon/20 bg-white px-4 text-[13px] font-bold text-carbon shadow-sm transition hover:border-carbon/40 hover:bg-paper focus:outline-none focus:ring-2 focus:ring-carbon/15"
-          >
-            Sign in
-          </button>
-        </SignInButton>
-
-        <SignUpButton>
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full bg-carbon px-5 text-[13px] font-bold text-white shadow-sm transition hover:bg-carbon-dark focus:outline-none focus:ring-2 focus:ring-carbon/25"
-          >
-            Sign up
-          </button>
-        </SignUpButton>
-      </Show>
-
-      <Show when="signed-in">
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "h-10 w-10",
-            },
-          }}
-        />
-      </Show>
-    </div>
-  );
-}
-
-function MobileAuthControls({ onAction }: { onAction: () => void }) {
-  return (
-    <div className="pt-4">
-      <Show when="signed-out">
-        <div className="grid grid-cols-2 gap-3">
-          <SignInButton>
-            <button
-              type="button"
-              onClick={onAction}
-              className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-full border border-carbon/20 bg-white px-4 text-sm font-bold text-carbon shadow-sm transition hover:bg-paper"
-            >
-              Sign in
-            </button>
-          </SignInButton>
-
-          <SignUpButton>
-            <button
-              type="button"
-              onClick={onAction}
-              className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-carbon px-4 text-sm font-bold text-white shadow-sm transition hover:bg-carbon-dark"
-            >
-              Sign up
-            </button>
-          </SignUpButton>
-        </div>
-      </Show>
-
-      <Show when="signed-in">
-        <div className="flex items-center justify-between rounded-2xl border border-carbon/10 bg-white px-4 py-3 shadow-sm">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-light">
-              Signed in
-            </p>
-
-            <p className="text-sm font-bold text-carbon">My account</p>
-          </div>
-
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "h-10 w-10",
-              },
-            }}
-          />
-        </div>
-      </Show>
-    </div>
-  );
-}
-
 export default function Navbar() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpandedIndex, setMobileExpandedIndex] = useState<number | null>(
-    null
+    null,
   );
   const [activeDropdownIndex, setActiveDropdownIndex] = useState<number | null>(
-    null
+    null,
   );
 
   const desktopCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
 
   const desktopDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
@@ -223,7 +137,7 @@ export default function Navbar() {
   const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
 
   const mobileTimelineRef = useRef<ReturnType<typeof gsap.timeline> | null>(
-    null
+    null,
   );
 
   const hasOpenedMobileMenuRef = useRef(false);
@@ -245,12 +159,10 @@ export default function Navbar() {
     }
 
     const activeSectionIndex = navMenu.findIndex(
-      (item) => item.dropdown?.length && isNavItemActive(pathname, item)
+      (item) => item.dropdown?.length && isNavItemActive(pathname, item),
     );
 
-    setMobileExpandedIndex(
-      activeSectionIndex >= 0 ? activeSectionIndex : null
-    );
+    setMobileExpandedIndex(activeSectionIndex >= 0 ? activeSectionIndex : null);
     setMobileOpen(true);
   };
 
@@ -294,7 +206,7 @@ export default function Navbar() {
     gsap.killTweensOf(dropdown);
 
     const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     ).matches;
 
     gsap.fromTo(
@@ -311,7 +223,7 @@ export default function Navbar() {
         scale: 1,
         duration: reduceMotion ? 0 : 0.24,
         ease: "power3.out",
-      }
+      },
     );
   }, [activeDropdownIndex]);
 
@@ -331,10 +243,10 @@ export default function Navbar() {
     }
 
     const animatedItems = Array.from(
-      content.querySelectorAll<HTMLElement>("[data-mobile-menu-item]")
+      content.querySelectorAll<HTMLElement>("[data-mobile-menu-item]"),
     );
     const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     ).matches;
 
     mobileTimelineRef.current?.kill();
@@ -371,7 +283,7 @@ export default function Navbar() {
             duration: reduceMotion ? 0 : 0.3,
             ease: "power2.out",
           },
-          0
+          0,
         )
         .fromTo(
           menu,
@@ -387,7 +299,7 @@ export default function Navbar() {
             duration: reduceMotion ? 0 : 0.5,
             ease: "power4.out",
           },
-          0
+          0,
         )
         .fromTo(
           animatedItems,
@@ -404,7 +316,7 @@ export default function Navbar() {
             stagger: reduceMotion ? 0 : 0.055,
             ease: "power3.out",
           },
-          0.12
+          0.12,
         )
         .set(menu, {
           height: "auto",
@@ -479,7 +391,7 @@ export default function Navbar() {
             },
             ease: "power2.in",
           },
-          0
+          0,
         )
         .to(
           menu,
@@ -490,7 +402,7 @@ export default function Navbar() {
             duration: reduceMotion ? 0 : 0.36,
             ease: "power3.inOut",
           },
-          0.07
+          0.07,
         )
         .to(
           backdrop,
@@ -499,7 +411,7 @@ export default function Navbar() {
             duration: reduceMotion ? 0 : 0.28,
             ease: "power2.in",
           },
-          0.07
+          0.07,
         );
     }
 
@@ -537,7 +449,7 @@ export default function Navbar() {
           activeDropdownIndex === null
             ? null
             : document.getElementById(
-                `desktop-nav-trigger-${activeDropdownIndex}`
+                `desktop-nav-trigger-${activeDropdownIndex}`,
               );
 
         setActiveDropdownIndex(null);
@@ -558,8 +470,8 @@ export default function Navbar() {
       const menu = mobileMenuRef.current;
       const focusableElements = Array.from(
         menu.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
       ).filter((element) => element.getClientRects().length > 0);
 
       if (!focusableElements.length) {
@@ -689,10 +601,7 @@ export default function Navbar() {
                 onBlur={(event) => {
                   const nextTarget = event.relatedTarget as Node | null;
 
-                  if (
-                    nextTarget &&
-                    event.currentTarget.contains(nextTarget)
-                  ) {
+                  if (nextTarget && event.currentTarget.contains(nextTarget)) {
                     return;
                   }
 
@@ -706,7 +615,7 @@ export default function Navbar() {
                       cancelDesktopClose();
 
                       setActiveDropdownIndex((current) =>
-                        current === navIndex ? null : navIndex
+                        current === navIndex ? null : navIndex,
                       );
                     }}
                     onKeyDown={(event) => {
@@ -716,27 +625,21 @@ export default function Navbar() {
                     }}
                     id={`desktop-nav-trigger-${navIndex}`}
                     className={`inline-flex h-10 items-center gap-1 whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 min-[1680px]:text-[14px] ${
-                      isActive
-                        ? "bg-paper text-carbon"
-                        : "text-carbon"
+                      isActive ? "bg-paper text-carbon" : "text-carbon"
                     }`}
                     aria-expanded={activeDropdownIndex === navIndex}
                     aria-controls={`desktop-dropdown-${navIndex}`}
                   >
                     {item.label}
 
-                    <ChevronIcon
-                      open={activeDropdownIndex === navIndex}
-                    />
+                    <ChevronIcon open={activeDropdownIndex === navIndex} />
                   </button>
                 ) : item.href ? (
                   <Link
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={`inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 min-[1680px]:text-[14px] ${
-                      isActive
-                        ? "bg-paper text-carbon"
-                        : "text-carbon"
+                      isActive ? "bg-paper text-carbon" : "text-carbon"
                     }`}
                   >
                     {item.label}
@@ -784,7 +687,7 @@ export default function Navbar() {
                           >
                             {dropdownItem.label}
                           </Link>
-                        )
+                        ),
                       )}
                     </div>
                   </div>
@@ -801,7 +704,7 @@ export default function Navbar() {
 
           <WishlistNavLink />
           <CartButton />
-          <DesktopAuthControls />
+          <AuthNavLink />
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2 2xl:hidden">
@@ -830,9 +733,7 @@ export default function Navbar() {
 
               <span
                 className={`absolute left-0 top-[9px] h-0.5 w-5 rounded-full bg-current transition-all duration-200 ease-out motion-reduce:transition-none ${
-                  mobileOpen
-                    ? "scale-x-0 opacity-0"
-                    : "scale-x-100 opacity-100"
+                  mobileOpen ? "scale-x-0 opacity-0" : "scale-x-100 opacity-100"
                 }`}
               />
 
@@ -919,7 +820,7 @@ export default function Navbar() {
                 const nestedItems = item.dropdown?.filter(
                   (dropdownItem) =>
                     "section" in dropdownItem ||
-                    dropdownItem.href !== item.href
+                    dropdownItem.href !== item.href,
                 );
 
                 return (
@@ -957,7 +858,7 @@ export default function Navbar() {
                           type="button"
                           onClick={() => {
                             setMobileExpandedIndex((current) =>
-                              current === navIndex ? null : navIndex
+                              current === navIndex ? null : navIndex,
                             );
                           }}
                           aria-label={`${
@@ -1003,7 +904,7 @@ export default function Navbar() {
                             >
                               {dropdownItem.label}
                             </Link>
-                          )
+                          ),
                         )}
                       </div>
                     )}
@@ -1017,14 +918,12 @@ export default function Navbar() {
               className="mt-5 border-t border-carbon/10 pt-5"
             >
               <div className="grid grid-cols-2 gap-3">
-                <WishlistNavLink
-                  showLabel
-                  onNavigate={() => closeMobile()}
-                />
+                <WishlistNavLink showLabel onNavigate={() => closeMobile()} />
                 <CartButton showLabel onNavigate={() => closeMobile()} />
               </div>
-
-              <MobileAuthControls onAction={() => closeMobile()} />
+              <div className="mt-3">
+                <AuthNavLink onNavigate={() => closeMobile()} />
+              </div>
             </div>
           </div>
         </div>

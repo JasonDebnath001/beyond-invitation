@@ -11,22 +11,34 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ payment_id?: string }>;
+  searchParams: Promise<{ payment_id?: string; order_id?: string; pending?: string }>;
 }
 
 export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
-  const { payment_id } = await searchParams;
+  const { payment_id, order_id, pending } = await searchParams;
+  const paymentPending = pending === "1";
 
   return (
     <div className="mx-auto min-w-0 max-w-2xl px-4 py-16 text-center sm:px-6 sm:py-24">
       <div className="text-6xl">🎉</div>
       <h1 className="mt-5 font-display text-3xl font-semibold text-maroon-dark md:text-4xl">
-        Payment successful
+        {paymentPending ? "Payment confirmation pending" : "Payment successful"}
       </h1>
       <p className="mx-auto mt-3 max-w-md text-[14.5px] leading-relaxed text-ink-mid">
-        Thank you for your order. Our team will reach out shortly to confirm
-        personalisation details and proof approval.
+        {paymentPending
+          ? "We are confirming your payment. Please do not pay again. Keep your payment reference and contact us if you need an update."
+          : "Thank you for your order. Our team will reach out shortly to confirm personalisation details and proof approval."}
       </p>
+
+      {order_id && (
+        <p className="mt-5 break-words text-sm text-ink-mid">
+          Order reference: <span className="font-medium text-ink">{order_id}</span>
+        </p>
+      )}
+
+      {paymentPending && (
+        <Link href="/contact" className="mt-4 inline-block text-sm underline">Contact us about your payment</Link>
+      )}
 
       {payment_id && (
         <p className="mt-5 max-w-full break-words rounded-lg border border-gold/30 bg-paper px-4 py-2 text-[12.5px] text-ink-mid [overflow-wrap:anywhere] sm:inline-block">

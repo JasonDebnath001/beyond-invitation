@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/seo/JsonLd";
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-import { fetchErpProducts } from "@/lib/erpnext";
+import { fetchErpProductsBySubject, WEDDING_CARD_SUBJECTS } from "@/lib/catalog";
 import type { Product } from "@/types";
 import {
   BUSINESS_ADDRESS,
@@ -68,27 +68,6 @@ export const metadata: Metadata = {
   },
 };
 
-function isWeddingProduct(product: Product) {
-  const text = [
-    product.name,
-    product.slug,
-    product.description,
-    product.category,
-    product.badge,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  return (
-    text.includes("wedding") ||
-    text.includes("marriage") ||
-    text.includes("bride") ||
-    text.includes("groom") ||
-    text.includes("invitation")
-  );
-}
-
 function getProductImage(product: Product) {
   const image = product.images?.[0];
 
@@ -103,11 +82,9 @@ function getProductImage(product: Product) {
 
 async function getWeddingProducts(): Promise<Product[]> {
   try {
-    const products = (await fetchErpProducts()) as Product[];
-
-    return products.filter(isWeddingProduct).slice(0, 80);
+    return (await fetchErpProductsBySubject(WEDDING_CARD_SUBJECTS)).slice(0, 80);
   } catch (error) {
-    console.error("Wedding cards page ERPNext fetch failed:", error);
+    console.error("Wedding cards page Catalogue fetch failed:", error);
     return [];
   }
 }
@@ -187,12 +164,12 @@ export default async function WeddingCardsPage() {
         description: product.description || description,
         image: getProductImage(product),
         url: siteUrl(`/products/${product.slug}`),
-        offers: {
+        offers: product.price > 0 ? {
           "@type": "Offer",
           priceCurrency: "INR",
           price: product.price,
           availability: "https://schema.org/InStock",
-        },
+        } : undefined,
       },
     })),
   };

@@ -19,6 +19,15 @@ export const SITE_NAME = "Beyond Invitation";
 export const BRAND_NAME = "Bharat Agency Wedding Cards Pvt. Ltd.";
 export const DEFAULT_OG_IMAGE = "/logo.png";
 
+export const CONTACT = {
+  whatsappNumber: "917044815488",
+  displayPhone: "+91 70448 15488",
+  landline: "033-22428918",
+  email: "contact@khushionline.net",
+  instagram: "https://www.instagram.com/beyond_invitationofficial/",
+  instagramHandle: "@beyond_invitationofficial",
+} as const;
+
 export const SITE_DESCRIPTION =
   "Shop premium wedding cards, wedding invitation cards, shagun envelopes, shagun boxes, rakhi packaging, and invitation stationery from Beyond Invitation in Kolkata.";
 

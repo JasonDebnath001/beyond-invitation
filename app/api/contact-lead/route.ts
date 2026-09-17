@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isValidIndianMobile, normaliseMobile } from "@/lib/contact";
 
 type ContactLeadPayload = {
   name?: string;
@@ -161,6 +162,11 @@ function buildLeadPayload(data: Required<ContactLeadPayload>) {
 
 export async function POST(request: Request) {
   try {
+    const body = (await request.json()) as ContactLeadPayload & { website?: string };
+    if (typeof body.website === "string" && body.website.length > 0) {
+      return NextResponse.json({ success: true });
+    }
+
     if (!erpUrl || !erpApiKey || !erpApiSecret) {
       return NextResponse.json(
         {
@@ -184,8 +190,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as ContactLeadPayload;
-
     const normalisedRequirement = normaliseRequirement(
       cleanText(body.requirement),
     );
@@ -196,7 +200,7 @@ export async function POST(request: Request) {
 
     const data: Required<ContactLeadPayload> = {
       name: cleanText(body.name),
-      mobile: cleanText(body.mobile),
+      mobile: normaliseMobile(cleanText(body.mobile)),
       email: cleanText(body.email),
       source: cleanText(body.source),
       requirement: normalisedRequirement,
@@ -214,6 +218,13 @@ export async function POST(request: Request) {
           success: false,
           message: "Name and mobile number are required.",
         },
+        { status: 400 },
+      );
+    }
+
+    if (!isValidIndianMobile(data.mobile)) {
+      return NextResponse.json(
+        { success: false, message: "Enter a 10-digit mobile number." },
         { status: 400 },
       );
     }

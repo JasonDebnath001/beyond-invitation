@@ -35,7 +35,9 @@ Supabase supplies the product catalogue and Selling prices through a public view
 
 Supabase Auth supports Google sign-in and email/password registration, email password-reset links, optional profile names and sign-out. Registration asks only for email and password. Phone authentication is removed. See [supabase/AUTH_SETUP.md](supabase/AUTH_SETUP.md) for email confirmation, delivery and callback settings. Password changes require an authenticated session.
 
-`/account` requires a server-verified Supabase user. Browsing, wishlist and checkout remain accessible to guests. The cart and guest wishlist save selections on this device; signed-in wishlists sync to the account through Supabase. `/my-orders` and `/reseller` provide contact options; private order-history retrieval and reseller self-service have not been reconnected to the new identities.
+`/account` requires a server-verified Supabase user. Browsing, wishlist and checkout remain accessible to guests. The cart and guest wishlist save selections on this device; signed-in wishlists sync to the account through Supabase. `/my-orders` and `/reseller` continue to provide contact options.
+
+The account page shows recent orders from `website_orders`, saved designs from `wishlist_items`, cart counts, profile details and password settings. Orders and saved designs render empty until their corresponding migrations are applied; account reads use the signed-in user's session and row-level security. Pending checkouts older than 24 hours are hidden.
 
 Payment verification and the Razorpay webhook continue to require valid payment signatures.
 

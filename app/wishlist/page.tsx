@@ -1,95 +1,193 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import ProductCard from "@/components/ProductCard";
+import { useSearchParams } from "next/navigation";
 import { useWishlist } from "@/components/WishlistProvider";
+import {
+  parseSharedSlugs,
+  sortWishlistProducts,
+  type WishlistSortKey,
+} from "@/lib/wishlist";
 import type { Product } from "@/types";
+import WishlistCard from "@/components/wishlist/WishlistCard";
+import {
+  WishlistMotion,
+  useWishlistMotion,
+} from "@/components/wishlist/WishlistMotion";
+import WishlistSkeleton from "@/components/wishlist/WishlistSkeleton";
+import WishlistEmpty from "@/components/wishlist/WishlistEmpty";
+import WishlistToolbar from "@/components/wishlist/WishlistToolbar";
+import UnavailableItems from "@/components/wishlist/UnavailableItems";
+import SharedShortlist from "@/components/wishlist/SharedShortlist";
+import { useWishlistProducts } from "@/components/wishlist/useWishlistProducts";
+import {
+  contentClass,
+  gridClass,
+  secondaryClass,
+  WishlistHeader,
+  WishlistError,
+} from "@/components/wishlist/WishlistUI";
 
-export default function WishlistPage() {
-  const { slugs, ready, syncing, signedIn, error: syncError, retry: retrySync, removeItem } = useWishlist();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
+function PersonalContent({
+  products,
+  loading,
+  error,
+  retry,
+  sortKey,
+  setSortKey,
+}: {
+  products: Product[];
+  loading: boolean;
+  error: string;
+  retry: () => void;
+  sortKey: WishlistSortKey;
+  setSortKey: (key: WishlistSortKey) => void;
+}) {
+  const wishlist = useWishlist();
+  const current = useRef(wishlist);
+  current.current = wishlist;
+  const motion = useWishlistMotion();
+  const [removing, setRemoving] = useState<string | null>(null);
+  const removeLock = useRef(false);
+  useLayoutEffect(() => motion.reorderEnd(), [sortKey, motion]);
+  const missingSlugs = wishlist.slugs.filter(
+    (slug) => !products.some((product) => product.slug === slug),
+  );
+  const busy = wishlist.syncing || removing !== null;
 
-  useEffect(() => {
-    if (!ready) return;
-    if (!slugs.length) {
-      setProducts([]);
-      setError("");
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-
-    async function loadProducts() {
-      try {
-        const response = await fetch("/api/wishlist/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slugs }),
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Unable to load saved products.");
-        if (!controller.signal.aborted) setProducts(data.products);
-      } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Unable to load saved products.");
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-    void loadProducts();
-    return () => controller.abort();
-  }, [ready, slugs, retry]);
-
-  const visibleProducts = products.filter((product) => slugs.includes(product.slug));
-  const missingSlugs = slugs.filter((slug) => !products.some((product) => product.slug === slug));
+  function remove(slug: string, element: HTMLElement) {
+    if (busy || removeLock.current) return;
+    removeLock.current = true;
+    setRemoving(slug);
+    motion.removeCard(element, () => {
+      const latest = current.current;
+      if (
+        element.isConnected &&
+        latest.ready &&
+        !latest.syncing &&
+        latest.slugs.includes(slug)
+      )
+        latest.removeItem(slug);
+      removeLock.current = false;
+      setRemoving(null);
+    });
+  }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold">My Wishlist</h1>
-        <p className="mt-2 text-gray-600">
-          {signedIn ? "Your favourites, saved to your account." : "Your favourites, saved on this device."}
-        </p>
-        {!signedIn && ready && (
-          <Link href="/sign-in?next=%2Fwishlist" className="mt-2 inline-block underline">Sign in to save your wishlist across devices</Link>
-        )}
-      </div>
-      {!ready && syncError ? (
-        <div role="alert">
-          <p>We could not load your saved wishlist.</p>
-          <button type="button" onClick={retrySync} disabled={syncing} className="mt-3 underline">Try again</button>
+    <main className={contentClass}>
+      <WishlistHeader
+        count={wishlist.slugs.length}
+        ready={wishlist.ready}
+        signedIn={wishlist.signedIn}
+      />
+      {wishlist.ready && !wishlist.signedIn && wishlist.slugs.length > 0 && (
+        <div
+          data-motion="nudge"
+          className="mb-7 rounded-2xl border border-gold/20 bg-white/80 px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5"
+        >
+          <div>
+            <p className="text-sm font-semibold text-carbon">
+              Keep this list on every device.
+            </p>
+            <p className="mt-1 text-sm text-ink-mid">
+              Sign in and your saved designs come with you.
+            </p>
+          </div>
+          <Link
+            href="/sign-in?next=%2Fwishlist"
+            className={`mt-4 shrink-0 sm:mt-0 ${secondaryClass}`}
+          >
+            Sign in
+          </Link>
         </div>
-      ) : !ready || loading ? <p role="status">Loading your wishlist…</p> : error ? (
-        <div role="alert">
-          <p>{error}</p>
-          <button type="button" onClick={() => setRetry((value) => value + 1)} className="mt-3 underline">Try again</button>
-        </div>
-      ) : slugs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-10 text-center">
-          <h2 className="text-xl font-medium">Your wishlist is empty</h2>
-          <p className="mt-2 text-gray-600">Tap the heart on a product to save it for later.</p>
-          <Link href="/catalog" className="mt-5 inline-block underline">Browse products</Link>
-        </div>
+      )}
+      {!wishlist.ready && wishlist.error ? (
+        <WishlistError
+          message="We could not load your saved wishlist."
+          onRetry={wishlist.retry}
+          disabled={wishlist.syncing}
+          alert={false}
+        />
+      ) : !wishlist.ready || loading ? (
+        <WishlistSkeleton />
+      ) : error ? (
+        <WishlistError message={error} onRetry={retry} />
+      ) : wishlist.slugs.length === 0 ? (
+        <WishlistEmpty />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleProducts.map((product) => <ProductCard key={product.slug} product={product} />)}
+          <WishlistToolbar
+            products={products}
+            slugs={wishlist.slugs}
+            sortKey={sortKey}
+            disabled={busy}
+            onSort={(key) => {
+              motion.reorderStart();
+              setSortKey(key);
+            }}
+          />
+          <div className={gridClass}>
+            {products.map((product) => (
+              <WishlistCard
+                key={product.slug}
+                product={product}
+                onRemove={remove}
+                disabled={busy}
+              />
+            ))}
           </div>
-          {missingSlugs.map((slug) => (
-            <div key={slug} className="mt-4 rounded-2xl border p-5">
-              <p>Product {slug} is no longer available.</p>
-              <button type="button" disabled={syncing} className="mt-2 underline disabled:opacity-50" onClick={() => removeItem(slug)}>Remove from wishlist</button>
-            </div>
-          ))}
+          <UnavailableItems slugs={missingSlugs} />
         </>
       )}
     </main>
+  );
+}
+
+function PersonalWishlist() {
+  const { slugs, ready } = useWishlist();
+  const lookup = useWishlistProducts(slugs, ready);
+  const [sortKey, setSortKey] = useState<WishlistSortKey>("recent");
+  const products = sortWishlistProducts(lookup.products, slugs, sortKey);
+  const phase =
+    !ready || lookup.loading
+      ? "loading"
+      : lookup.error
+        ? "error"
+        : slugs.length
+          ? "products"
+          : "empty";
+  return (
+    <WishlistMotion
+      count={slugs.length}
+      renderedSlugs={
+        phase === "products" ? products.map(({ slug }) => slug) : []
+      }
+      phase={phase}
+    >
+      <PersonalContent
+        {...lookup}
+        products={products}
+        sortKey={sortKey}
+        setSortKey={setSortKey}
+      />
+    </WishlistMotion>
+  );
+}
+
+function WishlistRoute() {
+  const params = useSearchParams();
+  return params.has("items") ? (
+    <SharedShortlist slugs={parseSharedSlugs(params.get("items"))} />
+  ) : (
+    <PersonalWishlist />
+  );
+}
+
+export default function WishlistPage() {
+  return (
+    <Suspense fallback={<WishlistSkeleton page />}>
+      <WishlistRoute />
+    </Suspense>
   );
 }

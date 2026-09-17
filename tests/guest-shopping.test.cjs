@@ -88,7 +88,22 @@ test("wishlist hearts, count and page stay in sync, persist after remount and re
   const Nav = load("components/WishlistNavLink.tsx", { ...imports, "./WishlistProvider": provider, "next/link": Link }, globals).default;
   const Page = load("app/wishlist/page.tsx", {
     ...imports, "next/link": Link, "@/components/WishlistProvider": provider,
-    "@/components/ProductCard": ({ product }) => React.createElement("article", null, product.name, React.createElement(Button, { productSlug: product.slug })),
+    "next/navigation": { useSearchParams: () => new URLSearchParams() },
+    "@/components/wishlist/WishlistCard": ({ product }) => React.createElement("article", null, product.name, React.createElement(Button, { productSlug: product.slug })),
+    "@/components/wishlist/WishlistMotion": {
+      WishlistMotion: ({ children }) => children,
+      useWishlistMotion: () => ({ removeCard: (_, commit) => commit(), reorderStart() {}, reorderEnd() {} }),
+    },
+    "@/components/wishlist/useWishlistProducts": load("components/wishlist/useWishlistProducts.ts", imports, globals),
+    "@/components/wishlist/WishlistSkeleton": () => React.createElement("p", { role: "status" }, "Loading your wishlist…"),
+    "@/components/wishlist/WishlistEmpty": () => React.createElement("h2", null, "Your wishlist is empty"),
+    "@/components/wishlist/WishlistToolbar": () => null,
+    "@/components/wishlist/UnavailableItems": () => null,
+    "@/components/wishlist/SharedShortlist": () => null,
+    "@/components/wishlist/WishlistUI": {
+      contentClass: "", gridClass: "", secondaryClass: "", WishlistHeader: () => React.createElement("h1", null, "Your wishlist"),
+      WishlistError: ({ message }) => React.createElement("p", { role: "alert" }, message),
+    },
   }, globals).default;
   let root;
   const render = async () => {

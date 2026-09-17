@@ -66,9 +66,16 @@ function numberOrNull(value: NullableNumber): number | null {
 
 function mediaList(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
-  return Array.from(new Set(values.filter(
-    (value): value is string => typeof value === "string" && value.trim() !== "",
-  ).map((value) => value.trim())));
+  return Array.from(
+    new Set(
+      values
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && value.trim() !== "",
+        )
+        .map((value) => value.trim()),
+    ),
+  );
 }
 
 function photoOrder(src: string): number {
@@ -100,6 +107,19 @@ export const WEDDING_CARD_SUBJECTS = [
   "Christian Wedding Card",
 ];
 
+export const NON_WEDDING_SUBJECTS = [
+  "Shagun Envelopes",
+  "Wedding Box",
+  "Rakhi",
+];
+
+export function isWeddingCardProduct(
+  product: Pick<CatalogProduct, "subject">,
+): boolean {
+  const subject = product.subject.trim().toLowerCase();
+  return !NON_WEDDING_SUBJECTS.some((value) => value.toLowerCase() === subject);
+}
+
 export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
   const price = numberOrNull(row.price) ?? 0;
   const tags = mediaList(row.tags);
@@ -111,8 +131,9 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
     mrp: numberOrNull(row.mrp) ?? 0,
     // Filename positions define gallery order and the main image everywhere.
     // Unnumbered images follow numbered ones, retaining their original order.
-    images: mediaList([row.image_url, ...mediaList(row.images)])
-      .sort((a, b) => photoOrder(a) - photoOrder(b)),
+    images: mediaList([row.image_url, ...mediaList(row.images)]).sort(
+      (a, b) => photoOrder(a) - photoOrder(b),
+    ),
     videos: mediaList(row.videos),
     emoji: "",
     category: normalizeCategory(row.subject),
@@ -154,7 +175,8 @@ const readCatalogProducts = unstable_cache(
         .range(offset, offset + pageSize - 1)
         .returns<WebProductRow[]>();
 
-      if (error) throw new Error(`Product catalogue unavailable: ${error.message}`);
+      if (error)
+        throw new Error(`Product catalogue unavailable: ${error.message}`);
 
       const rows = data ?? [];
       products.push(...rows.map(mapCatalogRowToProduct));
@@ -183,28 +205,64 @@ export async function fetchErpProducts(): Promise<CatalogProduct[]> {
   return applyResellerPricingToProducts(await buildErpProductList());
 }
 
-export async function fetchErpProductBySlug(slug: string): Promise<CatalogProduct | null> {
+export async function fetchWeddingCardProductsBase(): Promise<
+  CatalogProduct[]
+> {
+  return (await buildErpProductList())
+    .filter(isWeddingCardProduct)
+    .sort((a, b) => {
+      const photoDifference =
+        Number(b.images.some((image) => image.trim())) -
+        Number(a.images.some((image) => image.trim()));
+      const priceDifference = Number(b.hasPrice) - Number(a.hasPrice);
+      const newestDifference =
+        (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0);
+      return (
+        photoDifference ||
+        priceDifference ||
+        newestDifference ||
+        a.slug.localeCompare(b.slug, "en")
+      );
+    });
+}
+
+export async function fetchWeddingCardProducts(): Promise<CatalogProduct[]> {
+  return applyResellerPricingToProducts(await fetchWeddingCardProductsBase());
+}
+
+export async function fetchErpProductBySlug(
+  slug: string,
+): Promise<CatalogProduct | null> {
   const products = await buildErpProductList();
   return applyResellerPricingToProduct(
     products.find((product) => product.slug === slug) ?? null,
   );
 }
 
-export async function fetchErpProductsByCategory(category: ProductCategory): Promise<CatalogProduct[]> {
-  if (category === "wedding") return fetchErpProductsBySubject(WEDDING_CARD_SUBJECTS);
+export async function fetchErpProductsByCategory(
+  category: ProductCategory,
+): Promise<CatalogProduct[]> {
+  if (category === "wedding") return fetchWeddingCardProducts();
   const products = await fetchErpProducts();
   return products.filter((product) => product.category === category);
 }
 
-export async function fetchErpProductsBySubject(subject: string | string[]): Promise<CatalogProduct[]> {
-  const subjects = new Set((Array.isArray(subject) ? subject : [subject])
-    .map((value) => value.trim().toLowerCase()).filter(Boolean));
+export async function fetchErpProductsBySubject(
+  subject: string | string[],
+): Promise<CatalogProduct[]> {
+  const subjects = new Set(
+    (Array.isArray(subject) ? subject : [subject])
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
   if (subjects.size === 0) return [];
 
   const products = await buildErpProductList();
-  return applyResellerPricingToProducts(products.filter(
-    (product) => subjects.has(product.subject.trim().toLowerCase()),
-  ));
+  return applyResellerPricingToProducts(
+    products.filter((product) =>
+      subjects.has(product.subject.trim().toLowerCase()),
+    ),
+  );
 }
 
 export const getCatalogProducts = fetchErpProducts;

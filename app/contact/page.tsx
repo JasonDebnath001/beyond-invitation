@@ -1,138 +1,71 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import ContactLeadForm from "@/components/ContactLeadForm";
+import { ContactMotion } from "@/components/contact/ContactMotion";
+import ContactChannels from "@/components/contact/ContactChannels";
+import EnquiryForm from "@/components/contact/EnquiryForm";
+import { fetchErpProductBySlug } from "@/lib/catalog";
+import type { EnquiryProduct } from "@/lib/contact";
 import { siteUrl } from "@/lib/site-config";
-
-const phoneNumber = "7044815488";
-const displayPhone = "+91 70448 15488";
-const placeholderEmail = "contact@khushionline.net";
 
 export const metadata: Metadata = {
   title: "Contact Us | Beyond Invitation",
   description:
     "Get in touch with Beyond Invitation for wedding invitations, shagun envelopes, rakhi packaging, and celebration stationery.",
-  alternates: {
-    canonical: "/contact",
-  },
-  openGraph: {
-    url: siteUrl("/contact"),
-  },
+  alternates: { canonical: "/contact" },
+  openGraph: { url: siteUrl("/contact") },
 };
 
-export default function ContactPage() {
+export default async function ContactPage({ searchParams }: {
+  searchParams: Promise<{ product?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const slug = typeof params.product === "string" ? params.product.trim() : "";
+  let enquiryProduct: EnquiryProduct | null = null;
+
+  if (slug) {
+    try {
+      const product = await fetchErpProductBySlug(slug);
+      if (product) {
+        enquiryProduct = {
+          slug: product.slug,
+          designNo: product.itemCode || product.slug,
+          name: product.name,
+          image: product.images[0] || null,
+          subject: product.subject,
+          minOrderQty: product.minOrderQty,
+        };
+      }
+    } catch {
+      // A catalogue outage must never prevent a customer from contacting us.
+    }
+  }
+
   return (
-    <main className="bg-white">
-      {/* Hero with enquiry form visible above the fold */}
-      <section className="relative overflow-hidden bg-paper">
-        <div className="mx-auto grid min-w-0 max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:px-8 lg:py-20">
-          <div className="min-w-0 max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-carbon">
-              Contact Us
-            </p>
-
-            <h1 className="mt-5 break-words font-display text-3xl font-semibold tracking-tight text-ink sm:text-5xl">
-              Let&apos;s create something beautiful for your celebration.
+    <ContactMotion>
+      <section className="relative px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+        <div className="pointer-events-none absolute -right-40 top-10 h-96 w-96 rounded-full bg-[#dcb162]/10 blur-3xl" />
+        <div className="relative mx-auto grid min-w-0 max-w-7xl gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16">
+          <div className="min-w-0">
+            <p data-motion="eyebrow" className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#a7772d]">Contact</p>
+            <h1 className="mt-4 text-[34px] font-light leading-[1.08] tracking-[-0.035em] text-[#50101f] lg:text-[52px]">
+              {"Tell us about your celebration.".split(" ").map((word, index) => (
+                <span key={word}>{index > 0 ? " " : ""}<span data-motion="heading-word" className="inline-block">{word}</span></span>
+              ))}
             </h1>
-
-            <p className="mt-6 text-base leading-8 text-ink-mid sm:text-lg">
-              Whether you&apos;re looking for wedding invitations, shagun
-              envelopes, rakhi packaging, or celebration stationery, our team
-              is here to help you choose the right product.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href={`https://wa.me/91${phoneNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full bg-carbon px-6 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
-              >
-                Chat on WhatsApp
-              </Link>
-
-              <Link
-                href={`tel:+91${phoneNumber}`}
-                className="inline-flex items-center justify-center rounded-full border border-carbon/20 bg-white px-6 py-3 text-sm font-semibold text-carbon transition hover:border-carbon"
-              >
-                Call Now
-              </Link>
-            </div>
+            <p data-motion="intro" className="mt-5 text-base leading-8 text-ink-mid">Wedding cards, shagun envelopes, rakhi packaging or a custom design — send the details and our team will call or message you back.</p>
+            <div data-header-rule className="my-8 h-px bg-gradient-to-r from-gold via-gold/40 to-transparent" />
+            <ContactChannels enquiryProduct={enquiryProduct} />
+            <aside className="mt-6 rounded-2xl border border-gold/20 bg-white/80 px-5 py-4 shadow-[0_1px_0_rgba(201,168,76,0.25),0_18px_40px_-28px_rgba(80,16,31,0.35)]">
+              <h2 className="font-semibold text-carbon">Already placed an order?</h2>
+              <p className="mt-1 text-sm leading-6 text-ink-mid">Message us on WhatsApp with your payment reference.</p>
+              <Link href="/my-orders" className="mt-2 inline-block text-sm font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon">Order help</Link>
+            </aside>
           </div>
-
-          <div className="min-w-0 rounded-[2rem] border border-carbon/10 bg-white p-5 shadow-[0_20px_70px_rgba(62,12,23,0.12)] sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
-              Enquiry Form
-            </p>
-
-            <h2 className="mt-4 font-display text-3xl font-semibold text-ink">
-              Send us your requirement
-            </h2>
-
-            <ContactLeadForm />
+          <div data-motion="form-card" className="order-first min-w-0 rounded-3xl border border-gold/20 bg-white p-6 shadow-[0_1px_0_rgba(201,168,76,0.25),0_18px_40px_-28px_rgba(80,16,31,0.35)] sm:p-8 lg:order-none lg:sticky lg:top-28 lg:self-start">
+            <EnquiryForm key={enquiryProduct?.slug || "general"} enquiryProduct={enquiryProduct} />
           </div>
         </div>
       </section>
-
-      {/* Contact details */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-        <div className="mb-10 max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-carbon">
-            Reach Us
-          </p>
-
-          <h2 className="mt-4 font-display text-3xl font-semibold text-ink">
-            Speak with our team
-          </h2>
-
-          <p className="mt-4 text-sm leading-7 text-ink-mid">
-            For quick product queries, catalogue assistance, or order
-            support, call or message us directly.
-          </p>
-        </div>
-
-        <div className="grid min-w-0 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="min-w-0 rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
-              Phone
-            </p>
-
-            <Link
-              href={`tel:+91${phoneNumber}`}
-              className="mt-2 block text-xl font-semibold text-carbon transition hover:text-carbon-dark"
-            >
-              {displayPhone}
-            </Link>
-          </div>
-
-          <div className="min-w-0 rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
-              WhatsApp
-            </p>
-
-            <Link
-              href={`https://wa.me/91${phoneNumber}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
-            >
-              Chat on WhatsApp
-            </Link>
-          </div>
-
-          <div className="min-w-0 rounded-3xl border border-carbon/10 bg-white p-6 shadow-sm sm:col-span-2 lg:col-span-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-light">
-              Email
-            </p>
-
-            <Link
-              href={`mailto:${placeholderEmail}`}
-              className="mt-2 block break-all text-base font-semibold text-carbon transition hover:text-carbon-dark sm:text-lg"
-            >
-              {placeholderEmail}
-            </Link>
-          </div>
-        </div>
-      </section>
-    </main>
+    </ContactMotion>
   );
 }

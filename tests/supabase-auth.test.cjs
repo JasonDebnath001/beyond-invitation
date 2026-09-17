@@ -106,11 +106,18 @@ test("server account page rejects unverified sessions instead of trusting cookie
   const page = load("app/account/page.tsx", {
     "react/jsx-runtime": require("react/jsx-runtime"), "next/link": () => null,
     "next/navigation": { redirect: (url) => { throw new Error(`redirect:${url}`); } },
-    "@/components/AccountProfile": () => null,
+    "lucide-react": { LifeBuoy: () => null, ArrowUpRight: () => null },
+    "@/lib/account": {
+      displayName: () => "Test User", initials: () => "TU", hasEmailIdentity: () => true,
+      fetchRecentWebsiteOrders: async () => [], fetchSavedProducts: async () => [],
+      fetchAccountCounts: async () => ({ paidOrders: 0, savedDesigns: 0 }),
+    },
+    ...Object.fromEntries(["AccountMotion", "AccountShell", "AccountHeader", "AccountStats", "AccountOrders", "AccountSaved", "ProfileForm", "PasswordForm", "SignOutButtons"].map((name) => [`@/components/account/${name}`, () => null])),
+    "@/components/account/AccountUI": { cardClass: "", linkClass: "", secondaryClass: "", SectionHeading: () => null },
     "@/lib/supabase/auth-server": { getSupabaseAuthServerClient: async () => ({ auth: { getUser: async () => ({ data: { user: verifiedUser }, error: null }) } }) },
   });
   await assert.rejects(page.default(), /redirect:\/sign-in/);
-  verifiedUser = { id: "user", email: "test@example.com", user_metadata: { full_name: "Test User" } };
+  verifiedUser = { id: "user", email: "test@example.com", created_at: "2026-09-01T00:00:00Z", user_metadata: { full_name: "Test User" } };
   assert.ok(React.isValidElement(await page.default()));
 });
 
@@ -175,9 +182,13 @@ test("email forms register, sign in, recover passwords and update profiles witho
     "next/navigation": { useRouter: () => ({ replace: (url) => destinations.push(url), refresh() {} }) },
     "@/lib/supabase/client": { getSupabaseBrowserClient: () => client },
     "@/lib/supabase/auth-config": { getSupabaseAuthConfig: () => ({ url: "https://project.test", key: "public-key" }) },
+    "lucide-react": { Mail: () => null, ShieldCheck: () => null, LogOut: () => null },
+    "./AccountUI": { inputClass: "", labelClass: "", primaryClass: "", secondaryClass: "", focusClass: "" },
   };
   const Form = load("components/AuthForm.tsx", imports, globals).default;
-  const Account = load("components/AccountProfile.tsx", imports, globals).default;
+  const Profile = load("components/account/ProfileForm.tsx", imports, globals).default;
+  const Password = load("components/account/PasswordForm.tsx", imports, globals).default;
+  const SignOut = load("components/account/SignOutButtons.tsx", imports, globals).default;
   const Reset = load("components/PasswordResetForm.tsx", imports, globals).default;
   let root;
   const mount = async (Component, props = {}) => {
@@ -258,21 +269,28 @@ test("email forms register, sign in, recover passwords and update profiles witho
     assert.equal(document.querySelector('[role="status"]'), null);
 
     // Profile name is optional, and password updates require the protected account page.
-    await mount(Account, { profile: { name: "", email: "test@example.com" } });
-    assert.ok(document.body.textContent.includes("test@example.com"));
-    await set('input[autocomplete="name"]', "  Test Person  "); await submit();
+    await mount(Profile, { profile: { name: "", email: "test@example.com" }, providers: ["Email"] });
+    assert.equal(document.querySelector('input[type="email"]').value, "test@example.com");
+    assert.equal(document.querySelector('input[type="email"]').readOnly, true);
+    await set('input[autocomplete="name"]', "  Test Person  "); await submit('[data-testid="profile-form"]');
     assert.deepEqual(calls.at(-1), ["update", { data: { full_name: "Test Person" } }]);
-    await set('form:nth-of-type(2) label:nth-of-type(1) input', "new-test-password");
-    await set('form:nth-of-type(2) label:nth-of-type(2) input', "different-password");
-    const beforeMismatch = calls.length; await submit('form:nth-of-type(2)');
+    await mount(Password);
+    await set('[name="password"]', "new-test-password");
+    await set('[name="confirmPassword"]', "different-password");
+    const beforeMismatch = calls.length; await submit('[data-testid="password-form"]');
     assert.equal(calls.length, beforeMismatch);
     assert.match(document.querySelector('[role="alert"]').textContent, /do not match/);
-    await set('form:nth-of-type(2) label:nth-of-type(2) input', "new-test-password");
-    await submit('form:nth-of-type(2)');
+    await set('[name="confirmPassword"]', "new-test-password");
+    await submit('[data-testid="password-form"]');
     assert.deepEqual(calls.at(-1), ["update", { password: "new-test-password" }]);
     assert.match(document.querySelector('[role="status"]').textContent, /password has been updated/);
-    await act(async () => [...document.querySelectorAll("button")].find((button) => button.textContent === "Sign out").click());
+    await mount(SignOut);
+    assert.equal(document.querySelector('[data-testid="sign-out"]').textContent, "Sign out");
+    await act(async () => document.querySelector('[data-testid="sign-out"]').click());
     assert.deepEqual(calls.at(-1), ["signout", { scope: "local" }]);
+    assert.equal(destinations.at(-1), "/");
+    await act(async () => document.querySelector('[data-testid="sign-out-all"]').click());
+    assert.deepEqual(calls.at(-1), ["signout", { scope: "global" }]);
     assert.equal(destinations.at(-1), "/");
     assert.equal(calls.some(([name]) => name === "sms"), false);
     assert.equal(calls.some(([, args]) => args && typeof args === "object" && "phone" in args), false);

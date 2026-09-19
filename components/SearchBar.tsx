@@ -1,5 +1,7 @@
 "use client";
 
+import { formatProductName } from "@/lib/product-name";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/types";
@@ -153,8 +155,8 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
                   {product.emoji}
                 </span>
 
-                <span className="flex-1 truncate text-[13px] font-medium text-carbon">
-                  {product.name}
+                <span className="min-w-0 flex-1 break-words text-[13px] font-medium text-carbon">
+                  {formatProductName(product.name, product.itemCode)}
                 </span>
               </button>
             ))}

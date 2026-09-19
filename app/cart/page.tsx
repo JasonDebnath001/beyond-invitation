@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import ProductPrice from "@/components/ProductPrice";
+import { formatProductName } from "@/lib/product-name";
 
 import {
   useCart,
@@ -119,7 +120,7 @@ export default function CartPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.image}
-                    alt={item.name}
+                    alt={formatProductName(item.name, item.itemCode)}
                     onError={() => {
                       setFailedImages(
                         (previous) => ({
@@ -141,7 +142,7 @@ export default function CartPage() {
               <div className="flex min-w-0 flex-1 flex-col justify-between gap-4 sm:flex-row">
                 <div className="min-w-0">
                   <h3 className="break-words font-serif text-xl font-semibold text-maroon">
-                    {item.name}
+                    {formatProductName(item.name, item.itemCode)}
                   </h3>
 
                   <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-ink-light">

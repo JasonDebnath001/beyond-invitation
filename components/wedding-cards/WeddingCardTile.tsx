@@ -8,6 +8,7 @@ import AddToCartButton from "@/components/AddToCartButton";
 import ProductPrice from "@/components/ProductPrice";
 import type { Product } from "@/types";
 import type { BrowserProduct } from "@/lib/wedding-cards";
+import { formatProductName } from "@/lib/product-name";
 
 export default function WeddingCardTile({
   product,
@@ -20,7 +21,7 @@ export default function WeddingCardTile({
   const hasImage = !!product.image && failedImage !== product.image;
   const named =
     !!product.name.trim() && product.name.trim() !== product.designNo;
-  const title = named ? product.name : `Design ${product.designNo}`;
+  const title = formatProductName(named ? product.name : "Design", product.designNo);
   const cartProduct: Product & { subject: string; minOrderQty: number | null } =
     {
       slug: product.slug,
@@ -90,15 +91,12 @@ export default function WeddingCardTile({
           className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8b6f47] [overflow-wrap:anywhere]"
         >
           {product.itemGroup}
-          {named ? (
-            <span className="block">Design {product.designNo}</span>
-          ) : null}
         </p>
         <Link
           href={`/products/${product.slug}`}
           className="mt-1.5 rounded-sm focus-visible:outline-gold"
         >
-          <h3 className="line-clamp-2 text-[15px] font-semibold text-[#2a1810]">
+          <h3 className="break-words text-[15px] font-semibold text-[#2a1810]">
             {title}
           </h3>
         </Link>

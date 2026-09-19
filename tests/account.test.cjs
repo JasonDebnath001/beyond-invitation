@@ -283,6 +283,7 @@ test("orders progressively enhance visible server HTML and toggle the accessible
       }),
     },
   };
+  imports["@/lib/product-name"] = load("lib/product-name.ts");
   imports["./AccountUI"] = load("components/account/AccountUI.tsx", imports);
   const Orders = load("components/account/AccountOrders.tsx", imports).default;
   const order = {

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ImageOff, X } from "lucide-react";
 import { discountPercent, type Product } from "@/types";
 import { getProductQuantityRules } from "@/lib/product-quantity";
+import { formatProductName } from "@/lib/product-name";
 import AddToCartButton from "@/components/AddToCartButton";
 import ProductPrice from "@/components/ProductPrice";
 import WishlistButton from "@/components/WishlistButton";
@@ -22,6 +23,7 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
   mode?: "own" | "shared"; disabled?: boolean;
 }) {
   const article = useRef<HTMLElement>(null);
+  const productName = formatProductName(product.name, product.itemCode);
   const [failedSrc, setFailedSrc] = useState("");
   const src = getMainProductImage(product.images);
   const hasPrice = Number.isFinite(product.price) && product.price > 0;
@@ -33,9 +35,9 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
   return (
     <article ref={article} data-wishlist-card={product.slug} className="group relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gold/20 bg-white transition-[border-color,box-shadow] duration-300 hover:border-[#ccb894] hover:shadow-[0_14px_36px_-24px_rgba(80,16,31,0.45)] focus-within:border-carbon/40 motion-reduce:transition-none">
       <div className="relative isolate">
-        <Link href={`/products/${product.slug}`} aria-label={`View ${product.name}`} className={`relative flex aspect-[4/5] items-center justify-center overflow-hidden bg-[#f8f5f0] focus-visible:ring-inset ${focusClass}`}>
+        <Link href={`/products/${product.slug}`} aria-label={`View ${productName}`} className={`relative flex aspect-[4/5] items-center justify-center overflow-hidden bg-[#f8f5f0] focus-visible:ring-inset ${focusClass}`}>
           {src && src !== failedSrc ? (
-            <Image src={src} alt={product.name} fill sizes="(min-width:1280px) 22vw, (min-width:768px) 30vw, 46vw"
+            <Image src={src} alt={productName} fill sizes="(min-width:1280px) 22vw, (min-width:768px) 30vw, 46vw"
               onError={() => setFailedSrc(src)} className="object-contain p-3 transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transform-none motion-reduce:transition-none sm:p-4" />
           ) : (
             <div className="flex flex-col items-center justify-center gap-3 px-4 text-center text-[#8b7561]">
@@ -55,7 +57,7 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
       <div className="flex min-w-0 flex-1 flex-col px-3 pb-3 pt-3.5 sm:px-4 sm:pb-4 sm:pt-4">
         <p title={label} className="mb-1.5 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-[#8b6f47]">{label}</p>
         <Link href={`/products/${product.slug}`} className={`rounded-sm ${focusClass}`}>
-          <h2 title={product.name} className="line-clamp-2 min-h-[2.75rem] break-words text-[15px] font-semibold leading-[1.375rem] text-[#2a1810]">{product.name}</h2>
+          <h2 title={productName} className="min-h-[2.75rem] break-words text-[15px] font-semibold leading-[1.375rem] text-[#2a1810]">{productName}</h2>
         </Link>
         <div className="mt-2.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 sm:gap-x-2">
           <ProductPrice price={product.price} mrp={product.mrp}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartProvider";
 import { useAuth } from "@/components/AuthProvider";
 import ProductPrice from "@/components/ProductPrice";
+import { formatProductName } from "@/lib/product-name";
 import { useRazorpayCheckout } from "@/components/useRazorpayCheckout";
 
 type CheckoutForm = {
@@ -460,7 +461,7 @@ export default function CheckoutPage() {
                 >
                   <div className="min-w-0">
                     <p className="break-words font-medium text-ink">
-                      {item.name}
+                      {formatProductName(item.name, item.itemCode)}
                     </p>
                     <p className="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-ink-light">
                       <span>Qty: {item.quantity} ×</span>

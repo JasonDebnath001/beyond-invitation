@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ImageOff } from "lucide-react";
 import { useState } from "react";
 import type { EnquiryProduct } from "@/lib/contact";
+import { formatProductName } from "@/lib/product-name";
 
 export default function ProductEnquiryBanner({
   product,
@@ -43,7 +44,7 @@ export default function ProductEnquiryBanner({
         <p className="text-sm font-semibold text-carbon">
           Enquiry for design {product.designNo}
         </p>
-        <p className="mt-1 break-words text-sm text-ink-mid">{product.name}</p>
+        <p className="mt-1 break-words text-sm text-ink-mid">{formatProductName(product.name, product.designNo)}</p>
         {product.minOrderQty != null && product.minOrderQty > 0 ? (
           <p className="mt-1 text-xs text-ink-light">
             Min. {product.minOrderQty} pieces

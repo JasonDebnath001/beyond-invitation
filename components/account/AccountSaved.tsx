@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Heart, ArrowUpRight } from "lucide-react";
 import ProductPrice from "@/components/ProductPrice";
 import type { SavedProduct } from "@/lib/account";
+import { formatProductName } from "@/lib/product-name";
 import { cardClass, focusClass, linkClass, secondaryClass, SectionHeading } from "./AccountUI";
 
 export default function AccountSaved({ products }: { products: SavedProduct[] }) {
@@ -16,7 +17,7 @@ export default function AccountSaved({ products }: { products: SavedProduct[] })
               <div className="relative aspect-square overflow-hidden rounded-xl border border-gold/15 bg-paper">
                 {product.images[0] ? <Image src={product.images[0]} alt={product.name} fill sizes="(min-width:1024px) 160px, 33vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <Heart aria-hidden="true" className="absolute inset-0 m-auto h-7 w-7 text-[#a7772d]" strokeWidth={1} />}
               </div>
-              <h3 className="mt-3 break-words text-sm font-semibold leading-5 text-carbon">{product.name}</h3>
+              <h3 className="mt-3 break-words text-sm font-semibold leading-5 text-carbon">{formatProductName(product.name, product.itemCode)}</h3>
               <div className="mt-1 flex flex-wrap gap-x-2 text-xs leading-5"><ProductPrice price={product.price} mrp={product.mrp} priceClassName="text-ink-mid" oldPriceClassName="text-ink-mid" /></div>
             </Link>
           ))}

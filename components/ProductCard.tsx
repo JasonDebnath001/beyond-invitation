@@ -7,6 +7,7 @@ import { ImageOff } from "lucide-react";
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
 import { getProductQuantityRules } from "@/lib/product-quantity";
+import { formatProductName } from "@/lib/product-name";
 import AddToCartButton from "./AddToCartButton";
 import WishlistButton from "./WishlistButton";
 import ProductPrice from "./ProductPrice";
@@ -128,6 +129,7 @@ function getMainProductImage(images: string[] | undefined) {
 
 export default function ProductCard({ product, categoryLabel }: ProductCardProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const productName = formatProductName(product.name, product.itemCode);
 
   const discount = discountPercent(product);
   const hasPrice = Number.isFinite(product.price) && product.price > 0;
@@ -144,14 +146,14 @@ export default function ProductCard({ product, categoryLabel }: ProductCardProps
       <div className="relative isolate m-1.5 mb-0 overflow-hidden rounded-lg bg-[#f8f5f0] sm:m-2 sm:mb-0">
         <Link
           href={`/products/${product.slug}`}
-          aria-label={`View ${product.name}`}
+          aria-label={`View ${productName}`}
           className="product-card-image relative flex aspect-square w-full items-center justify-center overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-carbon"
         >
           {showImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={src}
-              alt={product.name}
+              alt={productName}
               loading="lazy"
               decoding="async"
               onError={() => setFailedSrc(src)}
@@ -182,8 +184,8 @@ export default function ProductCard({ product, categoryLabel }: ProductCardProps
           {label}
         </p>
         <Link href={`/products/${product.slug}`} className="rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2">
-          <h3 title={product.name} className="line-clamp-2 min-h-[2.75rem] break-words text-sm font-semibold leading-[1.375rem] text-[#2a1810] transition-colors duration-[240ms] group-hover:text-carbon sm:text-[15px]">
-            {product.name}
+          <h3 title={productName} className="min-h-[2.75rem] break-words text-sm font-semibold leading-[1.375rem] text-[#2a1810] transition-colors duration-[240ms] group-hover:text-carbon sm:text-[15px]">
+            {productName}
           </h3>
         </Link>
 

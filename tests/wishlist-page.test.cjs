@@ -57,6 +57,7 @@ async function withDom(run) {
   const root = createRoot(document.getElementById("root"));
   const imports = {
     react: React, "react/jsx-runtime": require("react/jsx-runtime"), "@/lib/wishlist": helpers,
+    "@/lib/product-name": load("lib/product-name.ts"),
     "next/link": ({ children, ...props }) => React.createElement("a", props, children),
     "next/image": ({ fill, ...props }) => React.createElement("img", props),
     "lucide-react": { X: () => null, ImageOff: () => null, Share2: () => null },

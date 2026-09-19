@@ -118,6 +118,7 @@ async function withBrowser(run, initialQuery = "", collectionType) {
   const motion = { revealNew() {}, reorderStart() {}, reorderEnd() {}, expand(el) { el.hidden = false; }, collapse(el) { el.hidden = true; }, openSheet(el, backdrop) { el.hidden = false; backdrop.hidden = false; }, closeSheet(el, backdrop) { el.hidden = true; backdrop.hidden = true; } };
   const imports = {
     react: React, "react/jsx-runtime": require("react/jsx-runtime"), "@/lib/wedding-cards": helpers,
+    "@/lib/product-name": load("lib/product-name.ts"),
     "next/image": ({ fill, priority, ...props }) => React.createElement("img", props),
     "next/link": ({ children, ...props }) => React.createElement("a", props, children),
     "next/navigation": { useSearchParams: () => new URLSearchParams(React.useContext(context).query), usePathname: () => "/wedding-cards", useRouter: () => React.useContext(context).router },
@@ -144,7 +145,7 @@ async function withBrowser(run, initialQuery = "", collectionType) {
 
 test("browser renders 24, shows more, filters categories in the URL, and clears back to the first page", async () => withBrowser(async ({ click, urls, navigate }) => {
   assert.equal(document.querySelectorAll("[data-card]").length, 24);
-  assert.match(document.querySelector("[data-card]").textContent, /Design 0/);
+  assert.match(document.querySelector("[data-card]").textContent, /Design \(0\)/);
   await click("Show more"); assert.equal(document.querySelectorAll("[data-card]").length, 30);
   await click("Hindu Wedding Card"); assert.equal(document.querySelectorAll("[data-card]").length, 15); assert.match(urls.at(-1), /type=hindu/);
   await click("Clear filters"); assert.equal(document.querySelectorAll("[data-card]").length, 24); assert.equal(urls.at(-1), "/wedding-cards");

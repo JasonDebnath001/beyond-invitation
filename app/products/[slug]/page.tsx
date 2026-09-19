@@ -10,6 +10,7 @@ import {
 } from "@/lib/catalog";
 import type { Product } from "@/types";
 import { discountPercent } from "@/types";
+import { formatProductName } from "@/lib/product-name";
 import { BRAND } from "@/components/siteConfig";
 import { BRAND_NAME } from "@/lib/site-config";
 import { ProductGrid } from "@/components/ProductGrid";
@@ -630,7 +631,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <span className="shrink-0 text-gold">/</span>
 
-            <span className="min-w-0 truncate text-ink">{product.name}</span>
+            <span className="min-w-0 truncate text-ink">{formatProductName(product.name, product.itemCode)}</span>
           </nav>
 
           {/* Product layout */}
@@ -641,7 +642,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 images={product.images || []}
                 videos={product.videos}
                 emoji={product.emoji}
-                alt={product.name}
+                alt={formatProductName(product.name, product.itemCode)}
                 badge={product.badge}
               />
             </div>
@@ -663,7 +664,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
                 <div className="mt-3 flex items-start justify-between gap-4">
                   <h1 className="min-w-0 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[36px] 2xl:text-[40px]">
-                    {product.name}
+                    {formatProductName(product.name, product.itemCode)}
                   </h1>
                   <WishlistButton productSlug={product.slug} className="shrink-0" />
                 </div>

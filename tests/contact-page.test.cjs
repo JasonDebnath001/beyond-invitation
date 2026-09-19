@@ -62,6 +62,7 @@ async function withForm(productProp, run, response = { ok: true, json: async () 
   const motion = { expand(el) { el.hidden = false; }, collapse(el) { el.hidden = true; }, countTo(el, value, format) { el.textContent = format(value); }, drawCheck() {} };
   const imports = {
     react: React, "react/jsx-runtime": require("react/jsx-runtime"), "@/lib/contact": helpers, "@/lib/site-config": siteConfig,
+    "@/lib/product-name": load("lib/product-name.ts"),
     "next/image": ({ fill, ...props }) => React.createElement("img", props),
     "next/link": ({ children, ...props }) => React.createElement("a", props, children),
     "lucide-react": { ImageOff: () => null, ChevronDown: () => null },

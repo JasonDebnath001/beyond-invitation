@@ -19,6 +19,7 @@ export type AccountOrder = {
 export type SavedProduct = {
   slug: string;
   name: string;
+  itemCode?: string;
   images: string[];
   price: number;
   mrp: number;
@@ -98,7 +99,7 @@ export async function fetchSavedProducts(client: SupabaseClient, userId: string)
     const catalog = new Map((await getCatalogProducts()).map((product) => [product.slug, product]));
     return data.flatMap(({ product_slug }) => {
       const product = catalog.get(product_slug);
-      return product ? [{ slug: product.slug, name: product.name, images: product.images.slice(0, 1),
+      return product ? [{ slug: product.slug, name: product.name, itemCode: product.itemCode, images: product.images.slice(0, 1),
         price: product.price, mrp: product.mrp ?? 0 }] : [];
     }).slice(0, 6);
   } catch (error) {

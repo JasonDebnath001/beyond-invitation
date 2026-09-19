@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Package, ArrowUpRight } from "lucide-react";
 import type { AccountOrder } from "@/lib/account";
+import { formatProductName } from "@/lib/product-name";
 import { useAccountMotion } from "./AccountMotion";
 import { cardClass, focusClass, linkClass, secondaryClass, SectionHeading } from "./AccountUI";
 
@@ -41,7 +42,7 @@ function OrderRow({ order }: { order: AccountOrder }) {
           <ul className="divide-y divide-gold/20">
             {order.items.map((item, index) => (
               <li key={`${item.itemCode}-${index}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-4 text-sm">
-                <div className="min-w-0"><p className="break-words font-medium text-ink">{item.name}</p><p className="mt-1 break-all text-xs text-ink-mid">{item.itemCode}</p><p className="mt-2 text-xs text-ink-mid">{item.quantity} × {item.unitPrice}</p></div>
+                <div className="min-w-0"><p className="break-words font-medium text-ink">{formatProductName(item.name, item.itemCode)}</p><p className="mt-2 text-xs text-ink-mid">{item.quantity} × {item.unitPrice}</p></div>
                 <span className="font-semibold text-carbon">{item.total}</span>
               </li>
             ))}

@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
 
-import {
-  fetchErpProductsBySubject,
-  type ErpProduct,
-} from "@/lib/catalog";
-import CollectionPageShell from "@/components/CollectionPageShell";
+import { fetchProductsByItemCategory, type CategorizedCatalogProduct } from "@/lib/catalog-item-category";
+import WeddingCardsCollection from "@/components/wedding-cards/WeddingCardsCollection";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const SUBJECTS = ["Hindu Wedding Card", "Wedding Card"];
+const ITEM_CATEGORY = "Hindu Wedding Card";
 
 export const metadata: Metadata = {
   title: "Hindu Wedding Cards – Beyond Invitation",
@@ -18,11 +15,11 @@ export const metadata: Metadata = {
 };
 
 export default async function HinduWeddingCardPage() {
-  let products: ErpProduct[] = [];
+  let products: CategorizedCatalogProduct[] = [];
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsBySubject(SUBJECTS);
+    products = await fetchProductsByItemCategory(ITEM_CATEGORY);
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -31,21 +28,12 @@ export default async function HinduWeddingCardPage() {
   }
 
   return (
-    <CollectionPageShell
-      eyebrow="Wedding Card Collection"
+    <WeddingCardsCollection
       title="Hindu Wedding Cards"
-      description="Sacred motifs, auspicious hues and heirloom craftsmanship — invitations thoughtfully designed to announce a Hindu wedding with grace."
+      collectionType="hindu"
       products={products}
       errorMessage={errorMessage}
       emptyTitle="No Hindu wedding cards just yet"
-      emptyDescription="This collection is being updated. Please check back soon or contact us for help finding your invitation."
-      subjectLabel="Hindu Wedding Card + Wedding Card"
-      accentIcon="ॐ"
-      breadcrumb={[
-        { label: "Home", href: "/" },
-        { label: "Wedding Card", href: "/collections/wedding-card" },
-        { label: "Hindu" },
-      ]}
     />
   );
 }

@@ -11,6 +11,7 @@ import {
 } from "@/lib/reseller";
 
 export type CatalogProduct = Product & {
+  catalogId: string;
   itemCode: string;
   itemGroup: string;
   erpName: string;
@@ -29,7 +30,7 @@ export type ErpProduct = CatalogProduct;
 
 type NullableNumber = number | string | null;
 
-/** The public view is the only database relation the storefront reads. */
+/** Product content and prices are always read from the public view. */
 export interface WebProductRow {
   id: string;
   item_code: string;
@@ -125,6 +126,7 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
   const tags = mediaList(row.tags);
 
   return {
+    catalogId: row.id,
     slug: row.slug,
     name: row.name,
     price,
@@ -185,8 +187,8 @@ const readCatalogProducts = unstable_cache(
 
     return products;
   },
-  ["buildErpProductList"],
-  { revalidate: 60 },
+  ["buildErpProductList-v2"],
+  { revalidate: 60, tags: ["catalogue"] },
 );
 
 // Deduplicate concurrent metadata/page reads as well as caching across requests.
@@ -210,20 +212,22 @@ export async function fetchWeddingCardProductsBase(): Promise<
 > {
   return (await buildErpProductList())
     .filter(isWeddingCardProduct)
-    .sort((a, b) => {
-      const photoDifference =
-        Number(b.images.some((image) => image.trim())) -
-        Number(a.images.some((image) => image.trim()));
-      const priceDifference = Number(b.hasPrice) - Number(a.hasPrice);
-      const newestDifference =
-        (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0);
-      return (
-        photoDifference ||
-        priceDifference ||
-        newestDifference ||
-        a.slug.localeCompare(b.slug, "en")
-      );
-    });
+    .sort(compareWeddingCardProducts);
+}
+
+export function compareWeddingCardProducts(a: CatalogProduct, b: CatalogProduct) {
+  const photoDifference =
+    Number(b.images.some((image) => image.trim())) -
+    Number(a.images.some((image) => image.trim()));
+  const priceDifference = Number(b.hasPrice) - Number(a.hasPrice);
+  const newestDifference =
+    (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0);
+  return (
+    photoDifference ||
+    priceDifference ||
+    newestDifference ||
+    a.slug.localeCompare(b.slug, "en")
+  );
 }
 
 export async function fetchWeddingCardProducts(): Promise<CatalogProduct[]> {

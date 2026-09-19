@@ -24,7 +24,7 @@ export function getSupabaseServerClient(): SupabaseClient {
       detectSessionInUrl: false,
     },
     global: {
-      fetch: (input, init) => fetch(input, { ...init, next: { revalidate: 60 } }),
+      fetch: (input, init) => fetch(input, { ...init, next: { revalidate: 60, tags: ["catalogue"] } }),
     },
   });
 

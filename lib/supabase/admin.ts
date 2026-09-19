@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | undefined;
 
-/** Backend order writes only. Never attach a customer's session to this client. */
+/** Server-only operations and published category membership. Never attach a customer's session. */
 export function getSupabaseAdminClient(): SupabaseClient {
   if (client) return client;
 
@@ -15,7 +15,7 @@ export function getSupabaseAdminClient(): SupabaseClient {
 
   if (!url || !key) {
     throw new Error(
-      "Website orders require NEXT_PUBLIC_SUPABASE_URL and a server-only SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY). See supabase/ORDERS_SETUP.md.",
+      "Server operations require NEXT_PUBLIC_SUPABASE_URL and a server-only SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY). See supabase/ORDERS_SETUP.md.",
     );
   }
 

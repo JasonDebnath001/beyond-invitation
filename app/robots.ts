@@ -18,6 +18,7 @@ export default function robots(): MetadataRoute.Robots {
           "/visit-us",
         ],
         disallow: [
+          "/admin",
           "/api/",
           "/account",
           "/sign-in",

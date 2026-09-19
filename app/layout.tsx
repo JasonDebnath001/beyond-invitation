@@ -7,13 +7,7 @@ import "./globals.css";
 import { SITE_NAME } from "@/components/siteConfig";
 import { getSiteUrl, DEFAULT_OG_IMAGE } from "@/lib/site-config";
 
-import SiteLoader from "@/components/SiteLoader";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import CookiesConsent from "@/components/CookiesConsent";
-import { CartProvider } from "@/components/CartProvider";
-import { WishlistProvider } from "@/components/WishlistProvider";
-import { AuthProvider } from "@/components/AuthProvider";
+import StorefrontShell from "@/components/StorefrontShell";
 
 const assistant = Assistant({
   subsets: ["latin"],
@@ -103,17 +97,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={assistant.variable}>
       <body className="min-h-screen bg-white font-sans text-carbon antialiased">
-        <SiteLoader />
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <Navbar />
-              <main>{children}</main>
-              <Footer />
-              <CookiesConsent />
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
+        <StorefrontShell>{children}</StorefrontShell>
       </body>
     </html>
   );

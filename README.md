@@ -396,21 +396,25 @@ Never expose the ERPNext API key or API secret to client-side code.
 
 # Product catalogue (Supabase)
 
-`lib/catalog.ts` reads only `public.v_web_products` using the public anon/publishable key. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` and your deployment environment. Never use a `service_role` or secret key in this storefront.
+The item dashboard is at `/admin`, with live item details and CSV/XLSX preview-and-import by design number. It supports the supplied 52-column item template, creates missing designs and supported references, updates changed fields, and preserves blank fields. Authentication is deliberately deferred; the route is unlinked and noindex, but anyone with its URL can access it. See [Item dashboard setup and import rules](docs/ADMIN_ITEMS.md).
+
+`lib/catalog.ts` reads product details and prices only from `public.v_web_products` using the public anon/publishable key. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` and your deployment environment. Keep service-role and secret keys exclusively on the server.
+
+The Hindu collection uses the exact **Item Category** `Hindu Wedding Card`. The Muslim and Christian collections both use Item Category exactly `Wedding Card`. Their canonical routes are `/collections/wedding-card-hindu`, `/collections/wedding-card-muslim`, and `/collections/wedding-card-christian`; matching root paths without `/collections` redirect there. These collections filter by Item Category independently of Subject. All three use the same layout, product tiles, sorting, price filters and mobile filter panel as `/wedding-cards`. The Categories filter on the main page offers All, Hindu Wedding Card, Muslim Wedding Card and Christian Wedding Card using the same Item Category rules. All retains the wider wedding catalogue and includes both assigned categories; Muslim and Christian share the same products. The Hindu, Muslim and Christian pages show only price filters on desktop and mobile; category choices appear only on `/wedding-cards`. Because the public view does not expose Item Category, `lib/catalog-item-category.ts` uses the existing server-only Supabase key for a narrow lookup of active, website-visible item IDs and category names. It then loads only products present in the public view. These wedding pages require the same `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) configured for the dashboard and checkout; the key is never passed to the browser. Category membership caches for 60 seconds and refreshes when an admin import invalidates the catalogue cache.
 
 The SQL contract is in `supabase/migrations/20260914_web_catalog.sql`. It intentionally uses the database owner's privileges to bypass ERP user RLS for this restricted public view. Base-table policies are unchanged. Lists, details, search and sitemap use this view; data is cached for 60 seconds, and reseller margins are applied afterwards for each visitor.
 
 To make an item appear on the site in Samriddhi:
 
 1. Keep the item active and tick **Show on Website**.
-2. Set **Subject** to Wedding Card, Hindu Wedding Card, Muslim Wedding Card, Christian Wedding Card, Shagun Envelopes, Wedding Box, or Rakhi. Language subjects and unassigned subjects appear only in all-product lists and search until re-tagged.
+2. Set **Item Category** to `Hindu Wedding Card` for the Hindu collection or `Wedding Card` for the Muslim and Christian collections. Set **Subject** separately for the remaining Subject-based collections, such as Wedding Card, Shagun Envelopes, Wedding Box, or Rakhi.
 3. Add an active **Selling** price on **Standard Sales List** (`PL0001`), or fill `website_price` on a qualifying Selling row. An explicit item website price list has first priority, then a populated `website_price`, then `PL0001`. Rows must have `row_status = 'Active'` and not be expired. The latest `effective_from` breaks preference ties; it is not a start-date filter.
 
 Price is `website_price` when set, otherwise rate minus discount, rounded to two decimals. Unpriced items remain visible as **Price on request**, link to `/contact?product=<slug>`, and cannot be checked out. Checkout looks up base prices again on the server before applying the unchanged reseller margin.
 
 Product URLs retain the design number (`items.name`), such as `/products/535093`. Supplier/year item groups are searchable metadata only. Brand metadata comes from `BRAND_NAME` in `lib/site-config.ts`.
 
-Browse all products at `/catalog`. Existing category definitions remain in `data/categories.json`; collection membership is based on Subject. Specific religious collections also include the shared Wedding Card subject.
+Browse all products at `/catalog`. Existing category definitions remain in `data/categories.json`. The Hindu collection uses Item Category exactly `Hindu Wedding Card`; the Muslim and Christian collections both use Item Category exactly `Wedding Card`. Other collections retain their Subject-based membership.
 
 ---
 

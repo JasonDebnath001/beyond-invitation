@@ -19,7 +19,7 @@ function load(file, imports = {}, globals = {}) {
 const plain = value => JSON.parse(JSON.stringify(value));
 const helpers = load("lib/wedding-cards.ts");
 const image = "https://ldjcivtrbmxmkemjqqdi.supabase.co/storage/v1/object/public/item_images/card.jpg";
-const product = { slug: "111015", designNo: "111015", name: "111015", price: 25, mrp: 25, image, imageCount: 2, subject: "Hindi", itemGroup: "Aman 2026", hasPrice: true, minOrderQty: 50, updatedAt: "2026-09-17T00:00:00Z" };
+const product = { slug: "111015", designNo: "111015", name: "111015", price: 25, mrp: 25, image, imageCount: 2, subject: "Hindi", itemCategory: "Hindu Wedding Card", itemGroup: "Aman 2026", hasPrice: true, minOrderQty: 50, updatedAt: "2026-09-17T00:00:00Z" };
 
 function loadCatalog(rows) {
   const state = { margin: 0, reads: 0, priced: 0 };
@@ -60,22 +60,26 @@ test("wedding catalogue excludes three subjects, ranks photos then prices then n
 });
 
 test("wedding filters round-trip through a shareable URL and discard invalid enums", () => {
-  const filters = { type: "hindu", text: "Hindi & English", price: "25-50", sort: "price-asc" };
+  const filters = { type: "hindu", price: "25-50", sort: "price-asc" };
   const serialized = helpers.serializeWeddingFilters(filters);
-  assert.match(serialized, /text=Hindi\+%26\+English/);
   assert.deepEqual(plain(helpers.parseWeddingFilters(new URLSearchParams(serialized))), filters);
   assert.deepEqual(plain(helpers.parseWeddingFilters(new URLSearchParams("type=other&price=bad&sort=bad&photos=1"))), plain(helpers.DEFAULT_WEDDING_FILTERS));
   assert.equal(helpers.serializeWeddingFilters(helpers.DEFAULT_WEDDING_FILTERS), "");
 });
 
-test("each wedding facet filters the full list, including unassigned subjects only under Any", () => {
-  const products = [product, { ...product, slug: "hindu", subject: "Hindu Wedding Card", image: "", price: 70 }, { ...product, slug: "common", subject: "Common", image: "", price: 0 }, { ...product, slug: "blank", subject: "", image: "", price: 10 }];
+test("category filters use exact Item Category, with Wedding Card shared by Muslim and Christian", () => {
+  const products = [
+    product,
+    { ...product, slug: "generic", itemCategory: "Wedding Card", subject: "Common", price: 0 },
+    { ...product, slug: "subject-only", itemCategory: "", subject: "Hindu Wedding Card" },
+    { ...product, slug: "plural", itemCategory: "Wedding Cards", subject: "Muslim Wedding Card" },
+  ];
   const filter = patch => Array.from(helpers.applyWeddingFilters(products, { ...helpers.DEFAULT_WEDDING_FILTERS, ...patch }), item => item.slug);
-  assert.deepEqual(filter({ type: "hindu" }), ["hindu"]);
-  assert.deepEqual(filter({ text: "Hindi" }), ["111015"]);
-  assert.deepEqual(filter({ text: "Hindu Wedding Card" }), []);
-  assert.deepEqual(filter({ price: "on-request" }), ["common"]);
-  assert.deepEqual(filter({ text: "Hindi", price: "under-25" }), []);
+  assert.deepEqual(filter({ type: "hindu" }), ["111015"]);
+  assert.deepEqual(filter({ type: "muslim" }), ["generic"]);
+  assert.deepEqual(filter({ type: "christian" }), ["generic"]);
+  assert.deepEqual(filter({ price: "on-request" }), ["generic"]);
+  assert.deepEqual(filter({ type: "hindu", price: "on-request" }), []);
   assert.equal(filter({}).length, 4);
 });
 
@@ -89,16 +93,18 @@ test("price sorting puts unpriced items last in both directions without mutating
   assert.equal(products[0], product);
 });
 
-test("price buckets have non-overlapping boundaries and facets with one option are hidden", () => {
+test("price buckets have non-overlapping boundaries and all three category choices stay available", () => {
   for (const [price, bucket] of [[0, "on-request"], [-1, "on-request"], [24.99, "under-25"], [25, "25-50"], [49.99, "25-50"], [50, "50-100"], [100, "50-100"], [100.01, "above-100"]]) assert.equal(helpers.priceBucketFor(price), bucket);
   const single = helpers.facetCounts([product]);
-  assert.equal(single.showType, false); assert.equal(single.showText, false); assert.equal(single.showPrice, false);
-  const varied = helpers.facetCounts([product, { ...product, subject: "Common", price: 0 }, { ...product, subject: "Hindu Wedding Card" }, { ...product, subject: "Muslim Wedding Card" }, { ...product, subject: "" }]);
-  assert.equal(varied.showType, true); assert.equal(varied.showText, true); assert.equal(varied.showPrice, true);
-  assert.deepEqual(Array.from(varied.text, item => item.label), ["Common", "Hindi"]);
+  assert.equal(single.showPrice, false);
+  assert.deepEqual(Array.from(single.types, item => [item.label, item.count]), [["Hindu Wedding Card", 1], ["Muslim Wedding Card", 0], ["Christian Wedding Card", 0]]);
+  const varied = helpers.facetCounts([product, { ...product, itemCategory: "Wedding Card", price: 0 }, { ...product, itemCategory: "" }]);
+  assert.equal(varied.showPrice, true);
+  assert.deepEqual(Array.from(varied.types, item => item.count), [1, 1, 1]);
+  assert.equal(varied.total, 3, "All counts each product once, despite the shared category");
 });
 
-async function withBrowser(run, initialQuery = "") {
+async function withBrowser(run, initialQuery = "", collectionType) {
   const { JSDOM } = require("jsdom");
   const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: "http://localhost:3000/wedding-cards", pretendToBeVisual: true });
   global.window = dom.window; global.document = dom.window.document; global.IS_REACT_ACT_ENVIRONMENT = true;
@@ -124,12 +130,12 @@ async function withBrowser(run, initialQuery = "") {
   const globals = { window: dom.window, document: dom.window.document };
   imports["@/components/wedding-cards/WeddingCardTile"] = load("components/wedding-cards/WeddingCardTile.tsx", imports, globals);
   const Browser = load("components/wedding-cards/WeddingCardsBrowser.tsx", imports, globals).default;
-  const products = Array.from({ length: 30 }, (_, index) => ({ ...product, slug: `card-${index}`, designNo: String(index), name: String(index), image: index % 2 ? "" : image, subject: index % 2 ? "Common" : "Hindi", price: index % 2 ? 0 : 25 }));
+  const products = Array.from({ length: 30 }, (_, index) => ({ ...product, slug: `card-${index}`, designNo: String(index), name: String(index), image: index % 2 ? "" : image, subject: index % 2 ? "Common" : "Hindi", itemCategory: index % 2 ? "Wedding Card" : "Hindu Wedding Card", price: index % 2 ? 0 : 25 }));
   function Harness() {
     const [query, setQuery] = React.useState(initialQuery);
     navigate = setQuery;
     const router = { replace(url, options) { assert.equal(options.scroll, false); urls.push(url); setQuery(url.split("?")[1] || ""); } };
-    return React.createElement(context.Provider, { value: { query, router } }, React.createElement(Browser, { products }));
+    return React.createElement(context.Provider, { value: { query, router } }, React.createElement(Browser, { products: collectionType ? products.filter(p => p.itemCategory === helpers.CARD_TYPES.find(t => t.value === collectionType).itemCategory) : products, collectionType }));
   }
   const click = async text => React.act(async () => [...document.querySelectorAll("button")].find(element => element.textContent.startsWith(text)).click());
   try { await React.act(async () => root.render(React.createElement(Harness))); await run({ React, dom, click, urls, navigate: async query => React.act(async () => navigate(query)), imports, globals }); }
@@ -140,10 +146,10 @@ test("browser renders 24, shows more, filters categories in the URL, and clears 
   assert.equal(document.querySelectorAll("[data-card]").length, 24);
   assert.match(document.querySelector("[data-card]").textContent, /Design 0/);
   await click("Show more"); assert.equal(document.querySelectorAll("[data-card]").length, 30);
-  await click("Hindi"); assert.equal(document.querySelectorAll("[data-card]").length, 15); assert.match(urls.at(-1), /text=Hindi/);
+  await click("Hindu Wedding Card"); assert.equal(document.querySelectorAll("[data-card]").length, 15); assert.match(urls.at(-1), /type=hindu/);
   await click("Clear filters"); assert.equal(document.querySelectorAll("[data-card]").length, 24); assert.equal(urls.at(-1), "/wedding-cards");
-  await navigate("text=Common&price=on-request"); assert.equal(document.querySelectorAll("[data-card]").length, 15); assert.match(document.querySelector("[data-card]").textContent, /Photo on request/);
-  await navigate("text=unknown"); assert.equal(document.querySelectorAll("[data-card]").length, 0); assert.match(document.body.textContent, /No designs match these filters/);
+  await navigate("type=muslim&price=on-request"); assert.equal(document.querySelectorAll("[data-card]").length, 15); assert.match(document.querySelector("[data-card]").textContent, /Photo on request/);
+  await navigate("type=hindu&price=on-request"); assert.equal(document.querySelectorAll("[data-card]").length, 0); assert.match(document.body.textContent, /No designs match these filters/);
 }));
 
 test("initial URL filters and mobile dialog support opening, Escape, and focus return", async () => withBrowser(async ({ React, dom, click }) => {
@@ -155,4 +161,19 @@ test("initial URL filters and mobile dialog support opening, Escape, and focus r
   await React.act(async () => document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
   assert.equal(document.querySelector('[role="dialog"]').hidden, true);
   assert.equal(document.activeElement.textContent, "Filters");
-}, "text=Hindi"));
+}, "type=hindu"));
+
+test("collections show only price filters on desktop and mobile, and clear stays within the collection", async () => withBrowser(async ({ click, urls }) => {
+  assert.equal(document.querySelectorAll("[data-card]").length, 15);
+  const sidebar = document.querySelector("[data-filter-sidebar]");
+  assert.deepEqual([...sidebar.querySelectorAll("legend")].map(el => el.textContent), ["Price per piece"]);
+  assert.equal(sidebar.querySelectorAll("a").length, 0);
+  await click("Filters");
+  const sheet = document.querySelector('[role="dialog"]');
+  assert.equal(sheet.hidden, false);
+  assert.deepEqual([...sheet.querySelectorAll("legend")].map(el => el.textContent), ["Price per piece"]);
+  await click("Show 15 designs");
+  await click("Clear filters");
+  assert.equal(document.querySelectorAll("[data-card]").length, 15);
+  assert.doesNotMatch(urls.at(-1), /type=/);
+}, "type=muslim&price=25-50", "hindu"));

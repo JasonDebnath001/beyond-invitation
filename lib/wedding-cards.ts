@@ -7,6 +7,7 @@ export type BrowserProduct = {
   image: string;
   imageCount: number;
   subject: string;
+  itemCategory: string;
   itemGroup: string;
   hasPrice: boolean;
   minOrderQty: number | null;
@@ -30,32 +31,21 @@ export type WeddingSort = (typeof WEDDING_SORTS)[number]["value"];
 export type PriceBucket = (typeof PRICE_BUCKETS)[number]["value"];
 export type WeddingFilters = {
   type: "all" | "hindu" | "muslim" | "christian";
-  text: string;
   price: "any" | PriceBucket;
   sort: WeddingSort;
 };
 
 export const DEFAULT_WEDDING_FILTERS: WeddingFilters = {
   type: "all",
-  text: "",
   price: "any",
   sort: "recommended",
 };
-const CARD_TYPES = [
-  { value: "hindu", label: "Hindu", subject: "hindu wedding card" },
-  { value: "muslim", label: "Muslim", subject: "muslim wedding card" },
-  { value: "christian", label: "Christian", subject: "christian wedding card" },
+export const CARD_TYPES = [
+  { value: "hindu", label: "Hindu Wedding Card", itemCategory: "Hindu Wedding Card", href: "/collections/wedding-card-hindu" },
+  { value: "muslim", label: "Muslim Wedding Card", itemCategory: "Wedding Card", href: "/collections/wedding-card-muslim" },
+  { value: "christian", label: "Christian Wedding Card", itemCategory: "Wedding Card", href: "/collections/wedding-card-christian" },
 ] as const;
-// Kept local so this pure, browser-safe module never imports the server catalogue.
-const STOREFRONT_SUBJECTS = new Set([
-  "wedding card",
-  ...CARD_TYPES.map((item) => item.subject),
-  "shagun envelopes",
-  "wedding box",
-  "rakhi",
-]);
-const normalizedSubject = (product: BrowserProduct) =>
-  product.subject.trim().toLowerCase();
+export type WeddingCardType = (typeof CARD_TYPES)[number]["value"];
 const hasPrice = (price: number) => Number.isFinite(price) && price > 0;
 
 export function priceBucketFor(price: number): PriceBucket {
@@ -76,7 +66,6 @@ export function parseWeddingFilters(
     type: CARD_TYPES.some((item) => item.value === type)
       ? (type as WeddingFilters["type"])
       : "all",
-    text: (params.get("text") || "").trim().slice(0, 100),
     price: PRICE_BUCKETS.some((item) => item.value === price)
       ? (price as PriceBucket)
       : "any",
@@ -89,7 +78,6 @@ export function parseWeddingFilters(
 export function serializeWeddingFilters(filters: WeddingFilters) {
   const params = new URLSearchParams();
   if (filters.type !== "all") params.set("type", filters.type);
-  if (filters.text) params.set("text", filters.text);
   if (filters.price !== "any") params.set("price", filters.price);
   if (filters.sort !== "recommended") params.set("sort", filters.sort);
   return params.toString();
@@ -101,12 +89,8 @@ export function applyWeddingFilters(
 ) {
   const type = CARD_TYPES.find((item) => item.value === filters.type);
   return products.filter((product) => {
-    const subject = normalizedSubject(product);
     return (
-      (!type || subject === type.subject) &&
-      (!filters.text ||
-        (!STOREFRONT_SUBJECTS.has(subject) &&
-          subject === filters.text.toLowerCase())) &&
+      (!type || product.itemCategory === type.itemCategory) &&
       (filters.price === "any" ||
         priceBucketFor(product.price) === filters.price)
     );
@@ -138,28 +122,9 @@ export function facetCounts(products: BrowserProduct[]) {
     value: item.value,
     label: item.label,
     count: products.filter(
-      (product) => normalizedSubject(product) === item.subject,
+      (product) => product.itemCategory === item.itemCategory,
     ).length,
-  })).filter((item) => item.count > 0);
-  const textCounts = new Map<
-    string,
-    { value: string; label: string; count: number }
-  >();
-  for (const product of products) {
-    const subject = normalizedSubject(product);
-    if (!subject || STOREFRONT_SUBJECTS.has(subject)) continue;
-    const existing = textCounts.get(subject);
-    if (existing) existing.count++;
-    else
-      textCounts.set(subject, {
-        value: product.subject.trim(),
-        label: product.subject.trim(),
-        count: 1,
-      });
-  }
-  const text = [...textCounts.values()].sort((a, b) =>
-    a.label.localeCompare(b.label, "en"),
-  );
+  }));
   const prices = PRICE_BUCKETS.map((item) => ({
     ...item,
     count: products.filter(
@@ -169,10 +134,7 @@ export function facetCounts(products: BrowserProduct[]) {
   return {
     total: products.length,
     types,
-    text,
     prices,
-    showType: types.length >= 2,
-    showText: text.length >= 2,
     showPrice: prices.length >= 2,
   };
 }

@@ -22,6 +22,7 @@ import {
   WEDDING_SORTS,
   type BrowserProduct,
   type WeddingFilters,
+  type WeddingCardType,
 } from "@/lib/wedding-cards";
 
 const gridClass =
@@ -56,14 +57,9 @@ function Facet({
         {[{ value: anyValue, label: anyLabel, count: total }, ...options].map(
           (option) => {
             const selected = value.toLowerCase() === option.value.toLowerCase();
-            return (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => onChange(option.value)}
-                className={`flex w-full items-center gap-2.5 rounded-sm py-2 text-left text-sm transition-colors focus-visible:outline-gold ${selected ? "font-semibold text-maroon" : "text-ink-mid hover:text-maroon"}`}
-              >
+            const className = `flex w-full items-center gap-2.5 rounded-sm py-2 text-left text-sm transition-colors focus-visible:outline-gold ${selected ? "font-semibold text-maroon" : "text-ink-mid hover:text-maroon"}`;
+            const content = (
+              <>
                 <span
                   aria-hidden="true"
                   className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${selected ? "border-maroon" : "border-carbon/25"}`}
@@ -76,6 +72,17 @@ function Facet({
                 <span className="ml-auto pl-2 text-xs font-normal tabular-nums text-ink-mid/70">
                   {option.count}
                 </span>
+              </>
+            );
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onChange(option.value)}
+                className={className}
+              >
+                {content}
               </button>
             );
           },
@@ -107,16 +114,22 @@ export function WeddingCardsSkeleton() {
 
 export default function WeddingCardsBrowser({
   products,
+  collectionType,
 }: {
   products: BrowserProduct[];
+  collectionType?: WeddingCardType;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const paramsKey = searchParams.toString();
   const filters = useMemo(
-    () => parseWeddingFilters(new URLSearchParams(paramsKey)),
-    [paramsKey],
+    () => {
+      const parsed = parseWeddingFilters(new URLSearchParams(paramsKey));
+      // Collection membership is fixed by the server, even for a stale type URL.
+      return collectionType ? { ...parsed, type: "all" as const } : parsed;
+    },
+    [paramsKey, collectionType],
   );
   const filterKey = serializeWeddingFilters(filters);
   const [pagination, setPagination] = useState({ key: filterKey, count: 24 });
@@ -133,7 +146,6 @@ export default function WeddingCardsBrowser({
   const visibleKey = visible.map((product) => product.slug).join("|");
   const hasFilters =
     filters.type !== "all" ||
-    !!filters.text ||
     filters.price !== "any";
   const browserRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -178,7 +190,7 @@ export default function WeddingCardsBrowser({
     motion.openSheet(sheet, backdrop);
     const frame = window.requestAnimationFrame(() =>
       sheet
-        .querySelector<HTMLButtonElement>("[aria-pressed]")
+        .querySelector<HTMLElement>("[aria-pressed]")
         ?.focus({ preventScroll: true }),
     );
     const onKey = (event: KeyboardEvent) => {
@@ -242,9 +254,9 @@ export default function WeddingCardsBrowser({
 
   const facetControls = (
     <div className="space-y-6">
-      {facets.showType ? (
+      {!collectionType ? (
         <Facet
-          label="Card type"
+          label="Categories"
           options={facets.types}
           value={filters.type}
           anyLabel="All"
@@ -253,18 +265,7 @@ export default function WeddingCardsBrowser({
           onChange={(type) => update({ type: type as WeddingFilters["type"] })}
         />
       ) : null}
-      {facets.showText ? (
-        <Facet
-          label="Categories"
-          options={facets.text}
-          value={filters.text}
-          anyLabel="All"
-          anyValue=""
-          total={facets.total}
-          onChange={(text) => update({ text })}
-        />
-      ) : null}
-      {facets.showPrice ? (
+      {collectionType || facets.showPrice ? (
         <Facet
           label="Price per piece"
           options={facets.prices}
@@ -284,7 +285,7 @@ export default function WeddingCardsBrowser({
     <div
       data-wedding-browser
       ref={browserRef}
-      className="grid items-start gap-x-8 lg:grid-cols-[184px_minmax(0,1fr)] xl:gap-x-10 xl:grid-cols-[200px_minmax(0,1fr)]"
+      className="grid items-start gap-x-8 lg:grid-cols-[220px_minmax(0,1fr)] xl:gap-x-10 xl:grid-cols-[240px_minmax(0,1fr)]"
     >
       <aside
         aria-label="Filter wedding cards"

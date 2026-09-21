@@ -106,7 +106,8 @@ test("price buckets have non-overlapping boundaries and all three category choic
 
 async function withBrowser(run, initialQuery = "", collectionType) {
   const { JSDOM } = require("jsdom");
-  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: "http://localhost:3000/wedding-cards", pretendToBeVisual: true });
+  const pathname = collectionType === "boxes" ? "/wedding-boxes" : "/wedding-cards";
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: `http://localhost:3000${pathname}`, pretendToBeVisual: true });
   global.window = dom.window; global.document = dom.window.document; global.IS_REACT_ACT_ENVIRONMENT = true;
   dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   const React = require("react");
@@ -121,7 +122,7 @@ async function withBrowser(run, initialQuery = "", collectionType) {
     "@/lib/product-name": load("lib/product-name.ts"),
     "next/image": ({ fill, priority, ...props }) => React.createElement("img", props),
     "next/link": ({ children, ...props }) => React.createElement("a", props, children),
-    "next/navigation": { useSearchParams: () => new URLSearchParams(React.useContext(context).query), usePathname: () => "/wedding-cards", useRouter: () => React.useContext(context).router },
+    "next/navigation": { useSearchParams: () => new URLSearchParams(React.useContext(context).query), usePathname: () => pathname, useRouter: () => React.useContext(context).router },
     "lucide-react": { SlidersHorizontal: () => null, X: () => null, ChevronDown: () => null },
     "@/components/WishlistButton": ({ productSlug }) => React.createElement("button", { "data-wishlist": productSlug }, "Save"),
     "@/components/AddToCartButton": ({ product }) => React.createElement("button", { "data-cart": product.itemCode }, product.price > 0 ? "Add to Cart" : "Enquire for price"),
@@ -131,12 +132,12 @@ async function withBrowser(run, initialQuery = "", collectionType) {
   const globals = { window: dom.window, document: dom.window.document };
   imports["@/components/wedding-cards/WeddingCardTile"] = load("components/wedding-cards/WeddingCardTile.tsx", imports, globals);
   const Browser = load("components/wedding-cards/WeddingCardsBrowser.tsx", imports, globals).default;
-  const products = Array.from({ length: 30 }, (_, index) => ({ ...product, slug: `card-${index}`, designNo: String(index), name: String(index), image: index % 2 ? "" : image, subject: index % 2 ? "Common" : "Hindi", itemCategory: index % 2 ? "Wedding Card" : "Hindu Wedding Card", price: index % 2 ? 0 : 25 }));
+  const products = Array.from({ length: 30 }, (_, index) => ({ ...product, slug: `card-${index}`, designNo: String(index), name: String(index), image: index % 2 ? "" : image, subject: index % 2 ? "Common" : "Hindi", itemCategory: collectionType === "boxes" ? "Wedding Box" : index % 2 ? "Wedding Card" : "Hindu Wedding Card", price: index % 2 ? 0 : collectionType === "boxes" ? 25 + index : 25 }));
   function Harness() {
     const [query, setQuery] = React.useState(initialQuery);
     navigate = setQuery;
     const router = { replace(url, options) { assert.equal(options.scroll, false); urls.push(url); setQuery(url.split("?")[1] || ""); } };
-    return React.createElement(context.Provider, { value: { query, router } }, React.createElement(Browser, { products: collectionType ? products.filter(p => p.itemCategory === helpers.CARD_TYPES.find(t => t.value === collectionType).itemCategory) : products, collectionType }));
+    return React.createElement(context.Provider, { value: { query, router } }, React.createElement(Browser, { products: collectionType && collectionType !== "boxes" ? products.filter(p => p.itemCategory === helpers.CARD_TYPES.find(t => t.value === collectionType).itemCategory) : products, collectionType }));
   }
   const click = async text => React.act(async () => [...document.querySelectorAll("button")].find(element => element.textContent.startsWith(text)).click());
   try { await React.act(async () => root.render(React.createElement(Harness))); await run({ React, dom, click, urls, navigate: async query => React.act(async () => navigate(query)), imports, globals }); }
@@ -178,3 +179,38 @@ test("collections show only price filters on desktop and mobile, and clear stays
   assert.equal(document.querySelectorAll("[data-card]").length, 15);
   assert.doesNotMatch(urls.at(-1), /type=/);
 }, "type=muslim&price=25-50", "hindu"));
+
+test("wedding boxes ignore stale card categories and support pagination, sorting, and desktop/mobile price filters", async () => withBrowser(async ({ React, dom, click, urls, navigate }) => {
+  assert.equal(document.querySelectorAll("[data-card]").length, 24);
+  assert.equal(document.querySelector('[data-filter-sidebar]').getAttribute("aria-label"), "Filter wedding boxes");
+  assert.deepEqual([...document.querySelector('[data-filter-sidebar]').querySelectorAll("legend")].map(el => el.textContent), ["Price per piece"]);
+  await click("Show more");
+  assert.equal(document.querySelectorAll("[data-card]").length, 30);
+  const sort = document.querySelector('select[aria-label="Sort wedding boxes"]');
+  await React.act(async () => {
+    sort.value = "price-desc";
+    sort.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  assert.equal(document.querySelector("[data-card]").dataset.card, "card-28");
+  assert.equal(document.querySelectorAll("[data-card]").length, 24);
+  assert.equal(urls.at(-1), "/wedding-boxes?sort=price-desc");
+  assert.ok(document.querySelector('[data-wishlist="card-28"]'));
+  assert.ok(document.querySelector('[data-cart="28"]'));
+  await click("Price on request");
+  assert.equal(document.querySelectorAll("[data-card]").length, 15);
+  assert.match(document.querySelector("[data-card]").textContent, /Enquire for price/);
+  await click("Filters");
+  const sheet = document.querySelector('[role="dialog"]');
+  assert.equal(sheet.hidden, false);
+  assert.deepEqual([...sheet.querySelectorAll("legend")].map(el => el.textContent), ["Price per piece"]);
+  await click("Show 15 designs");
+  await click("Clear filters");
+  assert.equal(document.querySelectorAll("[data-card]").length, 24);
+  assert.equal(urls.at(-1), "/wedding-boxes?sort=price-desc");
+  await navigate("type=hindu&price=under-25");
+  assert.equal(document.querySelectorAll("[data-card]").length, 0);
+  assert.match(document.body.textContent, /No designs match these filters/);
+  await click("Clear filters");
+  assert.equal(document.querySelectorAll("[data-card]").length, 24);
+  assert.equal(urls.at(-1), "/wedding-boxes");
+}, "type=muslim", "boxes"));

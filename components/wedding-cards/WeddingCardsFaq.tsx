@@ -5,7 +5,9 @@ import { ChevronDown } from "lucide-react";
 import { WEDDING_FAQS } from "@/lib/wedding-cards";
 import { useWeddingCardsMotion } from "@/components/wedding-cards/WeddingCardsMotion";
 
-export default function WeddingCardsFaq() {
+export default function WeddingCardsFaq({ items = WEDDING_FAQS }: {
+  items?: readonly { question: string; answer: string }[];
+}) {
   const [open, setOpen] = useState<number | null>(0);
   const panels = useRef<(HTMLDivElement | null)[]>([]);
   const previous = useRef<number | null>(0);
@@ -24,7 +26,7 @@ export default function WeddingCardsFaq() {
   return <section aria-labelledby="wedding-faq-title" className="mx-auto max-w-7xl px-4 pb-12 pt-4 sm:px-6 sm:pb-16 lg:px-8">
     <h2 id="wedding-faq-title" className="text-xl font-semibold tracking-tight text-maroon">Ordering information</h2>
     <div className="mt-5 divide-y divide-carbon/10 border-y border-carbon/10">
-      {WEDDING_FAQS.map(({ question, answer }, index) => <div key={question}>
+      {items.map(({ question, answer }, index) => <div key={question}>
         <h3><button type="button" aria-expanded={open === index} aria-controls={`wedding-faq-${index}`} onClick={() => setOpen(open === index ? null : index)} className="flex w-full items-center justify-between gap-4 py-5 text-left text-base font-semibold text-carbon">
           {question}<ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform motion-reduce:transition-none ${open === index ? "rotate-180" : ""}`} />
         </button></h3>

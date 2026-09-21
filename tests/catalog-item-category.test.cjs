@@ -10,7 +10,7 @@ function load(file, imports) {
   const source = ts.transpileModule(readFileSync(path.join(__dirname, "..", file), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
-  vm.runInNewContext(source, { exports, require(name) {
+  vm.runInNewContext(source, { exports, URL, require(name) {
     if (Object.hasOwn(imports, name)) return imports[name];
     throw new Error(`Unexpected import: ${name}`);
   } });
@@ -132,4 +132,53 @@ test("main wedding catalogue joins categories by item ID, preserves All, and app
   api.state.margin = 20;
   assert.equal((await api.fetchWeddingCardsWithCategories())[0].price, 120);
   assert.equal(api.state.membershipReads, 1);
+});
+
+test("wedding boxes page uses published Wedding Box item categories for the collection and structured data", async () => {
+  const api = fixture([
+    { id: "box-no-subject", category: "Wedding Box", subject: null },
+    { id: "box-other-subject", category: "Wedding Box", subject: "Common" },
+    { id: "subject-only", category: "Wedding Card", subject: "Wedding Box" },
+    { id: "plural", category: "Wedding Boxes", subject: "Wedding Box" },
+    { id: "hidden", category: "Wedding Box", visible: false },
+    { id: "inactive", category: "Wedding Box", active: false },
+    { id: "private", category: "Wedding Box", public: false },
+  ]);
+  let mode = "products";
+  const calls = [];
+  const Shell = () => null;
+  const JsonLd = () => null;
+  const page = load("app/wedding-boxes/page.tsx", {
+    "react/jsx-runtime": require("react/jsx-runtime"),
+    "@/lib/catalog-item-category": { fetchProductsByItemCategory: async name => {
+      calls.push(name);
+      if (mode === "error") throw new Error("Unavailable");
+      return mode === "empty" ? [] : api.fetchProductsByItemCategory(name);
+    } },
+    "@/components/wedding-cards/WeddingCardsCollection": { default: Shell },
+    "@/components/seo/JsonLd": { default: JsonLd },
+    "@/lib/site-config": {
+      DEFAULT_OG_IMAGE: "/og.jpg", SITE_NAME: "Beyond Invitation",
+      getSiteUrl: () => "https://example.com",
+      siteUrl: path => `https://example.com${path}`,
+    },
+  });
+  const result = await page.default();
+  const collection = result.props.children.find(child => child?.type === Shell);
+  assert.deepEqual(calls, ["Wedding Box"]);
+  assert.deepEqual(Array.from(collection.props.products, product => product.slug), ["box-no-subject", "box-other-subject"]);
+  assert.equal(collection.props.collectionType, "boxes");
+  assert.equal(collection.props.title, "Wedding Boxes");
+  assert.equal(page.metadata.alternates.canonical, "/wedding-boxes");
+  const list = result.props.children.find(child => child?.props.data?.["@type"] === "ItemList");
+  assert.deepEqual(Array.from(list.props.data.itemListElement, entry => entry.url), ["https://example.com/products/box-no-subject", "https://example.com/products/box-other-subject"]);
+
+  for (mode of ["empty", "error"]) {
+    const fallback = await page.default();
+    const collection = fallback.props.children.find(child => child?.type === Shell);
+    assert.equal(collection.props.products.length, 0);
+    assert.equal(Boolean(collection.props.errorMessage), mode === "error");
+    assert.equal(collection.props.emptyTitle, "No wedding boxes just yet");
+    assert.ok(!fallback.props.children.some(child => child?.props.data?.["@type"] === "ItemList"));
+  }
 });

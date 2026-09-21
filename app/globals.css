@@ -84,24 +84,6 @@
     site-loader-failsafe 8.5s linear forwards;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  [data-wedding-boxes-page] [data-page-intro] {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  [data-wedding-boxes-page] [data-page-title] {
-    opacity: 0;
-    transform: translateY(26px);
-    clip-path: inset(0% 0% 100% 0%);
-  }
-
-  [data-wedding-boxes-page] [data-header-rule] {
-    transform: scaleX(0);
-    transform-origin: left center;
-  }
-}
-
 /* Prevent iOS from zooming the viewport when a compact form control is focused. */
 @media (max-width: 639px) {
   input:not([type="checkbox"]):not([type="radio"]),

@@ -46,6 +46,7 @@ export const CARD_TYPES = [
   { value: "christian", label: "Christian Wedding Card", itemCategory: "Wedding Card", href: "/collections/wedding-card-christian" },
 ] as const;
 export type WeddingCardType = (typeof CARD_TYPES)[number]["value"];
+export type WeddingCollectionType = WeddingCardType | "boxes";
 const hasPrice = (price: number) => Number.isFinite(price) && price > 0;
 
 export function priceBucketFor(price: number): PriceBucket {
@@ -154,5 +155,23 @@ export const WEDDING_FAQS = [
     question: "What types of wedding cards are available?",
     answer:
       "Our range includes Hindu, Muslim and Christian wedding invitations, with traditional and contemporary designs. Speak with our team about printed text and finishes for your celebration.",
+  },
+] as const;
+
+export const WEDDING_BOX_FAQS = [
+  {
+    question: "Can I personalise a wedding box?",
+    answer:
+      "Speak with our team about colours, artwork, names, inserts and finishing details for your chosen design.",
+  },
+  {
+    question: "What is the minimum order quantity?",
+    answer:
+      "The minimum quantity is shown on each design. Contact us with the box you like and the quantity you need for help with your order.",
+  },
+  {
+    question: "How can I check pricing and delivery timelines?",
+    answer:
+      "Browse the prices shown in the collection, or enquire about a design marked Price on request. Share your quantity, personalisation needs and delivery location with our team to confirm the details.",
   },
 ] as const;

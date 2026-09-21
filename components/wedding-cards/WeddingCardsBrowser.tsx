@@ -22,7 +22,7 @@ import {
   WEDDING_SORTS,
   type BrowserProduct,
   type WeddingFilters,
-  type WeddingCardType,
+  type WeddingCollectionType,
 } from "@/lib/wedding-cards";
 
 const gridClass =
@@ -92,9 +92,9 @@ function Facet({
   );
 }
 
-export function WeddingCardsSkeleton() {
+export function WeddingCardsSkeleton({ productLabel = "wedding cards" }: { productLabel?: string }) {
   return (
-    <div role="status" aria-label="Loading wedding cards" className={gridClass}>
+    <div role="status" aria-label={`Loading ${productLabel}`} className={gridClass}>
       {Array.from({ length: 8 }, (_, index) => (
         <div
           key={index}
@@ -117,8 +117,9 @@ export default function WeddingCardsBrowser({
   collectionType,
 }: {
   products: BrowserProduct[];
-  collectionType?: WeddingCardType;
+  collectionType?: WeddingCollectionType;
 }) {
+  const productLabel = collectionType === "boxes" ? "wedding boxes" : "wedding cards";
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -288,7 +289,7 @@ export default function WeddingCardsBrowser({
       className="grid items-start gap-x-8 lg:grid-cols-[220px_minmax(0,1fr)] xl:gap-x-10 xl:grid-cols-[240px_minmax(0,1fr)]"
     >
       <aside
-        aria-label="Filter wedding cards"
+        aria-label={`Filter ${productLabel}`}
         data-filter-sidebar
         className="hidden border-r border-carbon/10 pr-6 lg:block"
       >
@@ -349,7 +350,7 @@ export default function WeddingCardsBrowser({
               <div className="relative">
                 <select
                   id={sortId}
-                  aria-label="Sort wedding cards"
+                  aria-label={`Sort ${productLabel}`}
                   value={filters.sort}
                   onChange={(event) =>
                     update({

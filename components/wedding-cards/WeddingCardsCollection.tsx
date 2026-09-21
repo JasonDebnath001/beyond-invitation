@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { CategorizedCatalogProduct } from "@/lib/catalog-item-category";
-import type { BrowserProduct, WeddingCardType } from "@/lib/wedding-cards";
+import { WEDDING_BOX_FAQS, type BrowserProduct, type WeddingCollectionType } from "@/lib/wedding-cards";
 import { WeddingCardsMotion } from "@/components/wedding-cards/WeddingCardsMotion";
 import WeddingCardsBrowser, { WeddingCardsSkeleton } from "@/components/wedding-cards/WeddingCardsBrowser";
 import WeddingCardsFaq from "@/components/wedding-cards/WeddingCardsFaq";
@@ -15,10 +15,11 @@ export default function WeddingCardsCollection({
 }: {
   title?: string;
   products: CategorizedCatalogProduct[];
-  collectionType?: WeddingCardType;
+  collectionType?: WeddingCollectionType;
   errorMessage?: string;
   emptyTitle?: string;
 }) {
+  const productLabel = collectionType === "boxes" ? "wedding boxes" : "wedding cards";
   const browserProducts: BrowserProduct[] = products.map((product) => ({
     slug: product.slug,
     designNo: product.itemCode || product.slug,
@@ -44,7 +45,7 @@ export default function WeddingCardsCollection({
         {errorMessage || !products.length ? (
           <div className="rounded-3xl border border-gold/20 bg-white/80 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-light text-maroon">
-              {errorMessage ? "Unable to load wedding cards." : emptyTitle}
+              {errorMessage ? `Unable to load ${productLabel}.` : emptyTitle}
             </h2>
             <p className="mt-3 text-base leading-8 text-ink-mid">
               {errorMessage ? "Please try again, or contact us for available designs." : "This collection is being updated. Please check back soon or contact us for help finding your invitation."}
@@ -59,12 +60,12 @@ export default function WeddingCardsCollection({
             </div>
           </div>
         ) : (
-          <Suspense fallback={<WeddingCardsSkeleton />}>
+          <Suspense fallback={<WeddingCardsSkeleton productLabel={productLabel} />}>
             <WeddingCardsBrowser products={browserProducts} collectionType={collectionType} />
           </Suspense>
         )}
       </section>
-      <WeddingCardsFaq />
+      <WeddingCardsFaq items={collectionType === "boxes" ? WEDDING_BOX_FAQS : undefined} />
     </WeddingCardsMotion>
   );
 }

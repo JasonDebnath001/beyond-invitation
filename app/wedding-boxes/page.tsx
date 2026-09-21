@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchErpProductsBySubject } from "@/lib/catalog";
+import { fetchProductsByItemCategory, type CategorizedCatalogProduct } from "@/lib/catalog-item-category";
 import type { ErpProduct } from "@/lib/catalog";
 import {
   DEFAULT_OG_IMAGE,
@@ -9,10 +9,12 @@ import {
   getSiteUrl,
   siteUrl,
 } from "@/lib/site-config";
-import WeddingBoxesPageClient from "@/components/WeddingBoxesPageClient";
+import WeddingCardsCollection from "@/components/wedding-cards/WeddingCardsCollection";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
+const ITEM_CATEGORY = "Wedding Box";
 const PAGE_PATH = "/wedding-boxes";
 const PAGE_URL = siteUrl(PAGE_PATH);
 
@@ -89,11 +91,11 @@ function getProductImage(product: ErpProduct) {
 }
 
 async function getWeddingBoxProducts(): Promise<{
-  products: ErpProduct[];
+  products: CategorizedCatalogProduct[];
   errorMessage: string;
 }> {
   try {
-    const products = await fetchErpProductsBySubject("Wedding Box");
+    const products = await fetchProductsByItemCategory(ITEM_CATEGORY);
 
     return {
       products,
@@ -148,7 +150,7 @@ export default async function WeddingBoxesPage() {
         description: product.description || description,
         image: getProductImage(product),
         url: siteUrl(`/products/${product.slug}`),
-        category: "Wedding Box",
+        category: ITEM_CATEGORY,
         offers: product.price > 0 ? {
           "@type": "Offer",
           priceCurrency: "INR",
@@ -164,7 +166,13 @@ export default async function WeddingBoxesPage() {
       <JsonLd data={breadcrumbJsonLd} />
       {products.length > 0 ? <JsonLd data={itemListJsonLd} /> : null}
 
-      <WeddingBoxesPageClient products={products} errorMessage={errorMessage} />
+      <WeddingCardsCollection
+        title="Wedding Boxes"
+        collectionType="boxes"
+        products={products}
+        errorMessage={errorMessage}
+        emptyTitle="No wedding boxes just yet"
+      />
     </>
   );
 }

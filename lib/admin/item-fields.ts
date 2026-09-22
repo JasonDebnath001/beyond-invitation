@@ -190,9 +190,48 @@ export type AdminItem = {
   description: string;
   updatedAt: string;
   fields: Record<string, unknown>;
+  values: Record<string, string>;
+  images: string[];
 };
 export type AdminData = {
   companies: Company[];
   companyId: string;
   items: AdminItem[];
+  referenceOptions: Record<
+    string,
+    { id: string; name: string; shared: boolean }[]
+  >;
+  itemTypes: string[];
+};
+
+export type AdminLibraryItem = Pick<AdminItem, "id" | "designNo" | "code" | "printName" | "category" | "subject" | "visible" | "active" | "updatedAt"> & {
+  imageUrl: string;
+  hasDescription: boolean;
+};
+export type AdminLibraryData = {
+  companies: Company[];
+  companyId: string;
+  items: AdminLibraryItem[];
+};
+
+export const NEW_ITEM_DEFAULTS: Record<string, string> = {
+  show_on_website: "N",
+  is_active: "N", // The field uses the template's Disable semantics.
+  allow_sales: "Y",
+  min_order_qty: "1",
+  order_multiple: "1",
+};
+
+export const MAX_PRODUCT_PHOTO_BYTES = 3 * 1024 * 1024;
+// Original files are resized in the browser before reaching the upload endpoint.
+export const MAX_PRODUCT_PHOTO_SOURCE_BYTES = 20 * 1024 * 1024;
+export const MAX_PRODUCT_PHOTOS = 20;
+
+export type ItemImageRecord = {
+  id: string;
+  item_id: string;
+  image_url: string;
+  sort_order: number | null;
+  created_at: string;
+  is_deleted: boolean;
 };

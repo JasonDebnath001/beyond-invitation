@@ -5,12 +5,15 @@ import Image from "next/image";
 import {
   ArrowDownToLine,
   ArrowRight,
+  BookOpen,
   Check,
   CircleAlert,
   FileSpreadsheet,
   LayoutGrid,
   LoaderCircle,
   Package,
+  Pencil,
+  Plus,
   RefreshCw,
   Search,
   UploadCloud,
@@ -20,11 +23,15 @@ import {
   ITEM_FIELDS,
   MAX_IMPORT_BYTES,
   type AdminData,
+  type AdminLibraryData,
   type AdminItem,
   type ImportPlan,
   type ImportResult,
 } from "@/lib/admin/item-fields";
 import styles from "./ItemDashboard.module.css";
+import ProductEditorDialog from "./ProductEditorDialog";
+import ProductPhoto from "./ProductPhoto";
+import { readAdminJson } from "@/lib/admin/item-client";
 
 type Preview = { plan: ImportPlan; token: string; columns: string[] };
 const display = (value: unknown): string =>
@@ -63,7 +70,11 @@ function downloadCsv(filename: string, rows: unknown[][]) {
 }
 
 export default function ItemDashboard() {
-  const [data, setData] = useState<AdminData | null>(null);
+  const [data, setData] = useState<AdminLibraryData | null>(null);
+  const [editorData, setEditorData] = useState<AdminData | null>(null);
+  const [detailWorking, setDetailWorking] = useState<
+    "editor" | "export" | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"items" | "import">("items");
@@ -71,6 +82,8 @@ export default function ItemDashboard() {
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<AdminItem | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [success, setSuccess] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [createMissing, setCreateMissing] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -80,20 +93,22 @@ export default function ItemDashboard() {
   const [previewPage, setPreviewPage] = useState(1);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
   const requestId = useRef(0);
+  const activeLoad = useRef<AbortController | null>(null);
+  const activeDetail = useRef<AbortController | null>(null);
 
   const loadItems = useCallback(async (companyId?: string) => {
     const id = ++requestId.current;
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(
+      const body = await readAdminJson(
         `/api/admin/items${companyId ? `?companyId=${encodeURIComponent(companyId)}` : ""}`,
-        { cache: "no-store" },
+        controller.signal,
       );
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Could not load items.");
       if (id === requestId.current) {
         setData(body);
         setPage(1);
@@ -107,14 +122,13 @@ export default function ItemDashboard() {
   useEffect(() => {
     void loadItems();
     return () => {
-      requestId.current++;
+      requestId.current += 1;
+      activeLoad.current?.abort();
+      activeDetail.current?.abort();
     };
   }, [loadItems]);
-  useEffect(() => {
-    if (selected) dialog.current?.showModal();
-  }, [selected]);
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const filtered = useMemo(
     () =>
       items.filter((item) => {
@@ -131,6 +145,9 @@ export default function ItemDashboard() {
           (filter === "all" ||
             (filter === "website" && item.visible && item.active) ||
             (filter === "uncategorised" && !item.category) ||
+            (filter === "missing-photo" && !item.imageUrl) ||
+            (filter === "missing-description" && !item.hasDescription) ||
+            (filter === "missing-title" && !item.printName) ||
             (filter === "disabled" && !item.active))
         );
       }),
@@ -144,6 +161,57 @@ export default function ItemDashboard() {
     ) ?? [];
   const readyCount =
     (preview?.plan.counts.create ?? 0) + (preview?.plan.counts.update ?? 0);
+
+  async function openEditor(itemId?: string) {
+    if (!data || detailWorking) return;
+    const controller = new AbortController();
+    activeDetail.current?.abort();
+    activeDetail.current = controller;
+    setDetailWorking("editor");
+    setError("");
+    setSuccess("");
+    try {
+      const body: AdminData = await readAdminJson(
+        `/api/admin/items?view=editor&companyId=${encodeURIComponent(data.companyId)}${itemId ? `&itemId=${encodeURIComponent(itemId)}` : ""}`,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      const selectedItem = itemId
+        ? body.items.find((item) => item.id === itemId)
+        : undefined;
+      if (itemId && !selectedItem)
+        throw new Error(
+          "This item is no longer available. Refresh the library.",
+        );
+      setEditorData(body);
+      setSelected(selectedItem ?? null);
+      setAdding(!itemId);
+    } catch (error) {
+      if (!controller.signal.aborted) setError((error as Error).message);
+    } finally {
+      if (activeDetail.current === controller) setDetailWorking(null);
+    }
+  }
+
+  async function exportItems() {
+    if (!data || detailWorking) return;
+    const controller = new AbortController();
+    activeDetail.current = controller;
+    setDetailWorking("export");
+    setError("");
+    try {
+      const body = await readAdminJson(
+        `/api/admin/items?view=export&companyId=${encodeURIComponent(data.companyId)}`,
+        controller.signal,
+      );
+      if (!controller.signal.aborted)
+        downloadCsv("items-export.csv", body.rows);
+    } catch (error) {
+      if (!controller.signal.aborted) setError((error as Error).message);
+    } finally {
+      if (activeDetail.current === controller) setDetailWorking(null);
+    }
+  }
 
   function chooseFile(next: File | null) {
     setPreview(null);
@@ -228,6 +296,12 @@ export default function ItemDashboard() {
           <UploadCloud size={18} />
           Import items
         </button>
+        {/* Full navigation matches the item workspace's existing navigation. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/admin/blogs" className={styles.navButton}>
+          <BookOpen size={18} />
+          Blogs
+        </a>
         <div className={styles.sidebarNote}>
           <span className={styles.statusDot} />
           Connected catalogue
@@ -250,15 +324,26 @@ export default function ItemDashboard() {
               <select
                 aria-label="Company"
                 value={data?.companyId ?? ""}
-                disabled={loading || !!working}
+                disabled={
+                  loading ||
+                  !!working ||
+                  !!detailWorking ||
+                  adding ||
+                  !!selected
+                }
                 onChange={(event) => {
                   setPreview(null);
                   setResult(null);
                   setSelected(null);
+                  setSuccess("");
                   void loadItems(event.target.value);
                 }}
               >
-                {!data && <option value="">Loading…</option>}
+                {!data && (
+                  <option value="">
+                    {loading ? "Loading…" : "Unavailable"}
+                  </option>
+                )}
                 {data?.companies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
@@ -287,18 +372,29 @@ export default function ItemDashboard() {
               </h1>
               <p>
                 {tab === "items"
-                  ? "Browse item details and keep your catalogue current with a spreadsheet."
+                  ? "Add missing photos and details. Open any item to edit and save it."
                   : "Upload your file, review the changes, then import when you’re ready."}
               </p>
             </div>
             {tab === "items" && (
-              <button
-                className={styles.primary}
-                onClick={() => setTab("import")}
-              >
-                <UploadCloud size={17} />
-                Import items
-              </button>
+              <div className={styles.headingActions}>
+                <button
+                  className={styles.textButton}
+                  onClick={() => setTab("import")}
+                >
+                  <UploadCloud size={17} />
+                  Import items
+                </button>
+                <button
+                  className={styles.primary}
+                  disabled={
+                    !data || loading || !!working || !!detailWorking || !!error
+                  }
+                  onClick={() => void openEditor()}
+                >
+                  <Plus size={17} /> Add product
+                </button>
+              </div>
             )}
           </div>
 
@@ -306,7 +402,41 @@ export default function ItemDashboard() {
             <div className={styles.error} role="alert">
               <CircleAlert size={18} />
               <span>{error}</span>
+              {tab === "items" && (
+                <button
+                  className={styles.textButton}
+                  disabled={loading || !!detailWorking}
+                  onClick={() => void loadItems(data?.companyId)}
+                >
+                  Retry
+                </button>
+              )}
               <button aria-label="Dismiss error" onClick={() => setError("")}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {detailWorking && (
+            <div className={styles.success} role="status">
+              <LoaderCircle size={18} className={styles.spin} />
+              <span>
+                {detailWorking === "editor"
+                  ? "Loading item details…"
+                  : "Preparing CSV export…"}
+              </span>
+            </div>
+          )}
+
+          {success && (
+            <div className={styles.success} role="status">
+              <Check size={18} />
+              <span>{success}</span>
+              <button
+                className={styles.iconButton}
+                aria-label="Dismiss success"
+                onClick={() => setSuccess("")}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -328,9 +458,9 @@ export default function ItemDashboard() {
                     "Needs a category",
                   ],
                   [
-                    "With a description",
-                    items.filter((item) => item.description).length,
-                    "Web or item description",
+                    "Missing main photo",
+                    items.filter((item) => !item.imageUrl).length,
+                    "Ready for a photo",
                   ],
                 ].map(([label, count, hint], i) => (
                   <div className={styles.stat} key={label}>
@@ -362,17 +492,8 @@ export default function ItemDashboard() {
                   <div className={styles.actions}>
                     <button
                       className={styles.textButton}
-                      disabled={!data || loading}
-                      onClick={() =>
-                        downloadCsv("items-export.csv", [
-                          ITEM_FIELDS.map((field) => field.label),
-                          ...items.map((item) =>
-                            ITEM_FIELDS.map(
-                              (field) => item.fields[field.label],
-                            ),
-                          ),
-                        ])
-                      }
+                      disabled={!data || loading || !!detailWorking}
+                      onClick={() => void exportItems()}
                     >
                       <ArrowDownToLine size={16} />
                       Export CSV
@@ -380,7 +501,7 @@ export default function ItemDashboard() {
                     <button
                       className={styles.iconButton}
                       aria-label="Refresh items"
-                      disabled={loading}
+                      disabled={loading || !!detailWorking}
                       onClick={() => void loadItems(data?.companyId)}
                     >
                       <RefreshCw
@@ -415,6 +536,11 @@ export default function ItemDashboard() {
                     <option value="all">All items</option>
                     <option value="website">On the website</option>
                     <option value="uncategorised">Missing category</option>
+                    <option value="missing-photo">Missing main photo</option>
+                    <option value="missing-description">
+                      Missing description
+                    </option>
+                    <option value="missing-title">Missing print name</option>
                     <option value="disabled">Disabled</option>
                   </select>
                 </div>
@@ -422,20 +548,21 @@ export default function ItemDashboard() {
                   <table className={styles.table}>
                     <thead>
                       <tr>
+                        <th>PHOTO</th>
                         <th>DESIGN / ITEM CODE</th>
                         <th>PRINT NAME</th>
                         <th>ITEM CATEGORY</th>
                         <th>SUBJECT</th>
                         <th>WEBSITE</th>
                         <th>
-                          <span className={styles.srOnly}>Details</span>
+                          <span className={styles.srOnly}>Edit item</span>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={6}>
+                          <td colSpan={7}>
                             <div className={styles.empty}>
                               <LoaderCircle className={styles.spin} size={24} />
                               <p>Loading your item library…</p>
@@ -447,8 +574,22 @@ export default function ItemDashboard() {
                           <tr key={item.id}>
                             <td>
                               <button
+                                className={styles.itemPhoto}
+                                disabled={!!detailWorking}
+                                aria-label={`Edit ${item.designNo} photo`}
+                                onClick={() => void openEditor(item.id)}
+                              >
+                                <ProductPhoto
+                                  src={item.imageUrl}
+                                  alt={`${item.designNo} main photo`}
+                                />
+                              </button>
+                            </td>
+                            <td>
+                              <button
                                 className={styles.design}
-                                onClick={() => setSelected(item)}
+                                disabled={!!detailWorking}
+                                onClick={() => void openEditor(item.id)}
                               >
                                 {item.designNo}
                               </button>
@@ -490,29 +631,34 @@ export default function ItemDashboard() {
                             </td>
                             <td>
                               <button
-                                className={styles.iconButton}
-                                aria-label={`View ${item.designNo} details`}
-                                onClick={() => setSelected(item)}
+                                className={styles.textButton}
+                                aria-label={`Edit ${item.designNo}`}
+                                disabled={!!detailWorking}
+                                onClick={() => void openEditor(item.id)}
                               >
-                                <ArrowRight size={17} />
+                                <Pencil size={16} /> Edit
                               </button>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6}>
+                          <td colSpan={7}>
                             <div className={styles.empty}>
                               <Package size={30} />
                               <h3>
-                                {query || filter !== "all"
-                                  ? "No matching items"
-                                  : "Your item library is empty"}
+                                {!data
+                                  ? "Could not load the item library"
+                                  : query || filter !== "all"
+                                    ? "No matching items"
+                                    : "Your item library is empty"}
                               </h3>
                               <p>
-                                {query || filter !== "all"
-                                  ? "Try a different search or filter."
-                                  : "Import a spreadsheet to add your first items."}
+                                {!data
+                                  ? "Retry or refresh to load your items."
+                                  : query || filter !== "all"
+                                    ? "Try a different search or filter."
+                                    : "Import a spreadsheet to add your first items."}
                               </p>
                             </div>
                           </td>
@@ -977,50 +1123,42 @@ export default function ItemDashboard() {
         </main>
       </div>
 
-      {selected && (
-        <dialog
-          ref={dialog}
-          className={styles.dialog}
-          onClose={() => setSelected(null)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              dialog.current?.close();
-            }
+      {adding && data && editorData && (
+        <ProductEditorDialog
+          data={editorData}
+          onClose={(refresh) => {
+            setAdding(false);
+            if (refresh) void loadItems(data.companyId);
           }}
-          aria-labelledby="item-detail-title"
-        >
-          <div className={styles.dialogBody}>
-            <div className={styles.panelHeading}>
-              <div>
-                <div className={styles.eyebrow}>
-                  ITEM DETAILS · {selected.code}
-                </div>
-                <h2 id="item-detail-title">{selected.designNo}</h2>
-                <p>{selected.printName || "Print name not set"}</p>
-              </div>
-              <button
-                autoFocus
-                className={styles.iconButton}
-                aria-label="Close item details"
-                onClick={() => dialog.current?.close()}
-              >
-                <X size={21} />
-              </button>
-            </div>
-            <dl className={styles.detailFields}>
-              {Object.entries(selected.fields).map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{display(value)}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className={styles.detailFooter}>
-              Update this item by uploading a row with Item Name{" "}
-              <strong>{selected.designNo}</strong>.
-            </div>
-          </div>
-        </dialog>
+          onSaved={(product) => {
+            setAdding(false);
+            setSuccess(`Product ${product.designNo} added successfully.`);
+            setQuery("");
+            setFilter("all");
+            setPreview(null);
+            setResult(null);
+            void loadItems(data.companyId);
+          }}
+        />
+      )}
+
+      {selected && data && editorData && (
+        <ProductEditorDialog
+          key={selected.id}
+          data={editorData}
+          item={selected}
+          onClose={(refresh) => {
+            setSelected(null);
+            if (refresh) void loadItems(data.companyId);
+          }}
+          onSaved={(product) => {
+            setSelected(null);
+            setSuccess(`Changes to ${product.designNo} saved successfully.`);
+            setPreview(null);
+            setResult(null);
+            void loadItems(data.companyId);
+          }}
+        />
       )}
     </div>
   );

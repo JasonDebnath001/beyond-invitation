@@ -9,6 +9,7 @@ import {
   type PlannedLookup,
   type PlannedRow,
   type ItemField,
+  type ItemImageRecord,
 } from "./item-fields";
 
 export const CREATABLE_LOOKUPS = new Set([
@@ -25,6 +26,7 @@ export type ItemContext = {
   sharedCompanyIds: string[];
   items: ItemRecord[];
   lookups: Record<string, Lookup[]>;
+  images?: ItemImageRecord[];
 };
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

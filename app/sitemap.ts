@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getAllCategories } from "@/lib/products";
 import { fetchErpProductsBase } from "@/lib/catalog";
 import { getSiteUrl } from "@/lib/site-config";
+import { getPublishedBlogs } from "@/lib/blog-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -21,6 +22,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${siteUrl}/blog`,
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
     {
       url: `${siteUrl}/catalog`,
       lastModified: now,
@@ -97,8 +103,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const productRoutes: MetadataRoute.Sitemap = products
     .filter((product) => Boolean(product.slug))
     .map((product): MetadataRoute.Sitemap[number] => {
-      const lastModified =
-        product.updatedAt || now;
+      const lastModified = product.updatedAt || now;
 
       const text = [
         product.name,
@@ -125,5 +130,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       };
     });
 
-  return uniqueByUrl([...staticRoutes, ...categoryRoutes, ...productRoutes]);
+  const blogRoutes: MetadataRoute.Sitemap = (
+    await getPublishedBlogs().catch(() => [])
+  ).map((post) => ({
+    url: `${siteUrl}/blog/${post.slug}`,
+    lastModified: new Date(post.updated_at),
+    changeFrequency: "monthly",
+    priority: 0.65,
+  }));
+
+  return uniqueByUrl([
+    ...staticRoutes,
+    ...categoryRoutes,
+    ...productRoutes,
+    ...blogRoutes,
+  ]);
 }

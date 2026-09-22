@@ -73,6 +73,7 @@ const navMenu: NavItem[] = [
       },
     ],
   },
+  { label: "Journal", href: "/blog" },
 ];
 
 function isHrefActive(pathname: string, href?: string) {

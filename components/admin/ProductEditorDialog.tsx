@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CircleAlert, LoaderCircle, Plus, Save, UploadCloud, X } from "lucide-react";
+import {
+  CircleAlert,
+  LoaderCircle,
+  Plus,
+  Save,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import {
   ALL_ITEM_FIELDS,
   NEW_ITEM_DEFAULTS,
@@ -15,24 +22,65 @@ import styles from "./ItemDashboard.module.css";
 import ProductPhoto from "./ProductPhoto";
 import { prepareProductPhoto } from "@/lib/admin/item-photo-client";
 
-type QueuedPhoto = { id: string; file: File; sourceName: string; sourceKey: string; saved: boolean; error?: string };
+type QueuedPhoto = {
+  id: string;
+  file: File;
+  sourceName: string;
+  sourceKey: string;
+  saved: boolean;
+  replaces?: string;
+  attempted?: boolean;
+  error?: string;
+};
 type SavedProduct = { id: string; designNo: string };
-const photoKey = (file: File) => JSON.stringify([file.name, file.size, file.lastModified]);
+const photoKey = (file: File) =>
+  JSON.stringify([file.name, file.size, file.lastModified]);
 
-function PhotoPreview({ photo, onRemove }: { photo: QueuedPhoto; onRemove: () => void }) {
+function PhotoPreview({
+  photo,
+  onRemove,
+}: {
+  photo: QueuedPhoto;
+  onRemove: () => void;
+}) {
   const [url, setUrl] = useState("");
   useEffect(() => {
     const preview = URL.createObjectURL(photo.file);
     setUrl(preview);
     return () => URL.revokeObjectURL(preview);
   }, [photo.file]);
-  return <div className={styles.galleryPhoto}>
-    <div className={styles.photoPreview}><ProductPhoto src={url} alt={photo.sourceName} /></div>
-    <span className={styles.photoName}>{photo.sourceName}</span>
-    <small>{photo.saved ? "Added to gallery" : photo.error ? "Upload failed" : "Ready to upload"}</small>
-    {!photo.saved && <button type="button" className={styles.textButton} aria-label={`Remove ${photo.sourceName}`} onClick={onRemove}>Remove</button>}
-    {photo.error && <small className={styles.photoError}>{photo.error}</small>}
-  </div>;
+  return (
+    <div className={styles.galleryPhoto}>
+      <div className={styles.photoPreview}>
+        <ProductPhoto src={url} alt={photo.sourceName} />
+      </div>
+      <span className={styles.photoName}>{photo.sourceName}</span>
+      <small>
+        {photo.saved
+          ? photo.replaces
+            ? "Photo replaced"
+            : "Added to gallery"
+          : photo.error
+            ? "Retry required"
+            : photo.replaces
+              ? "Ready to replace photo"
+              : "Ready to upload"}
+      </small>
+      {!photo.saved && !(photo.replaces && photo.attempted) && (
+        <button
+          type="button"
+          className={styles.textButton}
+          aria-label={`Remove ${photo.sourceName}`}
+          onClick={onRemove}
+        >
+          {photo.replaces ? "Cancel replacement" : "Remove"}
+        </button>
+      )}
+      {photo.error && (
+        <small className={styles.photoError}>{photo.error}</small>
+      )}
+    </div>
+  );
 }
 
 const basics = [
@@ -57,7 +105,8 @@ const otherFields = ALL_ITEM_FIELDS.filter(
   (field) =>
     field.key !== "id" &&
     !basics.includes(field.key) &&
-    !website.includes(field.key) && !["image_url", "thumb_url"].includes(field.key),
+    !website.includes(field.key) &&
+    !["image_url", "thumb_url"].includes(field.key),
 );
 const hints: Record<string, string> = {
   name: "The unique design number, for example AC-590.",
@@ -95,6 +144,8 @@ export default function ProductEditorDialog({
   const [progress, setProgress] = useState("");
   const [photoLink, setPhotoLink] = useState(item?.values.image_url ?? "");
   const photoInput = useRef<HTMLInputElement>(null);
+  const replacementInput = useRef<HTMLInputElement>(null);
+  const replacementTarget = useRef<string | undefined>(undefined);
   const company = data.companies.find(
     (company) => company.id === data.companyId,
   );
@@ -102,20 +153,47 @@ export default function ProductEditorDialog({
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
-    return () => { preparation.current?.abort(); element?.close(); };
+    return () => {
+      preparation.current?.abort();
+      element?.close();
+    };
   }, []);
   useEffect(() => {
     if (error) errorBox.current?.focus();
   }, [error, issues]);
-  const existingPhotos = [...new Set([photoLink, ...(item?.images ?? []).filter((url) => url !== item?.values.image_url)].filter(Boolean))];
+  const existingPhotos = [
+    ...new Set(
+      [
+        photoLink,
+        ...(item?.images ?? []).filter((url) => url !== item?.values.image_url),
+      ].filter(Boolean),
+    ),
+  ].filter(
+    (url) => !photos.some((photo) => photo.saved && photo.replaces === url),
+  );
+  const replacingMainPhoto = photos.some(
+    (photo) => photo.replaces && photo.replaces === item?.values.image_url,
+  );
 
-  async function choosePhotos(files: File[]) {
+  async function choosePhotos(files: File[], replaces?: string) {
     if (!files.length || preparation.current || submitting.current) return;
-    if (files.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > MAX_PRODUCT_PHOTO_SOURCE_BYTES)) {
+    if (replaces && photos.some((photo) => photo.replaces === replaces)) return;
+    if (
+      files.some(
+        (file) =>
+          !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+          !file.size ||
+          file.size > MAX_PRODUCT_PHOTO_SOURCE_BYTES,
+      )
+    ) {
       setError("Choose JPG, PNG or WebP photos up to 20 MB each.");
       return;
     }
-    const seen = new Set(photos.map((photo) => photo.sourceKey));
+    const seen = new Set(
+      photos
+        .filter((photo) => photo.replaces === replaces)
+        .map((photo) => photo.sourceKey),
+    );
     const additions = files.filter((file) => {
       const key = photoKey(file);
       if (seen.has(key)) return false;
@@ -137,15 +215,26 @@ export default function ProductEditorDialog({
         try {
           const prepared = await prepareProductPhoto(file, controller.signal);
           if (controller.signal.aborted) return;
-          const photo = { id: crypto.randomUUID(), file: prepared, sourceName: file.name, sourceKey: photoKey(file), saved: false };
+          const photo = {
+            id: crypto.randomUUID(),
+            file: prepared,
+            sourceName: file.name,
+            sourceKey: photoKey(file),
+            saved: false,
+            replaces,
+          };
           setPhotos((current) => [...current, photo]);
         } catch (error) {
           if (controller.signal.aborted) return;
-          failures.push(`${file.name}: ${error instanceof Error ? error.message : "Could not prepare this photo."}`);
+          failures.push(
+            `${file.name}: ${error instanceof Error ? error.message : "Could not prepare this photo."}`,
+          );
         }
       }
       if (failures.length) {
-        setError("Some photos could not be prepared. Select them again to retry.");
+        setError(
+          "Some photos could not be prepared. Select them again to retry.",
+        );
         setIssues(failures);
       }
     } finally {
@@ -161,10 +250,19 @@ export default function ProductEditorDialog({
     const form = event.currentTarget;
     if (!savedProduct && !item && !form.reportValidity()) return;
     const values: Record<string, string> = {};
-    for (const [key, value] of savedProduct ? [] : new FormData(form).entries()) {
-      if (typeof value !== "string" || (item && (key === "name" || value === (item.values[key] ?? "")))) continue;
+    for (const [key, value] of savedProduct
+      ? []
+      : new FormData(form).entries()) {
+      if (
+        typeof value !== "string" ||
+        (item && (key === "name" || value === (item.values[key] ?? "")))
+      )
+        continue;
       if (item) {
-        const control = form.elements.namedItem(key) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        const control = form.elements.namedItem(key) as
+          | HTMLInputElement
+          | HTMLSelectElement
+          | HTMLTextAreaElement;
         if (!control.reportValidity()) return;
       }
       values[key] = value;
@@ -179,12 +277,18 @@ export default function ProductEditorDialog({
         const response = await fetch("/api/admin/items", {
           method: item ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId: data.companyId, values, ...(item ? { id: item.id, expectedUpdatedAt: item.updatedAt } : {}) }),
+          body: JSON.stringify({
+            companyId: data.companyId,
+            values,
+            ...(item ? { id: item.id, expectedUpdatedAt: item.updatedAt } : {}),
+          }),
         });
         const body = await response.json();
         if (!response.ok) {
           setIssues(Array.isArray(body.issues) ? body.issues : []);
-          throw new Error(body.error || "Could not save the product. Please try again.");
+          throw new Error(
+            body.error || "Could not save the product. Please try again.",
+          );
         }
         product = body as SavedProduct;
         setSavedProduct(product);
@@ -198,18 +302,48 @@ export default function ProductEditorDialog({
         upload.set("itemId", product.id);
         upload.set("uploadId", photo.id);
         upload.set("photo", photo.file);
+        if (photo.replaces) upload.set("replaceUrl", photo.replaces);
+        setPhotos((current) =>
+          current.map((entry) =>
+            entry.id === photo.id ? { ...entry, attempted: true } : entry,
+          ),
+        );
         try {
-          const response = await fetch("/api/admin/items/photos", { method: "POST", body: upload });
+          const response = await fetch("/api/admin/items/photos", {
+            method: "POST",
+            body: upload,
+          });
           const body = await response.json();
-          if (!response.ok) throw new Error(body.error || "Could not upload this photo.");
-          setPhotos((current) => current.map((entry) => entry.id === photo.id ? { ...entry, saved: true, error: undefined } : entry));
+          if (!response.ok)
+            throw new Error(body.error || "Could not upload this photo.");
+          setPhotos((current) =>
+            current.map((entry) =>
+              entry.id === photo.id
+                ? { ...entry, saved: true, error: undefined }
+                : entry,
+            ),
+          );
         } catch (error) {
           failed++;
-          setPhotos((current) => current.map((entry) => entry.id === photo.id ? { ...entry, error: error instanceof Error ? error.message : "Could not upload this photo." } : entry));
+          setPhotos((current) =>
+            current.map((entry) =>
+              entry.id === photo.id
+                ? {
+                    ...entry,
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Could not upload this photo.",
+                  }
+                : entry,
+            ),
+          );
         }
       }
       if (failed) {
-        setError(`Item details are saved. ${photos.length - failed} of ${photos.length} selected photos are saved. Retry the ${failed} remaining photo${failed === 1 ? "" : "s"}, or remove them and finish.`);
+        setError(
+          `Item details are saved. ${photos.length - failed} of ${photos.length} selected photos are saved. Retry the ${failed} remaining photo${failed === 1 ? "" : "s"} to finish uploading and deleting any replaced photos.`,
+        );
         return;
       }
       onSaved(product);
@@ -227,7 +361,9 @@ export default function ProductEditorDialog({
   }
 
   function renderField(field: ItemField) {
-    const required = field.key === "name" || (field.requiredForNew && (!item || !!item.values[field.key]));
+    const required =
+      field.key === "name" ||
+      (field.requiredForNew && (!item || !!item.values[field.key]));
     const description = field.key.includes("description");
     const label =
       field.key === "name"
@@ -241,7 +377,9 @@ export default function ProductEditorDialog({
       id,
       name: field.key,
       required: !!required,
-      defaultValue: item ? (item.values[field.key] ?? "") : (NEW_ITEM_DEFAULTS[field.key] ?? ""),
+      defaultValue: item
+        ? (item.values[field.key] ?? "")
+        : (NEW_ITEM_DEFAULTS[field.key] ?? ""),
       "aria-describedby": hints[field.key] ? `${id}-hint` : undefined,
     };
     return (
@@ -258,19 +396,32 @@ export default function ProductEditorDialog({
             <option value="">
               {required ? "Select an option" : "Not set"}
             </option>
-            {item?.values[field.key] && !options.some((option) => option.id === item.values[field.key]) && (
-              <option value={item.values[field.key]}>{String(item.fields[field.label] || item.values[field.key])} (current)</option>
-            )}
-            {options.filter((option) => field.key !== "variant_of" || option.id !== item?.id).map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-                {option.shared ? " (shared)" : ""}
-              </option>
-            ))}
+            {item?.values[field.key] &&
+              !options.some(
+                (option) => option.id === item.values[field.key],
+              ) && (
+                <option value={item.values[field.key]}>
+                  {String(item.fields[field.label] || item.values[field.key])}{" "}
+                  (current)
+                </option>
+              )}
+            {options
+              .filter(
+                (option) =>
+                  field.key !== "variant_of" || option.id !== item?.id,
+              )
+              .map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                  {option.shared ? " (shared)" : ""}
+                </option>
+              ))}
           </select>
         ) : field.kind === "boolean" || field.kind === "disable" ? (
           <select {...common}>
-            {(item ? !item.values[field.key] : !Object.hasOwn(NEW_ITEM_DEFAULTS, field.key)) && (
+            {(item
+              ? !item.values[field.key]
+              : !Object.hasOwn(NEW_ITEM_DEFAULTS, field.key)) && (
               <option value="">Use default</option>
             )}
             <option value="N">No</option>
@@ -283,7 +434,15 @@ export default function ProductEditorDialog({
             {...common}
             autoFocus={field.key === (item ? "print_name" : "name")}
             readOnly={!!item && field.key === "name"}
-            onChange={field.key === "image_url" ? (event) => setPhotoLink(event.target.value) : undefined}
+            disabled={
+              replacingMainPhoto &&
+              ["image_url", "thumb_url"].includes(field.key)
+            }
+            onChange={
+              field.key === "image_url"
+                ? (event) => setPhotoLink(event.target.value)
+                : undefined
+            }
             type={
               field.kind === "date"
                 ? "date"
@@ -327,16 +486,30 @@ export default function ProductEditorDialog({
       onCancel={(event) => {
         if (submitting.current) event.preventDefault();
       }}
-      onClose={() => { if (!dialog.current?.open) { preparation.current?.abort(); onClose(!!savedProduct); } }}
+      onClose={() => {
+        if (!dialog.current?.open) {
+          preparation.current?.abort();
+          onClose(!!savedProduct);
+        }
+      }}
     >
-      <form onSubmit={save} noValidate={!!item || !!savedProduct} aria-busy={saving || !!preparing} onInvalidCapture={(event) => {
-        const section = (event.target as HTMLElement).closest("details");
-        if (section) section.open = true;
-      }}>
+      <form
+        onSubmit={save}
+        noValidate={!!item || !!savedProduct}
+        aria-busy={saving || !!preparing}
+        onInvalidCapture={(event) => {
+          const section = (event.target as HTMLElement).closest("details");
+          if (section) section.open = true;
+        }}
+      >
         <div className={styles.panelHeading}>
           <div>
-            <div className={styles.eyebrow}>{item ? `EDIT ITEM · ${item.designNo}` : "GROW YOUR CATALOGUE"}</div>
-            <h2 id="product-editor-title">{item ? "Edit product" : "Add product"}</h2>
+            <div className={styles.eyebrow}>
+              {item ? `EDIT ITEM · ${item.designNo}` : "GROW YOUR CATALOGUE"}
+            </div>
+            <h2 id="product-editor-title">
+              {item ? "Edit product" : "Add product"}
+            </h2>
             <p>{company?.name} · Fields marked * are required.</p>
           </div>
           <button
@@ -370,33 +543,146 @@ export default function ProductEditorDialog({
               </div>
             </div>
           )}
-          <fieldset disabled={saving || !!preparing} className={styles.formFields}>
-            <section className={styles.formSection} aria-labelledby="product-photo-title">
+          <fieldset
+            disabled={saving || !!preparing}
+            className={styles.formFields}
+          >
+            <section
+              className={styles.formSection}
+              aria-labelledby="product-photo-title"
+            >
               <h3 id="product-photo-title">Product photos</h3>
-              {existingPhotos.length > 0 && <div className={styles.galleryGrid} aria-label="Existing product photos">
-                {existingPhotos.map((url, index) => <div className={styles.galleryPhoto} key={url}>
-                  <div className={styles.photoPreview}><ProductPhoto src={url} alt={`${item?.designNo ?? "Product"} photo ${index + 1}`} /></div>
-                  <small>{url === photoLink ? "Main photo" : "Gallery photo"}</small>
-                </div>)}
-              </div>}
-                <div className={styles.photoActions}>
-                  <button type="button" className={styles.photoUpload} onClick={() => photoInput.current?.click()}><UploadCloud size={18} />Add photos</button>
-                  <input ref={photoInput} type="file" multiple className={styles.srOnly} aria-label="Choose product photos" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+              {existingPhotos.length > 0 && (
+                <div
+                  className={styles.galleryGrid}
+                  aria-label="Existing product photos"
+                >
+                  {existingPhotos.map((url, index) => (
+                    <div className={styles.galleryPhoto} key={url}>
+                      <div className={styles.photoPreview}>
+                        <ProductPhoto
+                          src={url}
+                          alt={`${item?.designNo ?? "Product"} photo ${index + 1}`}
+                        />
+                      </div>
+                      <small>
+                        {url === photoLink ? "Main photo" : "Gallery photo"}
+                      </small>
+                      {item &&
+                        (url === item.values.image_url ||
+                          item.images?.includes(url)) && (
+                          <button
+                            type="button"
+                            className={styles.textButton}
+                            aria-label={`Replace photo ${index + 1}`}
+                            disabled={photos.some(
+                              (photo) => photo.replaces === url,
+                            )}
+                            onClick={() => {
+                              replacementTarget.current = url;
+                              replacementInput.current?.click();
+                            }}
+                          >
+                            {photos.some((photo) => photo.replaces === url)
+                              ? "Replacement selected"
+                              : "Replace"}
+                          </button>
+                        )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className={styles.photoActions}>
+                <button
+                  type="button"
+                  className={styles.photoUpload}
+                  onClick={() => photoInput.current?.click()}
+                >
+                  <UploadCloud size={18} />
+                  Add photos
+                </button>
+                <input
+                  ref={photoInput}
+                  type="file"
+                  multiple
+                  className={styles.srOnly}
+                  aria-label="Choose product photos"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => {
                     const files = Array.from(event.target.files ?? []);
                     event.target.value = "";
                     void choosePhotos(files);
-                  }} />
-                  <p>Select up to {MAX_PRODUCT_PHOTOS} photos together. JPG, PNG or WebP, up to 20 MB each. Large photos are automatically resized for the website; your original files stay unchanged. Photos are added to the gallery when you save. The first upload becomes the main photo only if one is missing.</p>
+                  }}
+                />
+                <input
+                  ref={replacementInput}
+                  type="file"
+                  className={styles.srOnly}
+                  aria-label="Choose replacement photo"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    const replaces = replacementTarget.current;
+                    event.target.value = "";
+                    replacementTarget.current = undefined;
+                    if (file && replaces) void choosePhotos([file], replaces);
+                  }}
+                />
+                <p>
+                  Select up to {MAX_PRODUCT_PHOTOS} photos together. JPG, PNG or
+                  WebP, up to 20 MB each. Large photos are automatically resized
+                  for the website; your original files stay unchanged. Photos
+                  are added to the gallery when you save. The first upload
+                  becomes the main photo only if one is missing.
+                </p>
+                {item && (
+                  <p>
+                    Choose Replace on an existing photo to change it. Saving
+                    uploads the replacement and deletes the old photo and
+                    thumbnail from storage, unless another item still uses them.
+                  </p>
+                )}
+              </div>
+              {photos.length > 0 && (
+                <div
+                  className={styles.galleryGrid}
+                  aria-label="Selected photos"
+                >
+                  {photos.map((photo) => (
+                    <PhotoPreview
+                      key={photo.id}
+                      photo={photo}
+                      onRemove={() =>
+                        setPhotos((current) =>
+                          current.filter((entry) => entry.id !== photo.id),
+                        )
+                      }
+                    />
+                  ))}
                 </div>
-              {photos.length > 0 && <div className={styles.galleryGrid} aria-label="Selected photos">
-                {photos.map((photo) => <PhotoPreview key={photo.id} photo={photo} onRemove={() => setPhotos((current) => current.filter((entry) => entry.id !== photo.id))} />)}
-              </div>}
-              {progress && <p className={styles.uploadProgress} role="status">{progress}</p>}
-              {preparing && <p className={styles.uploadProgress} role="status">{preparing}</p>}
+              )}
+              {progress && (
+                <p className={styles.uploadProgress} role="status">
+                  {progress}
+                </p>
+              )}
+              {preparing && (
+                <p className={styles.uploadProgress} role="status">
+                  {preparing}
+                </p>
+              )}
             </section>
           </fieldset>
-          <fieldset disabled={saving || !!savedProduct} className={styles.formFields}>
-            <details className={styles.photoLinks}><summary>Main photo and thumbnail links</summary><div className={styles.formGrid}>{fieldsFor(["image_url", "thumb_url"])}</div></details>
+          <fieldset
+            disabled={saving || !!savedProduct}
+            className={styles.formFields}
+          >
+            <details className={styles.photoLinks}>
+              <summary>Main photo and thumbnail links</summary>
+              <div className={styles.formGrid}>
+                {fieldsFor(["image_url", "thumb_url"])}
+              </div>
+            </details>
             <section
               className={styles.formSection}
               aria-labelledby="product-basics-title"
@@ -436,13 +722,31 @@ export default function ProductEditorDialog({
           >
             {savedProduct ? "Close" : "Cancel"}
           </button>
-          <button type="submit" className={styles.primary} disabled={saving || !!preparing}>
+          <button
+            type="submit"
+            className={styles.primary}
+            disabled={saving || !!preparing}
+          >
             {saving || preparing ? (
               <LoaderCircle size={17} className={styles.spin} />
+            ) : item ? (
+              <Save size={17} />
             ) : (
-              item ? <Save size={17} /> : <Plus size={17} />
+              <Plus size={17} />
             )}
-            {preparing ? "Preparing photos…" : saving ? (progress ? "Uploading photos…" : "Saving…") : savedProduct ? (photos.some((photo) => !photo.saved) ? "Retry remaining photos" : "Finish") : item ? "Save changes" : "Add product"}
+            {preparing
+              ? "Preparing photos…"
+              : saving
+                ? progress
+                  ? "Uploading photos…"
+                  : "Saving…"
+                : savedProduct
+                  ? photos.some((photo) => !photo.saved)
+                    ? "Retry remaining photos"
+                    : "Finish"
+                  : item
+                    ? "Save changes"
+                    : "Add product"}
           </button>
         </div>
       </form>

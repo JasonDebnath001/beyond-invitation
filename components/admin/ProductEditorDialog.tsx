@@ -21,6 +21,9 @@ import {
 import styles from "./ItemDashboard.module.css";
 import ProductPhoto from "./ProductPhoto";
 import { prepareProductPhoto } from "@/lib/admin/item-photo-client";
+import ProductVideoField, { type QueuedVideo } from "./ProductVideoField";
+import { MAX_PRODUCT_VIDEO_BYTES, productVideoType, videoSourceForUrl } from "@/lib/admin/item-video-fields";
+import { uploadItemVideo } from "@/lib/admin/item-video-client";
 
 type QueuedPhoto = {
   id: string;
@@ -106,7 +109,7 @@ const otherFields = ALL_ITEM_FIELDS.filter(
     field.key !== "id" &&
     !basics.includes(field.key) &&
     !website.includes(field.key) &&
-    !["image_url", "thumb_url"].includes(field.key),
+    !["image_url", "thumb_url", "video_url", "video_source"].includes(field.key),
 );
 const hints: Record<string, string> = {
   name: "The unique design number, for example AC-590.",
@@ -140,6 +143,9 @@ export default function ProductEditorDialog({
   const [error, setError] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [photos, setPhotos] = useState<QueuedPhoto[]>([]);
+  const [video, setVideo] = useState<QueuedVideo | null>(null);
+  const [videoLink, setVideoLink] = useState(item?.values.video_url ?? "");
+  const activeVideo = useRef<AbortController | null>(null);
   const [savedProduct, setSavedProduct] = useState<SavedProduct | null>(null);
   const [progress, setProgress] = useState("");
   const [photoLink, setPhotoLink] = useState(item?.values.image_url ?? "");
@@ -155,6 +161,7 @@ export default function ProductEditorDialog({
     element?.showModal();
     return () => {
       preparation.current?.abort();
+      activeVideo.current?.abort();
       element?.close();
     };
   }, []);
@@ -174,6 +181,16 @@ export default function ProductEditorDialog({
   const replacingMainPhoto = photos.some(
     (photo) => photo.replaces && photo.replaces === item?.values.image_url,
   );
+
+  function chooseVideo(file: File) {
+    if (submitting.current || savedProduct) return;
+    if (!productVideoType(file.name, file.type) || !file.size || file.size > MAX_PRODUCT_VIDEO_BYTES) {
+      setError("Choose an MP4 or WebM video up to 50 MB.");
+      return;
+    }
+    setError("");
+    setVideo({ id: crypto.randomUUID(), file });
+  }
 
   async function choosePhotos(files: File[], replaces?: string) {
     if (!files.length || preparation.current || submitting.current) return;
@@ -339,6 +356,27 @@ export default function ProductEditorDialog({
             ),
           );
         }
+      }
+      let videoFailed = false;
+      if (video && !video.saved) {
+        const controller = new AbortController();
+        activeVideo.current = controller;
+        try {
+          const result = await uploadItemVideo({
+            companyId: data.companyId,
+            itemId: product.id,
+            uploadId: video.id,
+            expectedVideoUrl: item?.values.video_url ?? "",
+          }, video.file, { signal: controller.signal, onProgress: setProgress });
+          setVideo((current) => current ? { ...current, saved: true, url: result.url, error: undefined } : current);
+        } catch (error) {
+          videoFailed = true;
+          setVideo((current) => current ? { ...current, error: error instanceof Error ? error.message : "Could not upload the video." } : current);
+        } finally { activeVideo.current = null; }
+      }
+      if (videoFailed) {
+        setError(`Item details are saved. The video could not be saved. Retry the upload to finish.${failed ? ` ${failed} photo(s) also need retrying.` : ""}`);
+        return;
       }
       if (failed) {
         setError(
@@ -543,6 +581,7 @@ export default function ProductEditorDialog({
               </div>
             </div>
           )}
+          {progress && <p className={styles.uploadProgress} role="status">{progress}</p>}
           <fieldset
             disabled={saving || !!preparing}
             className={styles.formFields}
@@ -661,17 +700,15 @@ export default function ProductEditorDialog({
                   ))}
                 </div>
               )}
-              {progress && (
-                <p className={styles.uploadProgress} role="status">
-                  {progress}
-                </p>
-              )}
               {preparing && (
                 <p className={styles.uploadProgress} role="status">
                   {preparing}
                 </p>
               )}
             </section>
+            <ProductVideoField video={video} link={videoLink} locked={!!savedProduct}
+              originalSource={videoLink === (item?.values.video_url ?? "") ? item?.values.video_source ?? "" : videoSourceForUrl(videoLink)}
+              onChoose={chooseVideo} onLinkChange={setVideoLink} onRemove={() => setVideo(null)} />
           </fieldset>
           <fieldset
             disabled={saving || !!savedProduct}
@@ -700,7 +737,7 @@ export default function ProductEditorDialog({
             <details className={styles.moreFields}>
               <summary>
                 More item details{" "}
-                <span>Stock, dimensions, tax, video and variants</span>
+                <span>Stock, dimensions, tax and variants</span>
               </summary>
               <div className={styles.formGrid}>
                 {otherFields.map(renderField)}
@@ -738,10 +775,12 @@ export default function ProductEditorDialog({
               ? "Preparing photos…"
               : saving
                 ? progress
-                  ? "Uploading photos…"
+                  ? "Uploading media…"
                   : "Saving…"
                 : savedProduct
-                  ? photos.some((photo) => !photo.saved)
+                  ? video && !video.saved
+                    ? "Retry video upload"
+                    : photos.some((photo) => !photo.saved)
                     ? "Retry remaining photos"
                     : "Finish"
                   : item

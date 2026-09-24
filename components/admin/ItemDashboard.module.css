@@ -1081,6 +1081,28 @@
 .photoActions {
   min-width:0
 }
+.videoPreview {
+  display:block;
+  width:min(100%,480px);
+  max-height:320px;
+  margin:12px 0 16px;
+  border-radius:8px;
+  background:#171717
+}
+.videoHelp {
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.7;
+  margin:10px 0 16px
+}
+.videoError {
+  color:var(--error);
+  font-size:12px;
+  margin:10px 0
+}
+.videoHelp+.formField,.actions+.formField {
+  margin-top:18px
+}
 .photoActions p {
   color:var(--muted);
   font-size:12px;

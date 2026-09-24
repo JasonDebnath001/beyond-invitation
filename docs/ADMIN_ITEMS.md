@@ -11,7 +11,7 @@ The dashboard and `/api/admin/*` intentionally have **no authentication yet**, a
 1. Use **Missing main photo**, **Missing description**, **Missing category** or **Missing print name** to find items needing attention.
 2. Click the item's photo, design number or **Edit** button. The editor opens with its current values.
 3. Choose **Add photos** and select multiple JPG, PNG or WebP files together (up to 20 photos, 20 MB each, including 14 MB originals). The browser prepares them one at a time, automatically resizing large images for the website while preserving their proportions and orientation. Original files stay unchanged. Existing gallery photos stay visible alongside the prepared previews. You can add more files or remove individual queued photos before saving. Public links for the main photo and thumbnail remain editable under **Main photo and thumbnail links**.
-4. Fill in or correct the other details. Expand **More item details** for dimensions, stock, tax, units, video and variants.
+4. Use **Product video** to upload an MP4/WebM file or paste a video link. Fill in or correct the other details. Expand **More item details** for dimensions, stock, tax, units and variants.
 5. Select **Save changes**. Item details save first, then each selected photo uploads with progress. New photos are appended to the gallery. The current main photo is preserved; if it is missing, the first successful upload becomes the main photo and thumbnail. The library refreshes and the storefront catalogue cache is invalidated.
 
 If some uploads fail, completed photos and item details remain saved. The editor marks each file and offers **Retry remaining photos**, reusing the same upload IDs so a retry cannot duplicate gallery entries. Details already saved stay locked during photo recovery. You can remove failed files and select **Finish**, or close the editor and keep everything already saved. Closing after a partial save refreshes the library.
@@ -32,11 +32,21 @@ The 20 MB selection limit is separate from the 3 MB server upload limit. Before 
 
 `PATCH /api/admin/items` accepts `{ companyId, id, expectedUpdatedAt, values }`. Omitted field keys stay unchanged; an explicitly blank optional value clears it. HTTP 409 means the editor's snapshot is stale: close, refresh and reopen the item. Missing items return 404. Success returns `{ id, designNo }`.
 
+## Add or replace an item's video
+
+Open the specific item's **Edit** dialog and use the visible **Product video** section. Choose **Add video** or **Replace video** and select one MP4 or WebM file up to 50 MB. A local preview appears before uploading; **Cancel selected video** keeps the current video. Alternatively, paste a YouTube or public video URL into **Video link**. **Remove video** clears the item's video link when saved. MP4 with H.264 encoding offers broad browser playback support.
+
+Choose **Save changes** to save item details, queued photos, then the video. Video bytes upload directly from the browser to a signed Supabase Storage URL with percentage progress. The editor shows **Retry video upload** on failure. Retry reuses the same upload ID, skips an already uploaded file and finishes attaching it to the item. Saved details stay locked during recovery. Closing after a partial save keeps completed changes and refreshes the library.
+
+`POST /api/admin/items/videos` accepts small same-origin JSON requests containing `action: prepare|complete`, `companyId`, `itemId`, `uploadId`, `contentType`, `size` and `expectedVideoUrl`. Preparation verifies the active company, item membership and unchanged video before issuing a signed upload URL without overwrite permission. Completion checks the stored byte count, content type and video file header, then conditionally updates only `items.video_url` and `items.video_source`. Concurrent video changes return HTTP 409. Successful attachments invalidate the storefront catalogue cache. The existing product gallery displays videos after photos; PDFs continue to exclude them.
+
+Videos use the existing public `item_images` bucket at `dashboard/<company>/<item>/videos/<upload-id>.mp4` (or `.webm`). Files are uploaded as selected without transcoding. The flow does not add photo gallery rows. Replacing or removing a video changes the item's link and retains previous stored files; abandoned uploads may also leave unattached objects. No bucket or database migration is required. Server credentials stay on the server; the browser receives only the signed URL for its upload.
+
 ## Add a product
 
 Select **Add product** in the item library. Enter a unique design number (Item Name), an existing Item Group and an Item Type. Print Name supplies the storefront title; Code can be left blank to generate one. Reference dropdowns include active records for the selected company and shared company, with Selling lists only for Website Price List.
 
-Website details include description, minimum order quantity, order multiple and visibility. New products default to active, sales allowed, hidden from the website, and quantity/multiple of one. Expand **More item details** for the remaining template fields, including dimensions, stock, tax, units, video and variants. The same photo-upload and image-link controls are available when creating a product. Selling-price amounts continue to be managed through the existing price lists.
+Website details include description, minimum order quantity, order multiple and visibility. New products default to active, sales allowed, hidden from the website, and quantity/multiple of one. Expand **More item details** for the remaining template fields, including dimensions, stock, tax, units and variants. The same photo, video and link controls are available when creating a product. Selling-price amounts continue to be managed through the existing price lists.
 
 Saving creates one item, refreshes the library and invalidates the catalogue cache. Duplicate design numbers or codes are rejected; this action never updates an existing product. Validation or save errors keep the form entries available for correction and retry. Reference records must already exist; the spreadsheet import workflow still supports creating missing references.
 
@@ -85,6 +95,6 @@ Read routes: `GET /api/admin/items?companyId=…` returns library summaries; add
 
 Import route: `POST /api/admin/items/import` with multipart `file`, `companyId`, `createMissing`, `action=preview|commit`, and the preview `token` on commit.
 
-Run `node --test tests/admin-items.test.cjs tests/admin-product-editor.test.cjs tests/admin-photo-client.test.cjs` and `npx tsc --noEmit --incremental false`. Tests use an isolated fake database and storage, generated photo bytes, browser API doubles and DOM fixtures and do not modify live inventory.
+Run `npm test` and `npx tsc --noEmit --incremental false`. Video upload coverage is in `tests/admin-item-video.test.cjs`; photo replacement and PDF tests also run with `npm test`. Tests use isolated fake databases and storage, generated media bytes, browser API doubles and DOM fixtures and do not modify live inventory.
 
 Read-only preview of the supplied template on 19 September 2026 recognised 52 columns and 53 item rows: 52 updates and one invalid row. Row 2 names AC-590 but carries AC-114's record ID and code IT1631. Correct or clear **both** stale identifiers before importing AC-590. The file proposes the new category names `Wedding Card` and `Hindu Wedding Card`; the existing `Wedding Cards` name remains a separate reference. No rows from this file were committed during implementation.

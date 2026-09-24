@@ -42,7 +42,7 @@ function loader(overrides = {}, globals = {}) {
           return load(
             path.relative(
               path.resolve(__dirname, ".."),
-              path.resolve(path.dirname(filename), `${name}.ts`),
+              path.resolve(path.dirname(filename), `${name}.${fs.existsSync(path.resolve(path.dirname(filename), `${name}.ts`)) ? "ts" : "tsx"}`),
             ),
           );
         if (name.startsWith("@/")) return load(`${name.slice(2)}.ts`);

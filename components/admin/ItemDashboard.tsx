@@ -92,6 +92,7 @@ export default function ItemDashboard() {
   const [success, setSuccess] = useState("");
   const [pdfCategory, setPdfCategory] = useState("");
   const [pdfProgress, setPdfProgress] = useState("");
+  const [pdfOnlyWithPhotos, setPdfOnlyWithPhotos] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [createMissing, setCreateMissing] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -141,9 +142,11 @@ export default function ItemDashboard() {
   const selectedPdfCategory = pdfOptions.find(
     (option) => option.value === pdfCategory,
   );
-  const pdfItemCount = selectedPdfCategory
-    ? itemsForPdf(items, selectedPdfCategory).length
-    : 0;
+  const pdfItemCount = useMemo(
+    () =>
+      selectedPdfCategory ? itemsForPdf(items, selectedPdfCategory).length : 0,
+    [items, selectedPdfCategory],
+  );
   const filtered = useMemo(
     () =>
       items.filter((item) => {
@@ -238,7 +241,7 @@ export default function ItemDashboard() {
     setSuccess("");
     try {
       const body: CategoryPdfData = await readAdminJson(
-        `/api/admin/items?view=pdf&companyId=${encodeURIComponent(data.companyId)}&category=${encodeURIComponent(pdfCategory)}`,
+        `/api/admin/items?view=pdf&companyId=${encodeURIComponent(data.companyId)}&category=${encodeURIComponent(pdfCategory)}&onlyWithPhotos=${pdfOnlyWithPhotos}`,
         controller.signal,
       );
       const { createCategoryPdf } = await import("@/lib/admin/category-pdf");
@@ -269,7 +272,7 @@ export default function ItemDashboard() {
           : "",
       ].filter(Boolean);
       setSuccess(
-        `${body.title} PDF downloaded with ${body.items.length} card(s).${warnings.length ? ` Note: ${warnings.join("; ")}. These are marked in the PDF.` : ""}`,
+        `${body.title} PDF downloaded with ${body.items.length} card(s).${body.skippedItemCount ? ` ${body.skippedItemCount} card(s) without photos skipped.` : ""}${warnings.length ? ` Note: ${warnings.join("; ")}. These are marked in the PDF.` : ""}`,
       );
     } catch (error) {
       if (!controller.signal.aborted) setError((error as Error).message);
@@ -564,8 +567,8 @@ export default function ItemDashboard() {
                   <div>
                     <h2>Download a category catalogue</h2>
                     <p>
-                      Card names, design numbers and up to four photos per card in one
-                      PDF.
+                      Card names, design numbers and up to four photos per card
+                      in one PDF.
                     </p>
                   </div>
                 </div>
@@ -598,6 +601,17 @@ export default function ItemDashboard() {
                       </optgroup>
                     </select>
                   </label>
+                  <label className={styles.pdfPhotoToggle}>
+                    <input
+                      type="checkbox"
+                      checked={pdfOnlyWithPhotos}
+                      disabled={!data || loading || !!detailWorking}
+                      onChange={(event) =>
+                        setPdfOnlyWithPhotos(event.target.checked)
+                      }
+                    />
+                    Only cards with photos
+                  </label>
                   <button
                     className={styles.primary}
                     disabled={
@@ -617,7 +631,7 @@ export default function ItemDashboard() {
                 </div>
                 <p className={styles.pdfHint}>
                   {selectedPdfCategory
-                    ? `${pdfItemCount} card(s) in this company. ${selectedPdfCategory.publishedOnly ? "Includes active cards shown on the website." : "Includes hidden and disabled items."} Exports the full category across all pages.`
+                    ? `${pdfItemCount} card(s) in this category. ${selectedPdfCategory.publishedOnly ? "Includes active cards shown on the website." : "Includes hidden and disabled items."} ${pdfOnlyWithPhotos ? "Cards without photos are skipped." : "Includes cards without photos."} Exports across all library pages.`
                     : "Choose a website collection or an item category to download."}
                 </p>
               </section>

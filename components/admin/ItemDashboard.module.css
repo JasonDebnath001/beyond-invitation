@@ -382,6 +382,18 @@
   font-size: 11px;
   line-height: 1.6;
 }
+.pdfPhotoToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pdfPhotoToggle input {
+  accent-color: var(--primary);
+}
 .search {
   display:flex;
   align-items:center;

@@ -22,6 +22,7 @@ export async function loadCategoryPdfData(
   companyId: string,
   selection: string,
   signal: AbortSignal,
+  onlyWithPhotos = true,
 ): Promise<CategoryPdfData> {
   if (!companyId || !selection)
     throw new CategoryPdfError("Choose a company and category for the PDF.");
@@ -42,8 +43,9 @@ export async function loadCategoryPdfData(
 
   const db = getSupabaseAdminClient();
   const galleries = new Map<string, string[]>();
-  // Read only this company's selected items, with pagination for large galleries.
-  for (let start = 0; start < items.length; start += 100) {
+  // Read 200 items per chunk, with four chunks in flight and stable pagination.
+  let nextChunk = 0;
+  async function readChunk(start: number) {
     for (let offset = 0; ; offset += 1000) {
       const { data, error } = await db
         .from("item_images")
@@ -52,7 +54,7 @@ export async function loadCategoryPdfData(
         .eq("is_deleted", false)
         .in(
           "item_id",
-          items.slice(start, start + 100).map((item) => item.id),
+          items.slice(start, start + 200).map((item) => item.id),
         )
         .order("sort_order", { nullsFirst: false })
         .order("created_at")
@@ -68,13 +70,35 @@ export async function loadCategoryPdfData(
       if ((data?.length ?? 0) < 1000) break;
     }
   }
+  await Promise.all(
+    Array.from(
+      { length: Math.min(4, Math.ceil(items.length / 200)) },
+      async () => {
+        while (nextChunk < items.length) {
+          const start = nextChunk;
+          nextChunk += 200;
+          await readChunk(start);
+        }
+      },
+    ),
+  );
+  const mappedItems = items.map((item) => ({
+    id: item.id,
+    name: item.printName.trim() || item.designNo,
+    designNo: item.designNo,
+    images: photosForPdf([item.imageUrl, ...(galleries.get(item.id) ?? [])]),
+  }));
+  const exportItems = onlyWithPhotos
+    ? mappedItems.filter((item) => item.images.length > 0)
+    : mappedItems;
+  if (!exportItems.length)
+    throw new CategoryPdfError(
+      'No cards with photos in this category. Turn off "Only cards with photos" to include cards without photos.',
+      404,
+    );
   return {
     title: categoryPdfTitle(category.label),
-    items: items.map((item) => ({
-      id: item.id,
-      name: item.printName.trim() || item.designNo,
-      designNo: item.designNo,
-      images: photosForPdf([item.imageUrl, ...(galleries.get(item.id) ?? [])]),
-    })),
+    skippedItemCount: mappedItems.length - exportItems.length,
+    items: exportItems,
   };
 }

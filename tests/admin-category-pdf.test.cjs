@@ -126,7 +126,7 @@ test("generated PDF uses one page per card, embeds only four photos and excludes
   ] }, { loadPhoto: async (url) => {
     requested.push(url);
     if (url === "broken.png") throw new Error("Unavailable");
-    return `data:image/jpeg;base64,${photo.toString("base64")}`;
+    return new Uint8Array(photo);
   }, onProgress: (message) => progress.push(message) });
   const pdf = await PDFDocument.load(result.bytes);
   assert.equal(pdf.getTitle(), "Wedding Cards - Beyond Invitation");
@@ -186,6 +186,8 @@ test("dashboard downloads the full selected category, reports failures, and allo
     await React.act(async () => root.render(React.createElement(Dashboard)));
     const section = document.querySelector('[aria-label="Category PDF download"]');
     const button = section.querySelector("button");
+    const photoToggle = section.querySelector('input[type="checkbox"]');
+    assert.equal(photoToggle.checked, true);
     assert.equal(button.disabled, true);
     await React.act(async () => {
       section.querySelector("select").value = "collection:christian";
@@ -200,10 +202,259 @@ test("dashboard downloads the full selected category, reports failures, and allo
     await React.act(async () => button.click());
     assert.deepEqual(downloads, ["wedding-cards-catalogue.pdf"]);
     assert.match(calls.at(-1), /companyId=company-a&category=collection%3Achristian/);
+    assert.match(calls.at(-1), /onlyWithPhotos=true/);
     assert.match(document.querySelector('[role="status"]').textContent, /53 card\(s\).*1 photo\(s\) could not be loaded/);
+    await React.act(async () => photoToggle.click());
+    await React.act(async () => button.click());
+    assert.match(calls.at(-1), /onlyWithPhotos=false/);
   } finally {
     await React.act(async () => root.unmount());
     dom.window.close();
     delete global.window; delete global.document; delete global.IS_REACT_ACT_ENVIRONMENT;
   }
+});
+
+test("photo-only exports keep gallery-only cards, skip empty/video-only cards by default, and allow opting out", async () => {
+  let entries = [item("main", { imageUrl: "main.png" }), item("gallery", { imageUrl: "" }), item("empty", { imageUrl: "" }), item("video", { imageUrl: "movie.mp4" })];
+  const gallery = [{ item_id: "gallery", image_url: "gallery.jpg" }];
+  const db = { from() {
+    const query = { select() { return query; }, eq() { return query; }, in() { return query; }, order() { return query; }, range() { return query; }, abortSignal() { return query; }, then(resolve) { return Promise.resolve({ data: gallery, error: null }).then(resolve); } };
+    return query;
+  } };
+  const { loadCategoryPdfData } = loader({
+    "@/lib/supabase/admin": { getSupabaseAdminClient: () => db },
+    "./item-service": { loadItemLibrary: async () => ({ items: entries }) },
+  })("lib/admin/item-pdf-service.ts");
+  const signal = new AbortController().signal;
+  const filtered = await loadCategoryPdfData("company", "collection:christian", signal);
+  assert.deepEqual(plain(filtered.items.map((entry) => entry.id)), ["gallery", "main"]);
+  assert.equal(filtered.skippedItemCount, 2);
+  const all = await loadCategoryPdfData("company", "collection:christian", signal, false);
+  assert.equal(all.items.length, 4);
+  assert.equal(all.skippedItemCount, 0);
+  entries = [item("empty", { imageUrl: "" })];
+  await assert.rejects(loadCategoryPdfData("company", "collection:christian", signal), (error) => error.status === 404 && /Only cards with photos/.test(error.message));
+});
+
+test("gallery queries use parallel 200-item chunks while retaining company scope", async () => {
+  const entries = Array.from({ length: 601 }, (_, index) => item(String(index), { imageUrl: "main.png" }));
+  const chunks = [];
+  let active = 0, peak = 0;
+  const db = { from() {
+    let ids;
+    const query = {
+      select() { return query; }, order() { return query; }, range() { return query; }, abortSignal() { return query; },
+      eq(key, value) { if (key === "company_id") assert.equal(value, "company-a"); return query; },
+      in(key, values) { assert.equal(key, "item_id"); ids = values; return query; },
+      then(resolve) {
+        chunks.push(ids);
+        peak = Math.max(peak, ++active);
+        return new Promise((done) => setTimeout(() => { active--; done({ data: [], error: null }); }, 1)).then(resolve);
+      },
+    };
+    return query;
+  } };
+  const { loadCategoryPdfData } = loader({
+    "@/lib/supabase/admin": { getSupabaseAdminClient: () => db },
+    "./item-service": { loadItemLibrary: async () => ({ items: entries }) },
+  })("lib/admin/item-pdf-service.ts");
+  const result = await loadCategoryPdfData("company-a", "collection:christian", new AbortController().signal);
+  assert.deepEqual(chunks.map((chunk) => chunk.length), [200, 200, 200, 1]);
+  assert.equal(peak, 4);
+  assert.equal(new Set(chunks.flat()).size, 601);
+  assert.equal(result.items.length, 601);
+});
+
+test("photo pool bounds concurrency, deduplicates URLs, and cancels queued and active work", async () => {
+  const { createPdfPhotoPool } = loader()("lib/admin/pdf-photo-pool.ts");
+  const controller = new AbortController();
+  const gates = [], signals = [];
+  let active = 0, peak = 0;
+  const pool = createPdfPhotoPool((url, signal) => {
+    signals.push(signal);
+    peak = Math.max(peak, ++active);
+    return new Promise((resolve) => gates.push(() => { active--; resolve(url); }));
+  }, controller.signal);
+  const first = pool.get("0");
+  assert.equal(pool.get("0"), first);
+  const pending = [first, ...Array.from({ length: 19 }, (_, index) => pool.get(String(index + 1)))];
+  await new Promise(setImmediate);
+  assert.equal(gates.length, 8);
+  gates[0](); gates[1]();
+  await new Promise(setImmediate);
+  assert.equal(gates.length, 10);
+  assert.equal(peak, 8);
+  controller.abort();
+  const values = await Promise.all(pending);
+  assert.deepEqual(values.slice(0, 2), ["0", "1"]);
+  assert.ok(values.slice(2).every((value) => value === null));
+  assert.ok(signals.every((signal) => signal.aborted));
+  gates.slice(2).forEach((done) => done());
+  await new Promise(setImmediate);
+  assert.equal(gates.length, 10, "queued jobs must never start after cancellation");
+  pool.dispose();
+});
+
+test("PDF downloads six items ahead and embeds each repeated URL once", async () => {
+  const { createCategoryPdf } = loader()("lib/admin/category-pdf.ts");
+  const jpeg = new Uint8Array(await require("sharp")({ create: { width: 4, height: 4, channels: 3, background: "white" } }).jpeg().toBuffer());
+  const calls = [];
+  let releaseFirst, ready;
+  const first = new Promise((resolve) => { releaseFirst = resolve; });
+  const prefetched = new Promise((resolve) => { ready = resolve; });
+  const result = createCategoryPdf({ title: "Wedding Cards", items: Array.from({ length: 12 }, (_, n) => ({ id: String(n), name: `Card ${n}`, designNo: String(n), images: ["shared.jpg", `${n}.jpg`] })) }, {
+    loadPhoto: async (url) => {
+      calls.push(url);
+      if (calls.length === 8) ready();
+      if (url === "0.jpg") await first;
+      return jpeg;
+    },
+  });
+  await prefetched;
+  await new Promise(setImmediate);
+  assert.deepEqual(calls, ["shared.jpg", "0.jpg", "1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg", "6.jpg"]);
+  releaseFirst();
+  const { bytes } = await result;
+  assert.equal(calls.length, 13);
+  assert.equal(new Set(calls).size, 13);
+  const pdf = await PDFDocument.load(bytes);
+  const references = pdf.getPages().flatMap((page) => page.node.Resources().lookup(PDFName.of("XObject")).entries().map(([, ref]) => ref.toString()));
+  assert.equal(references.length, 24);
+  assert.equal(new Set(references).size, 13);
+  assert.ok(!Buffer.from(bytes).includes(Buffer.from("/Type /ObjStm")));
+});
+
+test("PDF progress is throttled to 400ms and yields every ten pages", async () => {
+  let clock = 0, yields = 0;
+  class TestDate extends Date { static now() { const now = clock; clock += 100; return now; } }
+  const { createCategoryPdf } = loader({}, {
+    Date: TestDate,
+    setTimeout: (callback, delay) => { if (delay === 0) yields++; return setTimeout(callback, delay); },
+  })("lib/admin/category-pdf.ts");
+  const progress = [];
+  await createCategoryPdf({ title: "Wedding Cards", items: Array.from({ length: 31 }, (_, n) => ({ id: String(n), name: `Card ${n}`, designNo: String(n), images: [] })) }, { onProgress: (message) => progress.push({ message, time: clock }) });
+  assert.equal(yields, 4, "three page batches and a final paint before saving");
+  assert.equal(progress.at(-1).message, "Saving PDF...");
+  for (let index = 1; index < progress.length - 1; index++) assert.ok(progress[index].time - progress[index - 1].time >= 400);
+  assert.ok(progress.length < 12);
+});
+
+test("repeated Unicode text is laid out, rasterized and embedded once per style", async () => {
+  const png = await require("sharp")({ create: { width: 2, height: 2, channels: 3, background: "white" } }).png().toBuffer();
+  let canvases = 0, encodes = 0;
+  const { createCategoryPdf } = loader({}, { document: { createElement() {
+    canvases++;
+    return { getContext: () => ({ measureText: (text) => ({ width: text.length * 6 }), scale() {}, fillText() {} }), toBlob: (done) => { encodes++; done(new Blob([png], { type: "image/png" })); } };
+  } } })("lib/admin/category-pdf.ts");
+  const { bytes } = await createCategoryPdf({ title: "निमंत्रण", items: Array.from({ length: 3 }, (_, n) => ({ id: String(n), name: "शादी ₹", designNo: String(n), images: [] })) });
+  assert.equal(canvases, 2);
+  assert.equal(encodes, 2);
+  const pdf = await PDFDocument.load(bytes);
+  const references = pdf.getPages().flatMap((page) => page.node.Resources().lookup(PDFName.of("XObject")).entries().map(([, ref]) => ref.toString()));
+  assert.equal(references.length, 6);
+  assert.equal(new Set(references).size, 2);
+});
+
+test("Supabase photo transformations request 1000px at quality 72 and preserve other URLs", () => {
+  const { transformedPdfPhotoUrl } = loader()("lib/admin/pdf-photo.ts");
+  const original = "https://project.supabase.co/storage/v1/object/public/item_images/Card%201.webp?v=2";
+  const transformed = new URL(transformedPdfPhotoUrl(original));
+  assert.equal(transformed.pathname, "/storage/v1/render/image/public/item_images/Card%201.webp");
+  assert.equal(transformed.searchParams.get("width"), "1000");
+  assert.equal(transformed.searchParams.get("quality"), "72");
+  assert.equal(transformed.searchParams.get("v"), "2");
+  for (const url of ["/photo.jpg", "https://cdn.example/photo.jpg", "https://project.supabase.co/storage/v1/object/sign/item_images/photo.jpg?token=example"])
+    assert.equal(transformedPdfPhotoUrl(url), url);
+});
+
+test("modern photo loading uses async raw-byte encoding and falls back when a transform fails", async () => {
+  const requests = [], encodes = [];
+  let closed = 0;
+  class Canvas {
+    constructor(width, height) { this.width = width; this.height = height; }
+    getContext() { return { fillRect() {}, drawImage() {} }; }
+    async convertToBlob(options) {
+      encodes.push({ width: this.width, height: this.height, ...options });
+      return new Blob([new Uint8Array([255, 216, 255, 217])], { type: "image/jpeg" });
+    }
+  }
+  const { loadPdfPhoto } = loader({}, {
+    window: { location: { origin: "http://localhost" } }, OffscreenCanvas: Canvas,
+    createImageBitmap: async (blob) => {
+      assert.equal(blob.type, "image/webp");
+      return { width: 1800, height: 900, close() { closed++; } };
+    },
+    fetch: async (url, options) => {
+      requests.push(url);
+      assert.equal(options.credentials, "omit");
+      return url.includes("/render/") ? new Response("Unavailable", { status: 503 }) :
+        new Response(new Uint8Array([1]), { headers: { "content-type": "image/webp" } });
+    },
+    Image: class { constructor() { throw new Error("Legacy decoding should not run"); } },
+  })("lib/admin/pdf-photo.ts");
+  const original = "https://project.supabase.co/storage/v1/object/public/item_images/photo.webp";
+  const bytes = await loadPdfPhoto(original);
+  assert.ok(bytes instanceof Uint8Array);
+  assert.deepEqual([...bytes], [255, 216, 255, 217]);
+  assert.equal(requests.length, 2);
+  assert.match(requests[0], /render\/image\/public\/.*width=1000&quality=72/);
+  assert.equal(requests[1], original);
+  assert.deepEqual(encodes, [{ width: 1000, height: 500, type: "image/jpeg", quality: 0.72 }]);
+  assert.equal(closed, 1);
+});
+
+test("photo loading retains an async canvas fallback when OffscreenCanvas is unavailable", async () => {
+  const sources = [], encodes = [];
+  class LegacyAbortController extends AbortController {
+    constructor() {
+      super();
+      Object.defineProperty(this.signal, "throwIfAborted", { value: undefined });
+    }
+  }
+  class Photo {
+    naturalWidth = 600;
+    naturalHeight = 1200;
+    set src(value) {
+      if (!value) return;
+      sources.push(value);
+      assert.equal(this.crossOrigin, "anonymous");
+      queueMicrotask(() => this.onload?.());
+    }
+  }
+  const { loadPdfPhoto } = loader({}, {
+    window: { location: { origin: "http://localhost" } }, OffscreenCanvas: undefined, createImageBitmap: undefined, Image: Photo, AbortController: LegacyAbortController,
+    document: { createElement() { return {
+      getContext: () => ({ fillRect() {}, drawImage() {} }),
+      toBlob(done, type, quality) {
+        encodes.push({ width: this.width, height: this.height, type, quality });
+        queueMicrotask(() => done(new Blob([new Uint8Array([1, 2])], { type })));
+      },
+      toDataURL() { throw new Error("Base64 encoding must not run"); },
+    }; } },
+  })("lib/admin/pdf-photo.ts");
+  assert.deepEqual([...await loadPdfPhoto("/photo.png")], [1, 2]);
+  assert.deepEqual(sources, ["http://localhost/photo.png"]);
+  assert.deepEqual(encodes, [{ width: 500, height: 1000, type: "image/jpeg", quality: 0.72 }]);
+});
+
+test("cancelled photo decoding releases late bitmaps and never retries the original URL", async () => {
+  const controller = new AbortController();
+  const requests = [];
+  let decode, decoding, closed = 0;
+  const started = new Promise((resolve) => { decoding = resolve; });
+  const pendingBitmap = new Promise((resolve) => { decode = resolve; });
+  class Canvas { convertToBlob() { throw new Error("Cancelled encoding must not start"); } }
+  const { loadPdfPhoto } = loader({}, {
+    window: { location: { origin: "http://localhost" } }, OffscreenCanvas: Canvas,
+    createImageBitmap: () => { decoding(); return pendingBitmap; },
+    fetch: async (url) => { requests.push(url); return new Response(new Uint8Array([1]), { headers: { "content-type": "image/png" } }); },
+  })("lib/admin/pdf-photo.ts");
+  const result = loadPdfPhoto("https://project.supabase.co/storage/v1/object/public/item_images/photo.png", controller.signal);
+  await started;
+  controller.abort();
+  await assert.rejects(result, /cancelled/);
+  decode({ width: 10, height: 10, close() { closed++; } });
+  await new Promise(setImmediate);
+  assert.equal(closed, 1);
+  assert.equal(requests.length, 1);
 });

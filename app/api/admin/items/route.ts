@@ -35,7 +35,12 @@ export async function GET(request: NextRequest) {
     const view = request.nextUrl.searchParams.get("view");
     if (view === "pdf")
       return NextResponse.json(
-        await loadCategoryPdfData(companyId ?? "", request.nextUrl.searchParams.get("category") ?? "", signal),
+        await loadCategoryPdfData(
+          companyId ?? "",
+          request.nextUrl.searchParams.get("category") ?? "",
+          signal,
+          request.nextUrl.searchParams.get("onlyWithPhotos") !== "false",
+        ),
         { headers },
       );
     if (view !== "editor" && view !== "export")

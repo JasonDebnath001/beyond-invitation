@@ -9,6 +9,7 @@ export type PdfCategory = {
 };
 export type CategoryPdfData = {
   title: string;
+  skippedItemCount?: number;
   items: { id: string; name: string; designNo: string; images: string[] }[];
 };
 

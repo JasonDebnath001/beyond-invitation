@@ -32,6 +32,12 @@ import styles from "./ItemDashboard.module.css";
 import ProductEditorDialog from "./ProductEditorDialog";
 import ProductPhoto from "./ProductPhoto";
 import { readAdminJson } from "@/lib/admin/item-client";
+import {
+  categoryPdfFilename,
+  itemsForPdf,
+  pdfCategories,
+  type CategoryPdfData,
+} from "@/lib/admin/item-pdf-selection";
 
 type Preview = { plan: ImportPlan; token: string; columns: string[] };
 const display = (value: unknown): string =>
@@ -73,7 +79,7 @@ export default function ItemDashboard() {
   const [data, setData] = useState<AdminLibraryData | null>(null);
   const [editorData, setEditorData] = useState<AdminData | null>(null);
   const [detailWorking, setDetailWorking] = useState<
-    "editor" | "export" | null
+    "editor" | "export" | "pdf" | null
   >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,6 +90,8 @@ export default function ItemDashboard() {
   const [selected, setSelected] = useState<AdminItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [success, setSuccess] = useState("");
+  const [pdfCategory, setPdfCategory] = useState("");
+  const [pdfProgress, setPdfProgress] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [createMissing, setCreateMissing] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -129,6 +137,13 @@ export default function ItemDashboard() {
   }, [loadItems]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
+  const pdfOptions = useMemo(() => pdfCategories(items), [items]);
+  const selectedPdfCategory = pdfOptions.find(
+    (option) => option.value === pdfCategory,
+  );
+  const pdfItemCount = selectedPdfCategory
+    ? itemsForPdf(items, selectedPdfCategory).length
+    : 0;
   const filtered = useMemo(
     () =>
       items.filter((item) => {
@@ -210,6 +225,59 @@ export default function ItemDashboard() {
       if (!controller.signal.aborted) setError((error as Error).message);
     } finally {
       if (activeDetail.current === controller) setDetailWorking(null);
+    }
+  }
+
+  async function exportCategoryPdf() {
+    if (!data || detailWorking || !selectedPdfCategory || !pdfItemCount) return;
+    const controller = new AbortController();
+    activeDetail.current = controller;
+    setDetailWorking("pdf");
+    setPdfProgress("Loading category photos...");
+    setError("");
+    setSuccess("");
+    try {
+      const body: CategoryPdfData = await readAdminJson(
+        `/api/admin/items?view=pdf&companyId=${encodeURIComponent(data.companyId)}&category=${encodeURIComponent(pdfCategory)}`,
+        controller.signal,
+      );
+      const { createCategoryPdf } = await import("@/lib/admin/category-pdf");
+      const { bytes, missingPhotos, noPhotoItems } = await createCategoryPdf(
+        body,
+        {
+          signal: controller.signal,
+          onProgress: setPdfProgress,
+        },
+      );
+      if (controller.signal.aborted) return;
+      const url = URL.createObjectURL(
+        new Blob([new Uint8Array(bytes)], { type: "application/pdf" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = categoryPdfFilename(body.title);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      const warnings = [
+        missingPhotos.length
+          ? `${missingPhotos.length} photo(s) could not be loaded`
+          : "",
+        noPhotoItems.length
+          ? `${noPhotoItems.length} card(s) have no photos`
+          : "",
+      ].filter(Boolean);
+      setSuccess(
+        `${body.title} PDF downloaded with ${body.items.length} card(s).${warnings.length ? ` Note: ${warnings.join("; ")}. These are marked in the PDF.` : ""}`,
+      );
+    } catch (error) {
+      if (!controller.signal.aborted) setError((error as Error).message);
+    } finally {
+      if (activeDetail.current === controller) {
+        setDetailWorking(null);
+        setPdfProgress("");
+      }
     }
   }
 
@@ -336,6 +404,7 @@ export default function ItemDashboard() {
                   setResult(null);
                   setSelected(null);
                   setSuccess("");
+                  setPdfCategory("");
                   void loadItems(event.target.value);
                 }}
               >
@@ -421,10 +490,20 @@ export default function ItemDashboard() {
             <div className={styles.success} role="status">
               <LoaderCircle size={18} className={styles.spin} />
               <span>
-                {detailWorking === "editor"
-                  ? "Loading item details…"
-                  : "Preparing CSV export…"}
+                {detailWorking === "pdf"
+                  ? pdfProgress
+                  : detailWorking === "editor"
+                    ? "Loading item details…"
+                    : "Preparing CSV export…"}
               </span>
+              {detailWorking === "pdf" && (
+                <button
+                  className={styles.textButton}
+                  onClick={() => activeDetail.current?.abort()}
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           )}
 
@@ -475,6 +554,72 @@ export default function ItemDashboard() {
                     <small>{hint}</small>
                   </div>
                 ))}
+              </section>
+
+              <section
+                className={styles.panel}
+                aria-label="Category PDF download"
+              >
+                <div className={styles.panelHeading}>
+                  <div>
+                    <h2>Download a category catalogue</h2>
+                    <p>
+                      Card names, design numbers and up to four photos per card in one
+                      PDF.
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.pdfToolbar}>
+                  <label className={styles.pdfCategory}>
+                    Category
+                    <select
+                      value={pdfCategory}
+                      disabled={!data || loading || !!detailWorking}
+                      onChange={(event) => setPdfCategory(event.target.value)}
+                    >
+                      <option value="">Choose a category</option>
+                      <optgroup label="Website collections">
+                        {pdfOptions
+                          .filter((option) => option.publishedOnly)
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Item categories (all items)">
+                        {pdfOptions
+                          .filter((option) => !option.publishedOnly)
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </optgroup>
+                    </select>
+                  </label>
+                  <button
+                    className={styles.primary}
+                    disabled={
+                      !data || loading || !!detailWorking || !pdfItemCount
+                    }
+                    onClick={() => void exportCategoryPdf()}
+                  >
+                    {detailWorking === "pdf" ? (
+                      <LoaderCircle size={17} className={styles.spin} />
+                    ) : (
+                      <ArrowDownToLine size={17} />
+                    )}
+                    {detailWorking === "pdf"
+                      ? "Preparing PDF..."
+                      : "Download PDF"}
+                  </button>
+                </div>
+                <p className={styles.pdfHint}>
+                  {selectedPdfCategory
+                    ? `${pdfItemCount} card(s) in this company. ${selectedPdfCategory.publishedOnly ? "Includes active cards shown on the website." : "Includes hidden and disabled items."} Exports the full category across all pages.`
+                    : "Choose a website collection or an item category to download."}
+                </p>
               </section>
 
               <section className={styles.panel}>

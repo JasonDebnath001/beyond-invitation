@@ -14,6 +14,7 @@ import {
 import { parseItemEditRequest, planItemEdit } from "@/lib/admin/item-edit";
 import { readItemRequest } from "@/lib/admin/item-request";
 import { ITEM_FIELDS } from "@/lib/admin/item-fields";
+import { CategoryPdfError, loadCategoryPdfData } from "@/lib/admin/item-pdf-service";
 import {
   prepareItemPhoto,
   storeItemPhoto,
@@ -32,6 +33,11 @@ export async function GET(request: NextRequest) {
     const companyId =
       request.nextUrl.searchParams.get("companyId") || undefined;
     const view = request.nextUrl.searchParams.get("view");
+    if (view === "pdf")
+      return NextResponse.json(
+        await loadCategoryPdfData(companyId ?? "", request.nextUrl.searchParams.get("category") ?? "", signal),
+        { headers },
+      );
     if (view !== "editor" && view !== "export")
       return NextResponse.json(await loadItemLibrary(companyId, signal), {
         headers,
@@ -81,7 +87,7 @@ export async function GET(request: NextRequest) {
           ? "The catalogue took too long to respond. Please retry."
           : (error as Error).message,
       },
-      { status: signal.aborted ? 504 : 503, headers },
+      { status: signal.aborted ? 504 : error instanceof CategoryPdfError ? error.status : 503, headers },
     );
   }
 }

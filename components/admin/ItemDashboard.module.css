@@ -350,6 +350,38 @@
   border-top:1px solid var(--line-soft);
   padding:17px 24px
 }
+.pdfToolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0 24px 12px;
+}
+.pdfCategory {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 7px;
+  min-width: 200px;
+  max-width: 400px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pdfCategory select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.pdfHint {
+  padding: 0 24px 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
 .search {
   display:flex;
   align-items:center;

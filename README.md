@@ -450,6 +450,10 @@ Quantity rules retain the existing Subject-based behavior, with legacy cart fall
 
 # Product Images and Videos
 
+In `/admin`, use **Download a category catalogue** to choose a category and download a PDF containing each card's print name (or design number when no print name is set), design number, and up to four main/gallery photos. Videos are excluded before choosing the first four unique photos. The export includes the entire selected category for the selected company, regardless of library search or pagination. Website collections include active, website-visible cards; item categories also include hidden and disabled items. Christian and Muslim collections follow the site's existing shared `Wedding Card` mapping and both use **Wedding Cards** as their PDF title.
+
+PDFs are generated in the browser on demand, with one page per card and at most four photos. Progress and cancellation are available during generation. Missing or inaccessible photos are marked in the PDF and reported after download; remote image hosts must permit cross-origin image access (as Supabase public storage does).
+
 Images from `items.image_url` and non-deleted `item_images` are combined, with duplicates and empty references removed. The storefront sorts photos numerically by the trailing filename number (`1234_1.png`, `1234_2.png`, …, `1234_10.png`); the first photo becomes the main product image in galleries and product cards. Photos without a numbered suffix follow numbered photos in their original order. Absolute URLs point to Supabase's public `item_images` storage bucket. Videos come from `items.video_url` and follow the images in the gallery.
 
 Run `npm test` for catalogue mapping, caching, checkout price protection, and the retained legacy gallery tests.

@@ -1,0 +1,97 @@
+.hero {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background-color: #ffead5;
+  background-position: center top;
+  background-repeat: no-repeat;
+  /* Crop the artwork's white bottom curve out of the mobile hero. */
+  background-size: auto 110%;
+  color: #6b242c;
+  text-align: center;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 7.6vw, 3.5rem) clamp(0.5rem, 5vw, 2rem) 0;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.25rem, 6.6vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.subtitle {
+  max-width: 42ch;
+  margin: clamp(0.75rem, 2.4vw, 1.25rem) auto 0;
+  font-size: clamp(0.875rem, 3.6vw, 1.375rem);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* A separate row lets the text grow without covering the five cards. */
+.cards {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 100 / 30;
+  margin-top: clamp(1rem, 4vw, 2rem);
+  pointer-events: none;
+  user-select: none;
+}
+
+.card {
+  position: absolute;
+  top: var(--card-mobile-top);
+  left: var(--card-mobile-left);
+  width: var(--card-mobile-width);
+  height: auto;
+}
+
+@media (min-width: 768px) {
+  .hero {
+    min-height: min(32.0644vw, 615.64px);
+    background-position: center bottom;
+    background-size: cover;
+  }
+
+  .content {
+    max-width: 1920px;
+    padding: min(7.6vw, 145.92px) 5% min(15.67vw, 300.864px);
+  }
+
+  .title {
+    font-size: clamp(1.75rem, 3.514vw, 4rem);
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    max-width: none;
+    margin-top: clamp(0.75rem, 1.76vw, 2rem);
+    font-size: clamp(1.125rem, 2.343vw, 2.625rem);
+    line-height: 1.2;
+  }
+
+  .cards {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    max-width: 1920px;
+    aspect-ratio: 1366 / 438;
+    margin-top: 0;
+    transform: translateX(-50%);
+  }
+
+  .card {
+    top: var(--card-top);
+    left: var(--card-left);
+    width: var(--card-width);
+  }
+}

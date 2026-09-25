@@ -1,119 +1,143 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Alice } from "next/font/google";
+import Image from "next/image";
+import { type CSSProperties, useLayoutEffect, useRef } from "react";
+import gsap from "gsap";
+import styles from "./HeroCarousel.module.css";
 
-const SLIDES = [
-  {
-    src: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2012_52_54%20PM.png",
-    mobileSrc:
-      "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2003_44_31%20PM.png",
-    alt: "Luxury wedding box collection hero image",
-  },
-  {
-    src: "/hero1.png",
-    mobileSrc: "/mobile_hero1.png",
-    alt: "Hero image 1",
-  },
-  {
-    src: "/hero2.png",
-    mobileSrc: "/mobile_hero2.png",
-    alt: "Hero image 2",
-  },
-  {
-    src: "/hero3.png",
-    mobileSrc: "/mobile_hero3.png",
-    alt: "Hero image 3",
-  },
+const alice = Alice({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+});
+
+const HERO_WIDTH = 1366;
+const HERO_HEIGHT = 438;
+
+// Coordinates include each PNG's transparent padding in the reference artwork.
+const HERO_CARDS = [
+  { src: "/hero-card-1.png", width: 219, height: 273, x: -15, y: 240, mobile: { width: 27, x: -4, y: 14 } },
+  { src: "/hero-card-2.png", width: 273, height: 360, x: 232, y: 180, mobile: { width: 35, x: 10, y: -16 } },
+  { src: "/hero-card-3.png", width: 265, height: 353, x: 532, y: 205, mobile: { width: 35, x: 33, y: -2 } },
+  { src: "/hero-card-4.png", width: 242, height: 322, x: 825, y: 234, mobile: { width: 30, x: 57, y: 8 } },
+  { src: "/hero-card-5.png", width: 465, height: 436, x: 1047, y: 161, mobile: { width: 58, x: 72, y: -14 } },
 ];
 
-const AUTO_ADVANCE_MS = 5000;
-
 export default function HeroCarousel() {
-  const [current, setCurrent] = useState(0);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
-  const total = SLIDES.length;
+  useLayoutEffect(() => {
+    const root = cardsRef.current;
+    if (!root) return;
 
-  const goNext = useCallback(() => {
-    setCurrent((c) => (c + 1) % total);
-  }, [total]);
+    const media = gsap.matchMedia();
 
-  const goPrev = useCallback(() => {
-    setCurrent((c) => (c - 1 + total) % total);
-  }, [total]);
+    media.add(
+      "(prefers-reduced-motion: no-preference)",
+      () => {
+        const cards = Array.from(
+          root.querySelectorAll<HTMLImageElement>("[data-hero-card]"),
+        );
+        const shuffledCards = gsap.utils.shuffle([...cards]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      goNext();
-    }, AUTO_ADVANCE_MS);
+        // A random shuffle can still return left-to-right order; avoid that result.
+        if (shuffledCards.every((card, index) => card === cards[index])) {
+          [shuffledCards[0], shuffledCards[1]] = [
+            shuffledCards[1],
+            shuffledCards[0],
+          ];
+        }
 
-    return () => window.clearInterval(timer);
-  }, [goNext]);
+        let cancelled = false;
+        const imagesReady = Promise.all(
+          cards.map((card) => card.decode().catch(() => undefined)),
+        );
+        const timeline = gsap.timeline({ paused: true });
+
+        gsap.set(cards, {
+          y: (_index, card: HTMLImageElement) =>
+            root.clientHeight - card.offsetTop + 12,
+          scale: 0.96,
+          autoAlpha: 0,
+          transformOrigin: "center bottom",
+        });
+
+        timeline.to(shuffledCards, {
+          y: 0,
+          scale: 1,
+          autoAlpha: 1,
+          duration: 0.85,
+          stagger: 0.24,
+          ease: "back.out(1.35)",
+          clearProps: "transform,transformOrigin,opacity,visibility",
+        });
+
+        void imagesReady.then(() => {
+          if (!cancelled) timeline.play();
+        });
+
+        return () => {
+          cancelled = true;
+        };
+      },
+      root,
+    );
+
+    return () => media.revert();
+  }, []);
 
   return (
-    <section className="relative h-[clamp(360px,min(177.78vw,calc(100svh-5rem)),760px)] overflow-hidden bg-carbon md:h-[clamp(400px,min(56.25vw,calc(100svh-7rem)),760px)]">
-      {/* Slide track */}
-      <div
-        className="flex h-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-        style={{ transform: `translateX(-${current * 100}%)` }}
-      >
-        {SLIDES.map((slide, i) => (
-          <div
-            key={slide.src}
-            className="relative h-full w-full min-w-full overflow-hidden"
-          >
-            <picture className="block h-full w-full">
-              <source media="(max-width: 767px)" srcSet={slide.mobileSrc} />
-
-              <img
-                src={slide.src}
-                alt={slide.alt}
-                loading={i === 0 ? "eager" : "lazy"}
-                decoding="async"
-                draggable={false}
-                className={`block h-full w-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  i === current ? "scale-100" : "scale-150"
-                }`}
-              />
-            </picture>
-          </div>
-        ))}
+    <section
+      aria-labelledby="homepage-hero-title"
+      data-no-text-motion
+      className={styles.hero}
+      style={{ backgroundImage: "url('/hero-bg.png')" }}
+    >
+      <div className={styles.content}>
+        <h1
+          id="homepage-hero-title"
+          className={styles.title}
+          style={{ fontFamily: alice.style.fontFamily }}
+        >
+          Invitation that go beyond your expectations
+        </h1>
+        <p
+          className={styles.subtitle}
+          style={{ fontFamily: alice.style.fontFamily }}
+        >
+          Designed with love, crafted by experts, and delivered on time.
+        </p>
       </div>
-
-      {/* Prev / Next arrows */}
-      <button
-        type="button"
-        onClick={goPrev}
-        aria-label="Previous slide"
-        className="absolute left-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/10 text-white backdrop-blur-sm transition hover:border-white hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/75 sm:left-4 md:left-5"
+      <div
+        ref={cardsRef}
+        aria-hidden="true"
+        className={styles.cards}
       >
-        &#8592;
-      </button>
-
-      <button
-        type="button"
-        onClick={goNext}
-        aria-label="Next slide"
-        className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/10 text-white backdrop-blur-sm transition hover:border-white hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/75 sm:right-4 md:right-5"
-      >
-        &#8594;
-      </button>
-
-      {/* Progress dots */}
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 sm:bottom-5 sm:gap-2 md:bottom-7 md:gap-2.5">
-        {SLIDES.map((slide, i) => (
-          <button
-            key={slide.src}
-            type="button"
-            onClick={() => setCurrent(i)}
-            aria-label={`Go to slide ${i + 1}`}
-            className="flex h-8 w-8 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-white/75"
-          >
-            <span
-              className={`h-px transition-all duration-300 ${
-                i === current ? "w-6 bg-white" : "w-3 bg-white/30"
-              }`}
-            />
-          </button>
+        {HERO_CARDS.map((card) => (
+          <Image
+            key={card.src}
+            data-hero-card
+            src={card.src}
+            alt=""
+            width={card.width}
+            height={card.height}
+            sizes={`(max-width: 767px) ${card.mobile.width}vw, (min-width: 1920px) ${Math.ceil((card.width / HERO_WIDTH) * 1920)}px, ${Math.ceil((card.width / HERO_WIDTH) * 100)}vw`}
+            priority
+            quality={90}
+            draggable={false}
+            className={styles.card}
+            style={
+              {
+                "--card-left": `${(card.x / HERO_WIDTH) * 100}%`,
+                "--card-top": `${(card.y / HERO_HEIGHT) * 100}%`,
+                "--card-width": `${(card.width / HERO_WIDTH) * 100}%`,
+                "--card-mobile-left": `${card.mobile.x}%`,
+                "--card-mobile-top": `${card.mobile.y}%`,
+                "--card-mobile-width": `${card.mobile.width}%`,
+              } as CSSProperties
+            }
+          />
         ))}
       </div>
     </section>

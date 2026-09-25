@@ -43,47 +43,6 @@
   }
 }
 
-/*
- * Initial-render safety:
- *
- * These critical properties make the loader cover the screen as soon
- * as its server-rendered HTML arrives. SiteLoader.tsx removes this
- * class after React hydrates, and GSAP then controls the animation.
- *
- * If JavaScript fails completely, the animation below removes the
- * loader after 8.5 seconds so the website is not permanently blocked.
- */
-@keyframes site-loader-failsafe {
-  0%,
-  94% {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-  }
-
-  100% {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-}
-
-.site-loader-failsafe {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  overflow: hidden;
-
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-
-  background-color: #7b1c2e;
-
-  animation:
-    site-loader-failsafe 8.5s linear forwards;
-}
-
 /* Prevent iOS from zooming the viewport when a compact form control is focused. */
 @media (max-width: 639px) {
   input:not([type="checkbox"]):not([type="radio"]),

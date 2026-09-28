@@ -6,6 +6,7 @@ import {
   MAX_IMPORT_BYTES,
   MAX_IMPORT_ROWS,
   headerKey,
+  PRICE_IMPORT_FIELDS,
   type ParsedItems,
 } from "./item-fields";
 
@@ -13,6 +14,7 @@ import {
 export async function parseItemUpload(
   bytes: Buffer,
   filename: string,
+  mode: "items" | "prices" = "items",
 ): Promise<ParsedItems> {
   if (!bytes.length || bytes.length > MAX_IMPORT_BYTES)
     throw new Error("Choose a nonempty file up to 4 MB.");
@@ -87,12 +89,14 @@ export async function parseItemUpload(
 
   if (!matrix.length) throw new Error("The file is empty.");
   const headers = matrix[0] ?? [];
+  const fields = mode === "prices" ? PRICE_IMPORT_FIELDS : ALL_ITEM_FIELDS;
   const aliases = new Map(
-    ALL_ITEM_FIELDS.flatMap((field) =>
-      [field.label, ...(field.kind === "disable" ? [] : [field.key]), ...(field.aliases ?? [])].map((label) => [
-        headerKey(label),
-        field.key,
-      ]),
+    fields.flatMap((field) =>
+      [
+        field.label,
+        ...(field.kind === "disable" ? [] : [field.key]),
+        ...(field.aliases ?? []),
+      ].map((label) => [headerKey(label), field.key]),
     ),
   );
   const used = new Set<string>();
@@ -112,7 +116,11 @@ export async function parseItemUpload(
     else if (label.trim()) warnings.push(`Ignored empty column: ${label}`);
     return key;
   });
-  if (!used.has("name"))
+  if (mode === "prices" && (!used.has("code") || !used.has("sale_price")))
+    throw new Error(
+      "Item Code and Actual Price columns are required. Showcase Price is optional.",
+    );
+  if (mode === "items" && !used.has("name"))
     throw new Error("An Item Name (design number) column is required.");
   const rows = matrix.slice(1).flatMap((cells, index) => {
     if (!cells?.some((value) => value?.trim())) return [];
@@ -133,8 +141,8 @@ export async function parseItemUpload(
   return {
     rows,
     warnings,
-    headers: ALL_ITEM_FIELDS.filter((field) => used.has(field.key)).map(
-      (field) => field.label,
-    ),
+    headers: fields
+      .filter((field) => used.has(field.key))
+      .map((field) => field.label),
   };
 }

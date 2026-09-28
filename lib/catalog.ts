@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import DOMPurify from "isomorphic-dompurify";
 import type { Product, ProductCategory } from "@/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { applyItemPrices } from "@/lib/catalog-pricing";
 import {
   applyResellerPricingToProducts,
   applyResellerPricingToProduct,
@@ -30,7 +31,7 @@ export type ErpProduct = CatalogProduct;
 
 type NullableNumber = number | string | null;
 
-/** Product content and prices are always read from the public view. */
+/** Public product content and price-list fallback; item prices are applied server-side. */
 export interface WebProductRow {
   id: string;
   item_code: string;
@@ -181,13 +182,15 @@ const readCatalogProducts = unstable_cache(
         throw new Error(`Product catalogue unavailable: ${error.message}`);
 
       const rows = data ?? [];
-      products.push(...rows.map(mapCatalogRowToProduct));
+      products.push(
+        ...(await applyItemPrices(rows)).map(mapCatalogRowToProduct),
+      );
       if (rows.length < pageSize) break;
     }
 
     return products;
   },
-  ["buildErpProductList-v2"],
+  ["buildErpProductList-v3-item-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -215,7 +218,10 @@ export async function fetchWeddingCardProductsBase(): Promise<
     .sort(compareWeddingCardProducts);
 }
 
-export function compareWeddingCardProducts(a: CatalogProduct, b: CatalogProduct) {
+export function compareWeddingCardProducts(
+  a: CatalogProduct,
+  b: CatalogProduct,
+) {
   const photoDifference =
     Number(b.images.some((image) => image.trim())) -
     Number(a.images.some((image) => image.trim()));

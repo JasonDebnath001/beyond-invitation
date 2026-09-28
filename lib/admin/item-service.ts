@@ -137,6 +137,17 @@ export async function loadItemContext(
   };
 }
 
+/** Price imports need only identifiers, timestamps and the two prices. */
+export async function loadPriceContext(companyId: string): Promise<ItemContext> {
+  const db = getSupabaseAdminClient();
+  const { data, error } = await db.from("companies").select("id")
+    .eq("id", companyId).eq("is_active", true).maybeSingle();
+  if (error) throw new Error(`Cannot load company: ${error.message}`);
+  if (!data) throw new Error("Select an active company.");
+  const items = await readAll(db, "items", "id,name,code,company_id,updated_at,sale_price,mrp", companyId);
+  return { companyId, sharedCompanyIds: [], items: items as ItemRecord[], lookups: {} };
+}
+
 /** The library needs three tables; editor references and galleries load on demand. */
 export async function loadItemLibrary(
   requestedCompany?: string,

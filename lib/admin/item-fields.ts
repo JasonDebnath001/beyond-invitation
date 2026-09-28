@@ -65,6 +65,8 @@ export const ITEM_FIELDS: ItemField[] = [
     aliases: ["Web Description"],
   }),
   ref("Website Price List", "website_price_list_id", "price_lists"),
+  field("Showcase Price", "mrp", "number", { aliases: ["Showcase Price (INR)", "MRP", "Original Price"] }),
+  field("Actual Price", "sale_price", "number", { aliases: ["Actual Price (INR)", "Selling Price", "Sale Price", "Price"] }),
   field("Height (Cm)", "item_height", "number"),
   field("Width (Cm)", "item_width", "number"),
   field("Weight (Grams)", "weight_per_unit", "number"),
@@ -96,6 +98,13 @@ export const EXTRA_FIELDS: ItemField[] = [
   field("Thumbnail URL", "thumb_url"),
 ];
 export const ALL_ITEM_FIELDS = [...ITEM_FIELDS, ...EXTRA_FIELDS];
+export const PRICE_IMPORT_FIELDS = ALL_ITEM_FIELDS.filter((field) =>
+  ["code", "mrp", "sale_price"].includes(field.key),
+).map((field) => field.key === "code" ? {
+  ...field,
+  label: "Item Code",
+  aliases: [...(field.aliases ?? []), "Design Number", "Design No", "design_no", "Item Name"],
+} : field);
 export const MAX_IMPORT_ROWS = 1000;
 export const MAX_IMPORT_BYTES = 4 * 1024 * 1024;
 export const normalise = (value: unknown) =>
@@ -150,6 +159,7 @@ export type PlannedLookup = {
 export type PlannedRow = {
   row: number;
   designNo: string;
+  matchedItem?: { code: string; designNo: string };
   id: string;
   status: "create" | "update" | "unchanged" | "invalid";
   changes: FieldChange[];

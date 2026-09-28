@@ -1477,3 +1477,18 @@
     transition:none
   }
 }
+.pricePreview {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:12px;
+  padding:14px 16px;
+  margin-top:12px;
+  background:var(--paper);
+  border-radius:8px;
+  font-size:14px;
+}
+.pricePreview>span:first-child {
+  color:var(--muted);
+  font-size:12px;
+}

@@ -73,6 +73,9 @@ function scalar(field: ItemField, text: string): unknown {
       throw new Error("Must be at least 1.");
     if (field.key === "offer_pct" && value > 100)
       throw new Error("Offer must be between 0 and 100.");
+    if (["sale_price", "mrp"].includes(field.key) &&
+        (value <= 0 || value > 99999999.99 || !/^\d+(?:\.\d{1,2})?$/.test(text.replace(/,/g, ""))))
+      throw new Error("Enter a price greater than 0, up to 99,999,999.99, with at most two decimal places.");
     return value;
   }
   if (field.kind === "date") {
@@ -279,6 +282,14 @@ export function planItemImport(
       } catch (error) {
         errors.push(`${field.label}: ${(error as Error).message}`);
       }
+    }
+    if (Object.hasOwn(patch, "sale_price") || Object.hasOwn(patch, "mrp")) {
+      const actual = Object.hasOwn(patch, "sale_price") ? patch.sale_price : existing?.sale_price;
+      const showcase = Object.hasOwn(patch, "mrp") ? patch.mrp : existing?.mrp;
+      if (showcase != null && actual == null)
+        errors.push("Set an Actual Price with the Showcase Price, or clear both prices to use the price list.");
+      else if (showcase != null && Number(showcase) < Number(actual))
+        errors.push("Showcase Price must be at least the Actual Price. Leave it blank if there is no crossed-out price.");
     }
     if (
       (patch.has_variants ?? existing?.has_variants) &&

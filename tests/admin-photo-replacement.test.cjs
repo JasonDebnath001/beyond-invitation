@@ -45,7 +45,10 @@ function loader(overrides = {}, globals = {}) {
               path.resolve(path.dirname(filename), `${name}.${fs.existsSync(path.resolve(path.dirname(filename), `${name}.ts`)) ? "ts" : "tsx"}`),
             ),
           );
-        if (name.startsWith("@/")) return load(`${name.slice(2)}.ts`);
+        if (name.startsWith("@/")) {
+          const target = path.resolve(__dirname, "..", name.slice(2));
+          return load(`${target}.${fs.existsSync(`${target}.ts`) ? "ts" : "tsx"}`);
+        }
         return require(name);
       },
     });

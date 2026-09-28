@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import {
   ITEM_FIELDS,
+  PRICE_IMPORT_FIELDS,
   MAX_IMPORT_BYTES,
   type AdminData,
   type AdminLibraryData,
@@ -83,7 +84,7 @@ export default function ItemDashboard() {
   >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"items" | "import">("items");
+  const [tab, setTab] = useState<"items" | "import" | "prices">("items");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -105,6 +106,19 @@ export default function ItemDashboard() {
   const requestId = useRef(0);
   const activeLoad = useRef<AbortController | null>(null);
   const activeDetail = useRef<AbortController | null>(null);
+  const priceImport = tab === "prices";
+
+  function changeTab(next: typeof tab) {
+    if (working || next === tab) return;
+    setTab(next);
+    setFile(null);
+    setPreview(null);
+    setResult(null);
+    setError("");
+    setPreviewFilter("all");
+    setPreviewPage(1);
+    if (fileInput.current) fileInput.current.value = "";
+  }
 
   const loadItems = useCallback(async (companyId?: string) => {
     const id = ++requestId.current;
@@ -308,6 +322,7 @@ export default function ItemDashboard() {
     form.set("file", file);
     form.set("companyId", data.companyId);
     form.set("action", action);
+    form.set("mode", priceImport ? "prices" : "items");
     form.set("createMissing", String(createMissing));
     if (preview) form.set("token", preview.token);
     try {
@@ -355,17 +370,27 @@ export default function ItemDashboard() {
         <div className={styles.sidebarLabel}>WORKSPACE</div>
         <button
           className={tab === "items" ? styles.navActive : styles.navButton}
-          onClick={() => setTab("items")}
+          disabled={!!working}
+          onClick={() => changeTab("items")}
         >
           <LayoutGrid size={18} />
           All items<span>{items.length || "—"}</span>
         </button>
         <button
           className={tab === "import" ? styles.navActive : styles.navButton}
-          onClick={() => setTab("import")}
+          disabled={!!working}
+          onClick={() => changeTab("import")}
         >
           <UploadCloud size={18} />
           Import items
+        </button>
+        <button
+          className={priceImport ? styles.navActive : styles.navButton}
+          disabled={!!working}
+          onClick={() => changeTab("prices")}
+        >
+          <FileSpreadsheet size={18} />
+          Import prices
         </button>
         {/* Full navigation matches the item workspace's existing navigation. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
@@ -387,7 +412,7 @@ export default function ItemDashboard() {
         <header className={styles.topbar}>
           <span>
             Workspace <span className={styles.slash}>/</span>{" "}
-            <strong>{tab === "items" ? "Items" : "Import"}</strong>
+            <strong>{tab === "items" ? "Items" : priceImport ? "Import prices" : "Import items"}</strong>
           </span>
           <div className={styles.topbarRight}>
             <label className={styles.companyLabel}>
@@ -440,11 +465,11 @@ export default function ItemDashboard() {
               <h1>
                 {tab === "items"
                   ? "Every item. One place."
-                  : "Bring your items up to date."}
+                  : priceImport ? "Update your product prices." : "Bring your items up to date."}
               </h1>
               <p>
                 {tab === "items"
-                  ? "Add missing photos and details. Open any item to edit and save it."
+                  ? "Open any item to edit its prices, photos and details."
                   : "Upload your file, review the changes, then import when you’re ready."}
               </p>
             </div>
@@ -452,10 +477,10 @@ export default function ItemDashboard() {
               <div className={styles.headingActions}>
                 <button
                   className={styles.textButton}
-                  onClick={() => setTab("import")}
+                  onClick={() => changeTab("prices")}
                 >
                   <UploadCloud size={17} />
-                  Import items
+                  Import prices
                 </button>
                 <button
                   className={styles.primary}
@@ -869,7 +894,7 @@ export default function ItemDashboard() {
                 <section className={styles.panel}>
                   <div className={styles.panelHeading}>
                     <div>
-                      <h2>Upload item details</h2>
+                      <h2>{priceImport ? "Upload product prices" : "Upload item details"}</h2>
                       <p>CSV or Excel · up to 1,000 rows · 4 MB maximum</p>
                     </div>
                     <FileSpreadsheet size={22} className={styles.muted} />
@@ -878,6 +903,7 @@ export default function ItemDashboard() {
                     <input
                       className={styles.srOnly}
                       id="item-file"
+                      aria-label={priceImport ? "Choose price spreadsheet" : "Choose item spreadsheet"}
                       type="file"
                       accept=".csv,.xlsx"
                       ref={fileInput}
@@ -919,10 +945,13 @@ export default function ItemDashboard() {
                           : "or click to browse files"}
                       </span>
                       <small>
-                        Accepts your Item_Template.xlsx or a CSV export
+                        {priceImport ? "Item Code, Showcase Price, Actual Price · XLSX or CSV" : "Accepts your Item_Template.xlsx or a CSV export"}
                       </small>
                     </button>
-                    <label className={styles.checkbox}>
+                    {priceImport && <p className={styles.notice}>
+                      Use <strong>Item Code</strong> and <strong>Actual Price</strong> columns, with an optional <strong>Showcase Price</strong> column. Item Code accepts the design number shown on the website or the internal code shown in the item library. Select the company that contains your items. Prices are per item in INR. Blank cells keep existing prices. Use <code>[clear]</code> to remove a showcase price. Keep item codes as text in Excel.
+                    </p>}
+                    {!priceImport && <label className={styles.checkbox}>
                       <input
                         type="checkbox"
                         checked={createMissing}
@@ -941,18 +970,18 @@ export default function ItemDashboard() {
                           appears in the preview.
                         </small>
                       </span>
-                    </label>
+                    </label>}
                     <div className={styles.uploadActions}>
                       <button
                         className={styles.textButton}
                         onClick={() =>
-                          downloadCsv("item-template.csv", [
-                            ITEM_FIELDS.map((field) => field.label),
+                          downloadCsv(priceImport ? "price-template.csv" : "item-template.csv", [
+                            (priceImport ? PRICE_IMPORT_FIELDS : ITEM_FIELDS).map((field) => field.label),
                           ])
                         }
                       >
                         <ArrowDownToLine size={16} />
-                        CSV template
+                        {priceImport ? "Price template" : "CSV template"}
                       </button>
                       <button
                         className={styles.primary}
@@ -971,7 +1000,17 @@ export default function ItemDashboard() {
                     </div>
                   </div>
                 </section>
-                <aside className={styles.guide}>
+                {priceImport ? <aside className={styles.guide}>
+                  <span className={styles.eyebrow}>HOW PRICE IMPORTS WORK</span>
+                  <h2>Two prices.<br />One simple upload.</h2>
+                  <ul>
+                    <li><Check size={16} /><span><strong>Match by code or design number</strong>Use the design number shown on the website or the internal item code. The preview shows which product matched. Only items in the selected company are updated.</span></li>
+                    <li><Check size={16} /><span><strong>Showcase price</strong>The crossed-out price. Use a value above the actual price to show the saving.</span></li>
+                    <li><Check size={16} /><span><strong>Actual price</strong>The per-item selling price used on the website and at checkout.</span></li>
+                    <li><Check size={16} /><span><strong>Review before saving</strong>Unknown codes, duplicates and invalid prices are flagged. No new items are created.</span></li>
+                  </ul>
+                  <p>Blank cells keep existing values. Use <code>[clear]</code> to remove a showcase price. Clear both prices to return to the price list. Format item codes as text in Excel.</p>
+                </aside> : <aside className={styles.guide}>
                   <span className={styles.eyebrow}>HOW IMPORTS WORK</span>
                   <h2>
                     A clear update,
@@ -1013,10 +1052,9 @@ export default function ItemDashboard() {
                   </ul>
                   <p>
                     Item Category and Subject are separate fields. Website Price
-                    List selects an existing selling list; this template does
-                    not contain selling prices.
+                    List selects a fallback selling list. Actual Price and Showcase Price set the product prices directly.
                   </p>
-                </aside>
+                </aside>}
               </div>
 
               {preview && (
@@ -1040,7 +1078,7 @@ export default function ItemDashboard() {
                         <Check size={17} />
                       )}
                       {working === "commit"
-                        ? "Saving items…"
+                        ? priceImport ? "Saving prices…" : "Saving items…"
                         : `Import ${readyCount} ready ${readyCount === 1 ? "row" : "rows"}`}
                     </button>
                   </div>
@@ -1111,7 +1149,7 @@ export default function ItemDashboard() {
                       <thead>
                         <tr>
                           <th>ROW</th>
-                          <th>DESIGN NUMBER</th>
+                          <th>{priceImport ? "ITEM CODE" : "DESIGN NUMBER"}</th>
                           <th>RESULT</th>
                           <th>CHANGES / ISSUES</th>
                         </tr>
@@ -1124,8 +1162,13 @@ export default function ItemDashboard() {
                               <td>{row.row}</td>
                               <td>
                                 <strong>
-                                  {row.designNo || "Missing name"}
+                                  {row.designNo || (priceImport ? "Missing code" : "Missing name")}
                                 </strong>
+                                {priceImport && row.matchedItem && (
+                                  <small className={styles.code}>
+                                    Design {row.matchedItem.designNo} · Code {row.matchedItem.code}
+                                  </small>
+                                )}
                               </td>
                               <td>
                                 <span className={badgeClass(row.status)}>
@@ -1218,7 +1261,7 @@ export default function ItemDashboard() {
                           : "Import complete"}
                       </h2>
                       <p>
-                        {result.created} created · {result.updated} updated ·{" "}
+                        {!priceImport && <>{result.created} created · </>}{result.updated} updated ·{" "}
                         {result.unchanged} unchanged · {result.skipped} skipped
                         · {result.failed} failed
                       </p>
@@ -1226,8 +1269,8 @@ export default function ItemDashboard() {
                     <button
                       className={styles.textButton}
                       onClick={() =>
-                        downloadCsv("item-import-results.csv", [
-                          ["Row", "Design number", "Result", "Message"],
+                        downloadCsv(priceImport ? "price-import-results.csv" : "item-import-results.csv", [
+                          ["Row", priceImport ? "Item code" : "Design number", "Result", "Message"],
                           ...result.rows.map((row) => [
                             row.row,
                             row.designNo,
@@ -1267,7 +1310,7 @@ export default function ItemDashboard() {
                     <span>Your item library has been refreshed.</span>
                     <button
                       className={styles.textButton}
-                      onClick={() => setTab("items")}
+                      onClick={() => changeTab("items")}
                     >
                       View items <ArrowRight size={16} />
                     </button>

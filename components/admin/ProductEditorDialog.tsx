@@ -24,6 +24,7 @@ import { prepareProductPhoto } from "@/lib/admin/item-photo-client";
 import ProductVideoField, { type QueuedVideo } from "./ProductVideoField";
 import { MAX_PRODUCT_VIDEO_BYTES, productVideoType, videoSourceForUrl } from "@/lib/admin/item-video-fields";
 import { uploadItemVideo } from "@/lib/admin/item-video-client";
+import ProductPrice from "@/components/ProductPrice";
 
 type QueuedPhoto = {
   id: string;
@@ -104,11 +105,13 @@ const website = [
   "show_on_website",
   "is_active",
 ];
+const pricing = ["mrp", "sale_price"];
 const otherFields = ALL_ITEM_FIELDS.filter(
   (field) =>
     field.key !== "id" &&
     !basics.includes(field.key) &&
     !website.includes(field.key) &&
+    !pricing.includes(field.key) &&
     !["image_url", "thumb_url", "video_url", "video_source"].includes(field.key),
 );
 const hints: Record<string, string> = {
@@ -118,7 +121,9 @@ const hints: Record<string, string> = {
   item_type: "Choose a suggestion or enter an item type from your item master.",
   image_url: "Paste a publicly accessible image link.",
   website_price_list_id:
-    "Selling prices are managed in the selected price list. Adding a product does not set its selling price.",
+    "Used when Actual Price is blank. A price entered above takes priority over this list.",
+  mrp: "Optional crossed-out price in INR. Must be at least the actual price. Clear this field to remove it.",
+  sale_price: "The price customers pay per item, in INR. Clear both prices to use the selected price list.",
   show_on_website:
     "Choose Yes when the product is ready to appear in the storefront.",
 };
@@ -149,6 +154,8 @@ export default function ProductEditorDialog({
   const [savedProduct, setSavedProduct] = useState<SavedProduct | null>(null);
   const [progress, setProgress] = useState("");
   const [photoLink, setPhotoLink] = useState(item?.values.image_url ?? "");
+  const [actualPrice, setActualPrice] = useState(item?.values.sale_price ?? "");
+  const [showcasePrice, setShowcasePrice] = useState(item?.values.mrp ?? "");
   const photoInput = useRef<HTMLInputElement>(null);
   const replacementInput = useRef<HTMLInputElement>(null);
   const replacementTarget = useRef<string | undefined>(undefined);
@@ -479,7 +486,11 @@ export default function ProductEditorDialog({
             onChange={
               field.key === "image_url"
                 ? (event) => setPhotoLink(event.target.value)
-                : undefined
+                : field.key === "sale_price"
+                  ? (event) => setActualPrice(event.target.value)
+                  : field.key === "mrp"
+                    ? (event) => setShowcasePrice(event.target.value)
+                    : undefined
             }
             type={
               field.kind === "date"
@@ -491,10 +502,10 @@ export default function ProductEditorDialog({
                     : "text"
             }
             min={
-              ["min_order_qty", "order_multiple"].includes(field.key) ? 1 : 0
+              pricing.includes(field.key) ? 0.01 : ["min_order_qty", "order_multiple"].includes(field.key) ? 1 : 0
             }
-            max={field.key === "offer_pct" ? 100 : undefined}
-            step={field.kind === "integer" ? 1 : "any"}
+            max={pricing.includes(field.key) ? 99999999.99 : field.key === "offer_pct" ? 100 : undefined}
+            step={pricing.includes(field.key) ? "0.01" : field.kind === "integer" ? 1 : "any"}
             maxLength={2000}
             list={field.key === "item_type" ? "new-product-types" : undefined}
           />
@@ -586,6 +597,15 @@ export default function ProductEditorDialog({
             disabled={saving || !!preparing}
             className={styles.formFields}
           >
+            <section className={styles.formSection} aria-labelledby="product-pricing-title">
+              <h3 id="product-pricing-title">Product prices</h3>
+              <div className={styles.formGrid}>{fieldsFor(pricing)}</div>
+              <p className={styles.pricePreview} aria-live="polite">
+                <span>Website preview</span>
+                <ProductPrice price={Number(actualPrice)} mrp={Number(showcasePrice)}
+                  unavailableLabel="Uses the selected price list, or Price on request if no price is available." />
+              </p>
+            </section>
             <section
               className={styles.formSection}
               aria-labelledby="product-photo-title"

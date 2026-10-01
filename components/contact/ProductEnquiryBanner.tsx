@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ProductImage";
 import Link from "next/link";
 import { ImageOff } from "lucide-react";
 import { useState } from "react";

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ProductImage";
 import Link from "next/link";
 import { Heart, ArrowUpRight } from "lucide-react";
 import ProductPrice from "@/components/ProductPrice";

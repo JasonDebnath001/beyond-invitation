@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ProductImage";
 import Link from "next/link";
 import WishlistButton from "@/components/WishlistButton";
 import AddToCartButton from "@/components/AddToCartButton";

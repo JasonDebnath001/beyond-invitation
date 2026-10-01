@@ -394,6 +394,51 @@
 .pdfPhotoToggle input {
   accent-color: var(--primary);
 }
+.photoToolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0 24px 12px;
+}
+.photoNumbers {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 320px;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.photoNumbers textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 84px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  line-height: 1.6;
+}
+.photoIssues {
+  margin: 0 24px 20px;
+  padding: 12px 16px;
+  max-height: 200px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--error-line);
+  border-radius: 6px;
+  background: var(--error-soft);
+  color: var(--error);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.photoIssues ul {
+  padding-left: 18px;
+  margin: 6px 0 0;
+  list-style: disc;
+}
 .search {
   display:flex;
   align-items:center;

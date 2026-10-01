@@ -1,5 +1,5 @@
 /** A stalled request must leave the loading state, including a stalled response body. */
-export async function readAdminJson(url: string, signal?: AbortSignal) {
+export async function readAdminJson(url: string, signal?: AbortSignal, init: RequestInit = {}) {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let abort: (() => void) | undefined;
@@ -24,6 +24,7 @@ export async function readAdminJson(url: string, signal?: AbortSignal) {
     return await Promise.race([
       (async () => {
         const response = await fetch(url, {
+          ...init,
           cache: "no-store",
           signal: controller.signal,
         });

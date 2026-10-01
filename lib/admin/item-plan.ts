@@ -287,7 +287,7 @@ export function planItemImport(
       const actual = Object.hasOwn(patch, "sale_price") ? patch.sale_price : existing?.sale_price;
       const showcase = Object.hasOwn(patch, "mrp") ? patch.mrp : existing?.mrp;
       if (showcase != null && actual == null)
-        errors.push("Set an Actual Price with the Showcase Price, or clear both prices to use the price list.");
+        errors.push("Set an Actual Price with the Showcase Price, or clear both legacy item prices.");
       else if (showcase != null && Number(showcase) < Number(actual))
         errors.push("Showcase Price must be at least the Actual Price. Leave it blank if there is no crossed-out price.");
     }

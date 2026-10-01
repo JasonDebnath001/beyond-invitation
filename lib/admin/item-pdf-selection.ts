@@ -1,5 +1,6 @@
 import { CARD_TYPES } from "@/lib/wedding-cards";
 import type { AdminLibraryItem } from "./item-fields";
+import { itemPhotoUrls } from "./item-photo-selection";
 
 export type PdfCategory = {
   value: string;
@@ -15,17 +16,7 @@ export type CategoryPdfData = {
 
 /** Gallery records can contain videos as well as photos. Filter before limiting. */
 export function photosForPdf(images: string[]): string[] {
-  return [...new Set(images.map((url) => url.trim()).filter(Boolean))]
-    .filter((url) => {
-      try {
-        const source = new URL(url, "https://catalogue.invalid");
-        return ["http:", "https:"].includes(source.protocol) &&
-          /\.(?:jpe?g|jfif|png|webp|avif|gif|bmp|svg)$/i.test(decodeURIComponent(source.pathname));
-      } catch {
-        return false;
-      }
-    })
-    .slice(0, 4);
+  return itemPhotoUrls(images).slice(0, 4);
 }
 
 export function categoryPdfTitle(title: string) {

@@ -24,7 +24,6 @@ import { prepareProductPhoto } from "@/lib/admin/item-photo-client";
 import ProductVideoField, { type QueuedVideo } from "./ProductVideoField";
 import { MAX_PRODUCT_VIDEO_BYTES, productVideoType, videoSourceForUrl } from "@/lib/admin/item-video-fields";
 import { uploadItemVideo } from "@/lib/admin/item-video-client";
-import ProductPrice from "@/components/ProductPrice";
 
 type QueuedPhoto = {
   id: string;
@@ -121,9 +120,9 @@ const hints: Record<string, string> = {
   item_type: "Choose a suggestion or enter an item type from your item master.",
   image_url: "Paste a publicly accessible image link.",
   website_price_list_id:
-    "Used when Actual Price is blank. A price entered above takes priority over this list.",
-  mrp: "Optional crossed-out price in INR. Must be at least the actual price. Clear this field to remove it.",
-  sale_price: "The price customers pay per item, in INR. Clear both prices to use the selected price list.",
+    "Preferred Selling list for website prices. Set Website Price and Rate on that list to update customer prices.",
+  mrp: "Legacy item showcase price in INR. The website uses Rate from the Selling price list.",
+  sale_price: "Legacy item actual price in INR. The website uses Website Price from the Selling price list.",
   show_on_website:
     "Choose Yes when the product is ready to appear in the storefront.",
 };
@@ -154,8 +153,6 @@ export default function ProductEditorDialog({
   const [savedProduct, setSavedProduct] = useState<SavedProduct | null>(null);
   const [progress, setProgress] = useState("");
   const [photoLink, setPhotoLink] = useState(item?.values.image_url ?? "");
-  const [actualPrice, setActualPrice] = useState(item?.values.sale_price ?? "");
-  const [showcasePrice, setShowcasePrice] = useState(item?.values.mrp ?? "");
   const photoInput = useRef<HTMLInputElement>(null);
   const replacementInput = useRef<HTMLInputElement>(null);
   const replacementTarget = useRef<string | undefined>(undefined);
@@ -486,11 +483,7 @@ export default function ProductEditorDialog({
             onChange={
               field.key === "image_url"
                 ? (event) => setPhotoLink(event.target.value)
-                : field.key === "sale_price"
-                  ? (event) => setActualPrice(event.target.value)
-                  : field.key === "mrp"
-                    ? (event) => setShowcasePrice(event.target.value)
-                    : undefined
+                : undefined
             }
             type={
               field.kind === "date"
@@ -598,13 +591,9 @@ export default function ProductEditorDialog({
             className={styles.formFields}
           >
             <section className={styles.formSection} aria-labelledby="product-pricing-title">
-              <h3 id="product-pricing-title">Product prices</h3>
+              <h3 id="product-pricing-title">Legacy item prices</h3>
+              <p>Website prices come from the Selling price list: Website Price is the actual price and Rate is the showcase price. A missing Website Price shows “Price on request”. The item values below do not affect the website or checkout.</p>
               <div className={styles.formGrid}>{fieldsFor(pricing)}</div>
-              <p className={styles.pricePreview} aria-live="polite">
-                <span>Website preview</span>
-                <ProductPrice price={Number(actualPrice)} mrp={Number(showcasePrice)}
-                  unavailableLabel="Uses the selected price list, or Price on request if no price is available." />
-              </p>
             </section>
             <section
               className={styles.formSection}

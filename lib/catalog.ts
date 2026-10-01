@@ -5,7 +5,7 @@ import { unstable_cache } from "next/cache";
 import DOMPurify from "isomorphic-dompurify";
 import type { Product, ProductCategory } from "@/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { applyItemPrices } from "@/lib/catalog-pricing";
+import { applySellingPrices } from "@/lib/catalog-pricing";
 import {
   applyResellerPricingToProducts,
   applyResellerPricingToProduct,
@@ -31,7 +31,7 @@ export type ErpProduct = CatalogProduct;
 
 type NullableNumber = number | string | null;
 
-/** Public product content and price-list fallback; item prices are applied server-side. */
+/** Public product content; Selling website_price/rate are applied server-side. */
 export interface WebProductRow {
   id: string;
   item_code: string;
@@ -183,14 +183,14 @@ const readCatalogProducts = unstable_cache(
 
       const rows = data ?? [];
       products.push(
-        ...(await applyItemPrices(rows)).map(mapCatalogRowToProduct),
+        ...(await applySellingPrices(rows)).map(mapCatalogRowToProduct),
       );
       if (rows.length < pageSize) break;
     }
 
     return products;
   },
-  ["buildErpProductList-v3-item-prices"],
+  ["buildErpProductList-v4-selling-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

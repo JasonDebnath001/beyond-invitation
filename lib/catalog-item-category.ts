@@ -12,7 +12,7 @@ import {
   type WebProductRow,
 } from "@/lib/catalog";
 import { applyResellerPricingToProducts } from "@/lib/reseller";
-import { applyItemPrices } from "@/lib/catalog-pricing";
+import { applySellingPrices } from "@/lib/catalog-pricing";
 
 export type CategorizedCatalogProduct = CatalogProduct & { itemCategory: string };
 
@@ -37,7 +37,7 @@ async function readPublishedItemCategories(itemCategory?: string) {
 /**
  * The public catalogue view does not yet expose Item Category. Read only the
  * published item IDs through the server client. Product content comes from the
- * public catalogue view, with the same explicit item prices as the main catalogue.
+ * public catalogue view, with the same Selling row prices as the main catalogue.
  */
 const readProductsByItemCategory = unstable_cache(
   async (itemCategory: string): Promise<CategorizedCatalogProduct[]> => {
@@ -54,7 +54,7 @@ const readProductsByItemCategory = unstable_cache(
         .returns<WebProductRow[]>();
 
       if (error) throw new Error(`Product catalogue unavailable: ${error.message}`);
-      products.push(...(await applyItemPrices(data ?? [])).map((row) => ({
+      products.push(...(await applySellingPrices(data ?? [])).map((row) => ({
         ...mapCatalogRowToProduct(row),
         itemCategory: categories.get(row.id) ?? "",
       })));
@@ -62,7 +62,7 @@ const readProductsByItemCategory = unstable_cache(
 
     return products.sort(compareWeddingCardProducts);
   },
-  ["products-by-item-category-v3-item-prices"],
+  ["products-by-item-category-v4-selling-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -87,7 +87,7 @@ const readWeddingCardsWithCategories = unstable_cache(
       isWeddingCardProduct(product),
     ).sort(compareWeddingCardProducts);
   },
-  ["wedding-cards-with-item-categories-v2-item-prices"],
+  ["wedding-cards-with-item-categories-v3-selling-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

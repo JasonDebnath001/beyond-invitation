@@ -34,6 +34,14 @@ import ProductEditorDialog from "./ProductEditorDialog";
 import ProductPhoto from "./ProductPhoto";
 import { readAdminJson } from "@/lib/admin/item-client";
 import {
+  MAX_PHOTO_DOWNLOAD_INPUT,
+  MAX_PHOTO_DOWNLOAD_ITEMS,
+  parsePhotoIdentifiers,
+  selectPhotoItems,
+  type ItemPhotoDownloadData,
+  type PhotoDownloadIssue,
+} from "@/lib/admin/item-photo-selection";
+import {
   categoryPdfFilename,
   itemsForPdf,
   pdfCategories,
@@ -80,7 +88,7 @@ export default function ItemDashboard() {
   const [data, setData] = useState<AdminLibraryData | null>(null);
   const [editorData, setEditorData] = useState<AdminData | null>(null);
   const [detailWorking, setDetailWorking] = useState<
-    "editor" | "export" | "pdf" | null
+    "editor" | "export" | "pdf" | "photos" | null
   >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -94,6 +102,9 @@ export default function ItemDashboard() {
   const [pdfCategory, setPdfCategory] = useState("");
   const [pdfProgress, setPdfProgress] = useState("");
   const [pdfOnlyWithPhotos, setPdfOnlyWithPhotos] = useState(true);
+  const [photoNumbers, setPhotoNumbers] = useState("");
+  const [photoProgress, setPhotoProgress] = useState("");
+  const [photoIssues, setPhotoIssues] = useState<PhotoDownloadIssue[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [createMissing, setCreateMissing] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -152,6 +163,8 @@ export default function ItemDashboard() {
   }, [loadItems]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
+  const photoIdentifiers = useMemo(() => parsePhotoIdentifiers(photoNumbers), [photoNumbers]);
+  const photoSelection = useMemo(() => selectPhotoItems(items, photoIdentifiers), [items, photoIdentifiers]);
   const pdfOptions = useMemo(() => pdfCategories(items), [items]);
   const selectedPdfCategory = pdfOptions.find(
     (option) => option.value === pdfCategory,
@@ -298,6 +311,49 @@ export default function ItemDashboard() {
     }
   }
 
+  async function exportItemPhotos() {
+    if (!data || detailWorking || !photoIdentifiers.length || photoIdentifiers.length > MAX_PHOTO_DOWNLOAD_ITEMS) return;
+    const controller = new AbortController();
+    activeDetail.current = controller;
+    setDetailWorking("photos");
+    setPhotoProgress("Finding photos...");
+    setPhotoIssues([]);
+    setError("");
+    setSuccess("");
+    try {
+      const body: ItemPhotoDownloadData = await readAdminJson(
+        "/api/admin/items/photos/download", controller.signal, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId: data.companyId, identifiers: photoNumbers }),
+        },
+      );
+      if (controller.signal.aborted) return;
+      setPhotoIssues(body.issues);
+      const { createItemPhotoZip } = await import("@/lib/admin/item-photo-zip");
+      const result = await createItemPhotoZip(body, { signal: controller.signal, onProgress: setPhotoProgress });
+      if (controller.signal.aborted) return;
+      setPhotoIssues(result.issues);
+      if (!result.bytes) throw new Error("No photos could be downloaded. Check the details in Download design photos below.");
+      const url = URL.createObjectURL(new Blob([new Uint8Array(result.bytes)], { type: "application/zip" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "design-photos.zip";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setSuccess(`Downloaded ${result.photoCount} photo(s) for ${result.itemCount} design(s) in one ZIP.${result.issues.length ? " Some numbers or photos were skipped; see the details below and download-report.txt in the ZIP." : ""}`);
+    } catch (error) {
+      if (!controller.signal.aborted) setError((error as Error).message);
+    } finally {
+      if (activeDetail.current === controller) {
+        setDetailWorking(null);
+        setPhotoProgress("");
+      }
+    }
+  }
+
   function chooseFile(next: File | null) {
     setPreview(null);
     setResult(null);
@@ -433,6 +489,7 @@ export default function ItemDashboard() {
                   setSelected(null);
                   setSuccess("");
                   setPdfCategory("");
+                  setPhotoIssues([]);
                   void loadItems(event.target.value);
                 }}
               >
@@ -518,13 +575,15 @@ export default function ItemDashboard() {
             <div className={styles.success} role="status">
               <LoaderCircle size={18} className={styles.spin} />
               <span>
-                {detailWorking === "pdf"
+                {detailWorking === "photos"
+                  ? photoProgress
+                  : detailWorking === "pdf"
                   ? pdfProgress
                   : detailWorking === "editor"
                     ? "Loading item details…"
                     : "Preparing CSV export…"}
               </span>
-              {detailWorking === "pdf" && (
+              {(detailWorking === "pdf" || detailWorking === "photos") && (
                 <button
                   className={styles.textButton}
                   onClick={() => activeDetail.current?.abort()}
@@ -582,6 +641,56 @@ export default function ItemDashboard() {
                     <small>{hint}</small>
                   </div>
                 ))}
+              </section>
+
+              <section className={styles.panel} aria-label="Design photo download">
+                <div className={styles.panelHeading}>
+                  <div>
+                    <h2>Download design photos</h2>
+                    <p>All photos in one ZIP, with a folder for each design. Original image quality.</p>
+                  </div>
+                </div>
+                <div className={styles.photoToolbar}>
+                  <label className={styles.photoNumbers}>
+                    Design numbers or item codes
+                    <textarea
+                      value={photoNumbers}
+                      rows={3}
+                      maxLength={MAX_PHOTO_DOWNLOAD_INPUT}
+                      placeholder={"AC-590, AC-591\n000123"}
+                      aria-describedby="photo-download-hint"
+                      disabled={!data || loading || !!detailWorking}
+                      onChange={(event) => {
+                        setPhotoNumbers(event.target.value);
+                        setPhotoIssues([]);
+                      }}
+                    />
+                  </label>
+                  <button
+                    className={styles.primary}
+                    disabled={!data || loading || !!detailWorking || !photoIdentifiers.length || photoIdentifiers.length > MAX_PHOTO_DOWNLOAD_ITEMS}
+                    onClick={() => void exportItemPhotos()}
+                  >
+                    {detailWorking === "photos" ? <LoaderCircle size={17} className={styles.spin} /> : <ArrowDownToLine size={17} />}
+                    {detailWorking === "photos" ? "Preparing photos..." : "Download photos (ZIP)"}
+                  </button>
+                </div>
+                <p className={styles.pdfHint} id="photo-download-hint">
+                  Paste up to {MAX_PHOTO_DOWNLOAD_ITEMS} numbers, separated by commas, new lines, semicolons or tabs from Excel.
+                  {" "}Uses the selected company. Repeated designs are downloaded once. Videos are excluded.
+                  {photoIdentifiers.length > 0 && ` ${photoSelection.items.length} design(s) matched; ${photoSelection.issues.length} number(s) need checking.`}
+                  {photoIdentifiers.length > MAX_PHOTO_DOWNLOAD_ITEMS && ` Too many numbers: keep ${MAX_PHOTO_DOWNLOAD_ITEMS} or fewer.`}
+                </p>
+                {(photoIssues.length > 0 || photoSelection.issues.length > 0) && (
+                  <div className={styles.photoIssues} aria-label="Photo download details">
+                    <strong>Numbers or photos needing attention</strong>
+                    <ul>
+                      {(photoIssues.length ? photoIssues : photoSelection.issues).map((issue, index) => (
+                        <li key={index}><strong>{issue.identifier}</strong>: {issue.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </section>
 
               <section
@@ -949,6 +1058,7 @@ export default function ItemDashboard() {
                       </small>
                     </button>
                     {priceImport && <p className={styles.notice}>
+                      This import updates legacy item prices; it does not change website or checkout prices. Update Website Price and Rate in the Selling price list to change customer prices.{" "}
                       Use <strong>Item Code</strong> and <strong>Actual Price</strong> columns, with an optional <strong>Showcase Price</strong> column. Item Code accepts the design number shown on the website or the internal code shown in the item library. Select the company that contains your items. Prices are per item in INR. Blank cells keep existing prices. Use <code>[clear]</code> to remove a showcase price. Keep item codes as text in Excel.
                     </p>}
                     {!priceImport && <label className={styles.checkbox}>
@@ -1052,7 +1162,7 @@ export default function ItemDashboard() {
                   </ul>
                   <p>
                     Item Category and Subject are separate fields. Website Price
-                    List selects a fallback selling list. Actual Price and Showcase Price set the product prices directly.
+                    List selects the preferred Selling list. Website prices use that list’s Website Price and Rate. Actual Price and Showcase Price in item imports only update legacy item values.
                   </p>
                 </aside>}
               </div>

@@ -480,7 +480,7 @@ function pricingDb(tables, failTable) {
     calls,
     from(table) {
       assert.ok(
-        ["items", "price_list_transaction_items", "price_lists"].includes(
+        ["items", "price_list_transaction_items", "price_list_transactions", "price_lists"].includes(
           table,
         ),
       );
@@ -495,6 +495,10 @@ function pricingDb(tables, failTable) {
           if (kind === "in")
             rows = rows.filter((row) => value.includes(row[key]));
           if (kind === "or") {
+            if (key === "and(row_status.eq.Active,transaction_type.eq.Selling),row_status.eq.Draft") {
+              rows = rows.filter((row) => row.row_status === "Draft" || (row.row_status === "Active" && row.transaction_type === "Selling"));
+              continue;
+            }
             const match = key.match(
               /^effective_to\.is\.null,effective_to\.gte\.(\d{4}-\d{2}-\d{2})$/,
             );
@@ -567,7 +571,20 @@ const selling = (item_id, extra = {}) => ({
   transaction_type: "Selling",
   is_active: true,
   row_status: "Active",
+  company_id: companyId,
+  created_at: "2026-09-01T09:00:00Z",
+  updated_at: null,
   ...extra,
+});
+const draftTransaction = (id, extra = {}) => ({
+  id, company_id: companyId, price_list_id: "standard", transaction_type: "Selling",
+  status: "Draft", is_active: true, effective_from: "2026-01-01",
+  created_at: "2026-10-01T10:00:00Z", updated_at: null, ...extra,
+});
+const draftPrice = (item_id, transaction_id, extra = {}) => selling(item_id, {
+  id: `draft-${transaction_id}`, transaction_id, price_list_id: null, transaction_type: null,
+  row_status: "Draft", website_price: 62, rate: 75,
+  created_at: "2026-10-01T10:00:00Z", ...extra,
 });
 
 test("catalogue strictly maps website_price/rate, ignores item/view prices and excludes unpublished products", async () => {
@@ -665,6 +682,77 @@ test("only active, unexpired Selling rows with an existing list can supply websi
   );
   assert.equal(result[0].price, "99.50");
   assert.equal(result[0].mrp, "150");
+});
+
+test("new Selling drafts inherit header metadata and replace older submitted prices without changing images", async () => {
+  const draft = draftPrice("111011", "new-price");
+  const db = pricingDb({
+    items: [published("111011"), published("draft-only")],
+    price_list_transaction_items: [selling("111011", { website_price: 75, rate: 62 }), draft, draftPrice("draft-only", "new-price")],
+    price_list_transactions: [draftTransaction("new-price")],
+    price_lists: [{ id: "standard", code: "PL0001" }],
+  });
+  const { applySellingPrices } = load("lib/catalog-pricing.ts");
+  const images = ["https://photos.test/111011.png"];
+  const input = [{ id: "111011", price: 75, mrp: 62, images }, { id: "draft-only", price: null, mrp: null }];
+  let result = await applySellingPrices(input, db);
+  for (const row of result) { assert.equal(row.price, 62); assert.equal(row.mrp, 75); }
+  assert.equal(result[0].images, images);
+  assert.equal(input[0].price, 75);
+  // Clearing the new draft's Website Price must not resurrect the old actual price.
+  draft.website_price = null;
+  result = await applySellingPrices(input, db);
+  assert.equal(result[0].price, null); assert.equal(result[0].mrp, 75);
+});
+
+test("purchase, inactive, cancelled, missing and wrong-company draft headers never supply website prices", async () => {
+  const transactions = [
+    draftTransaction("purchase", { transaction_type: "Purchase" }),
+    draftTransaction("disabled", { is_active: false }),
+    draftTransaction("cancelled", { status: "Cancelled" }),
+    draftTransaction("wrong-company", { company_id: otherId }),
+    draftTransaction("no-list", { price_list_id: null }),
+    draftTransaction("missing-list", { price_list_id: "missing" }),
+    draftTransaction("closed-row"),
+    draftTransaction("expired-row"),
+    draftTransaction("disabled-row"),
+  ];
+  const rows = transactions.map(({ id }) => draftPrice("product", id));
+  rows.find(row => row.transaction_id === "closed-row").row_status = "Closed";
+  rows.find(row => row.transaction_id === "expired-row").effective_to = "2000-01-01";
+  rows.find(row => row.transaction_id === "disabled-row").is_active = false;
+  rows.push(draftPrice("product", "missing-header"), draftPrice("product", null));
+  const tables = {
+    items: [published("product")], price_list_transaction_items: [selling("product"), ...rows],
+    price_list_transactions: transactions, price_lists: [{ id: "standard", code: "PL0001" }],
+  };
+  const { applySellingPrices } = load("lib/catalog-pricing.ts");
+  const input = [{ id: "product", price: 500, mrp: 600 }];
+  const result = await applySellingPrices(input, pricingDb(tables));
+  assert.equal(result[0].price, 80); assert.equal(result[0].mrp, 120);
+  await assert.rejects(() => applySellingPrices(input, pricingDb(tables, "price_list_transactions")), /prices unavailable: offline/);
+});
+
+test("newest price revisions win within a list while preferred lists retain priority", async () => {
+  const { selectSellingPrice, applySellingPrices } = load("lib/catalog-pricing.ts");
+  const lists = new Map([["standard", "PL0001"], ["preferred", "PL0012"]]);
+  const submitted = selling("product", { created_at: "2026-10-01T09:00:00Z", website_price: 75, rate: 62 });
+  const oldDraft = selling("product", { id: "old-draft", is_draft: true, created_at: "2026-09-30T09:00:00Z", website_price: 60 });
+  const newDraft = { ...oldDraft, id: "new-draft", created_at: "2026-10-01T10:00:00Z", website_price: 62, rate: 75 };
+  assert.equal(selectSellingPrice([oldDraft, submitted], null, lists), submitted);
+  assert.equal(selectSellingPrice([oldDraft, submitted, newDraft], null, lists), newDraft);
+  const preferred = { ...submitted, price_list_id: "preferred" };
+  assert.equal(selectSellingPrice([newDraft, preferred], "preferred", lists), preferred);
+  const newerSubmitted = { ...submitted, updated_at: "2026-10-01T11:00:00Z" };
+  assert.equal(selectSellingPrice([newDraft, newerSubmitted], null, lists), newerSubmitted);
+  const firstDraft = draftPrice("product", "edited-draft", { created_at: "2026-09-30T09:00:00Z" });
+  const db = pricingDb({
+    items: [published("product")], price_list_transaction_items: [submitted, firstDraft],
+    price_list_transactions: [draftTransaction("edited-draft", { created_at: "2026-09-30T09:00:00Z", updated_at: "2026-10-01T12:00:00Z" })],
+    price_lists: [{ id: "standard", code: "PL0001" }],
+  });
+  const result = await applySellingPrices([{ id: "product", price: 75, mrp: 62 }], db);
+  assert.equal(result[0].price, 62); assert.equal(result[0].mrp, 75);
 });
 
 test("Selling row selection keeps both prices together and preserves preferred list, website price, standard list and date priority", () => {
@@ -906,6 +994,8 @@ test("main catalogue, category collections and checkout resolve Selling prices a
     },
   };
   const priceRow = selling(itemId, { website_price: 99.5, rate: 150 });
+  const priceRows = [priceRow];
+  const draftTransactions = [];
   const adminDb = pricingDb({
     items: [
       {
@@ -914,7 +1004,8 @@ test("main catalogue, category collections and checkout resolve Selling prices a
         item_categories: { name: "Wedding Card" },
       },
     ],
-    price_list_transaction_items: [priceRow],
+    price_list_transaction_items: priceRows,
+    price_list_transactions: draftTransactions,
     price_lists: [{ id: "standard", code: "PL0001" }],
   });
   const integrated = loader({
@@ -941,11 +1032,23 @@ test("main catalogue, category collections and checkout resolve Selling prices a
     { slug: "design-1", quantity: 50 },
   ]);
   assert.equal(cart.amountPaise, 497500);
-  priceRow.website_price = null;
+  const draft = draftPrice(itemId, "draft-checkout");
+  priceRows.push(draft);
+  draftTransactions.push(draftTransaction("draft-checkout"));
+  for (const products of [
+    await integrated("lib/catalog.ts").buildErpProductList(),
+    await category.fetchProductsByItemCategory("Wedding Card"),
+    await category.fetchWeddingCardsWithCategories(),
+  ]) {
+    assert.equal(products[0].price, 62); assert.equal(products[0].mrp, 75);
+  }
+  const draftCart = await integrated("lib/checkout.ts").resolveCartProducts([{ slug: "design-1", quantity: 50 }]);
+  assert.equal(draftCart.amountPaise, 310000);
+  draft.website_price = null;
   const unpriced = await integrated("lib/catalog.ts").buildErpProductList();
   assert.equal(unpriced[0].price, 0);
   assert.equal(unpriced[0].hasPrice, false);
-  assert.equal(unpriced[0].mrp, 150);
+  assert.equal(unpriced[0].mrp, 75);
   await assert.rejects(
     () =>
       integrated("lib/checkout.ts").resolveCartProducts([

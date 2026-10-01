@@ -62,7 +62,7 @@ const readProductsByItemCategory = unstable_cache(
 
     return products.sort(compareWeddingCardProducts);
   },
-  ["products-by-item-category-v4-selling-prices"],
+  ["products-by-item-category-v5-draft-selling-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -87,7 +87,7 @@ const readWeddingCardsWithCategories = unstable_cache(
       isWeddingCardProduct(product),
     ).sort(compareWeddingCardProducts);
   },
-  ["wedding-cards-with-item-categories-v3-selling-prices"],
+  ["wedding-cards-with-item-categories-v4-draft-selling-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

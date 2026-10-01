@@ -190,7 +190,7 @@ const readCatalogProducts = unstable_cache(
 
     return products;
   },
-  ["buildErpProductList-v4-selling-prices"],
+  ["buildErpProductList-v5-draft-selling-prices"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

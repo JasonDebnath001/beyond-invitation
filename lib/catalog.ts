@@ -143,6 +143,7 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
     category: normalizeCategory(row.subject),
     badge: row.badge || tags[0],
     description: DOMPurify.sanitize(row.description ?? ""),
+    // Legacy *_mm view aliases contain item-master lengths in centimetres.
     dimensions: {
       height: numberOrNull(row.height_mm) ?? undefined,
       width: numberOrNull(row.width_mm) ?? undefined,

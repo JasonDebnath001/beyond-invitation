@@ -519,7 +519,7 @@ function SpecRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function formatMeasurement(value: number, unit: "mm" | "g") {
+function formatMeasurement(value: number, unit: "cm" | "g") {
   return `${value.toLocaleString("en-IN", {
     maximumFractionDigits: 2,
   })} ${unit}`;
@@ -564,17 +564,17 @@ export default async function ProductDetailPage({ params }: PageProps) {
     {
       label: "Height",
       value: product.dimensions?.height,
-      unit: "mm" as const,
+      unit: "cm" as const,
     },
     {
       label: "Width",
       value: product.dimensions?.width,
-      unit: "mm" as const,
+      unit: "cm" as const,
     },
     {
       label: "Depth",
       value: product.dimensions?.depth,
-      unit: "mm" as const,
+      unit: "cm" as const,
     },
     {
       label: "Weight",
@@ -584,12 +584,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
     {
       label: "Height (Inside Card)",
       value: product.dimensions?.heightInsideCard,
-      unit: "mm" as const,
+      unit: "cm" as const,
     },
     {
       label: "Width (Inside Card)",
       value: product.dimensions?.widthInsideCard,
-      unit: "mm" as const,
+      unit: "cm" as const,
     },
   ].filter(
     (row): row is typeof row & { value: number } => row.value !== undefined,

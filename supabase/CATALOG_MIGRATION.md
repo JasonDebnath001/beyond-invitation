@@ -11,7 +11,7 @@ The public view returned **158 products**, **31 with a price**, during verificat
 - Only the anon/publishable key is used. The client is server-only and initialized lazily. The view is the only Supabase relation queried by the app.
 - Base product data is cached for 60 seconds and shared by list, detail and search reads. React request caching also deduplicates concurrent page/metadata reads. Reseller pricing stays outside this cache and retains the existing margin functions.
 - Prices must be positive and finite to permit online purchase. SQL NULL becomes zero with `hasPrice: false`; MRP NULL becomes zero in the Product shape.
-- Millimetre and gram fields are mapped directly. Product detail labels now show millimetres for lengths.
+- Length and weight fields are mapped directly. The legacy `*_mm` view aliases contain item-master lengths in centimetres; product detail labels show `cm` for lengths and `g` for weight.
 - Existing quantity rules remain in force. `minOrderQty` and `orderMultiple` are available as catalogue metadata; this migration does not replace the storefront's existing quantity rules.
 - Collection matching uses Subject, not supplier/year groups. The broad wedding collection uses the four wedding-card subjects. Religious collections retain their existing inclusion of the shared Wedding Card subject. Wedding boxes use the seeded Wedding Box subject.
 - Current language and unassigned subjects stay visible in all-product lists and search. The empty collection states are expected until subjects are changed in Samriddhi.

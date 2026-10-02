@@ -34,7 +34,7 @@ export interface Product {
   material?: string;
   includes?: string;
 
-  /** Physical package measurements: millimetres for lengths, grams for weight */
+  /** Physical package measurements: centimetres for lengths, grams for weight */
   dimensions?: ProductDimensions;
 
   /** Whether the product appears in the homepage "Sale" section */

@@ -6,6 +6,7 @@ import DOMPurify from "isomorphic-dompurify";
 import type { Product, ProductCategory } from "@/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { applySellingPrices } from "@/lib/catalog-pricing";
+import { applyCatalogTitles } from "@/lib/catalog-titles";
 import {
   applyResellerPricingToProducts,
   applyResellerPricingToProduct,
@@ -31,7 +32,7 @@ export type ErpProduct = CatalogProduct;
 
 type NullableNumber = number | string | null;
 
-/** Public product content; Selling website_price/rate are applied server-side. */
+/** Public product content; Selling prices and description titles are applied server-side. */
 export interface WebProductRow {
   id: string;
   item_code: string;
@@ -163,6 +164,12 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
   };
 }
 
+export async function resolveCatalogProducts(rows: WebProductRow[]): Promise<CatalogProduct[]> {
+  const pricedRows = await applySellingPrices(rows);
+  const titledRows = await applyCatalogTitles(pricedRows);
+  return titledRows.map(mapCatalogRowToProduct);
+}
+
 const readCatalogProducts = unstable_cache(
   async (): Promise<CatalogProduct[]> => {
     const supabase = getSupabaseServerClient();
@@ -182,15 +189,13 @@ const readCatalogProducts = unstable_cache(
         throw new Error(`Product catalogue unavailable: ${error.message}`);
 
       const rows = data ?? [];
-      products.push(
-        ...(await applySellingPrices(rows)).map(mapCatalogRowToProduct),
-      );
+      products.push(...await resolveCatalogProducts(rows));
       if (rows.length < pageSize) break;
     }
 
     return products;
   },
-  ["buildErpProductList-v5-draft-selling-prices"],
+  ["buildErpProductList-v6-item-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

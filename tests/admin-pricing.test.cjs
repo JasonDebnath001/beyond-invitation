@@ -480,7 +480,7 @@ function pricingDb(tables, failTable) {
     calls,
     from(table) {
       assert.ok(
-        ["items", "price_list_transaction_items", "price_list_transactions", "price_lists"].includes(
+        ["items", "price_list_transaction_items", "price_list_transactions", "price_lists", "item_descriptions"].includes(
           table,
         ),
       );
@@ -962,13 +962,14 @@ test("price import endpoint previews before writing, verifies tokens and invalid
   assert.deepEqual(invalidations, ["catalogue", "/"]);
 });
 
-test("main catalogue, category collections and checkout resolve Selling prices and reject missing website prices", async () => {
+test("main catalogue, category collections and checkout resolve titles and Selling prices and reject missing website prices", async () => {
   const publicRow = {
     id: itemId,
     item_code: "000123",
     design_no: "DESIGN-1",
     slug: "design-1",
     name: "Card",
+    description: "Product description",
     price: 500,
     mrp: 600,
     updated_at: stamp,
@@ -996,6 +997,7 @@ test("main catalogue, category collections and checkout resolve Selling prices a
   const priceRow = selling(itemId, { website_price: 99.5, rate: 150 });
   const priceRows = [priceRow];
   const draftTransactions = [];
+  const descriptionRow = { id: "description", item_id: itemId, line_no: 1, title: "Ivory White & Gold Floral Wedding Invitation" };
   const adminDb = pricingDb({
     items: [
       {
@@ -1007,6 +1009,7 @@ test("main catalogue, category collections and checkout resolve Selling prices a
     price_list_transaction_items: priceRows,
     price_list_transactions: draftTransactions,
     price_lists: [{ id: "standard", code: "PL0001" }],
+    item_descriptions: [descriptionRow],
   });
   const integrated = loader({
     react: { cache: (fn) => fn },
@@ -1027,11 +1030,23 @@ test("main catalogue, category collections and checkout resolve Selling prices a
     assert.equal(products.length, 1);
     assert.equal(products[0].price, 99.5);
     assert.equal(products[0].mrp, 150);
+    assert.equal(products[0].name, descriptionRow.title);
+    assert.equal(products[0].description, "Product description");
   }
+  assert.equal((await integrated("lib/catalog.ts").fetchErpProductBySlug("design-1")).name, descriptionRow.title);
   const cart = await integrated("lib/checkout.ts").resolveCartProducts([
     { slug: "design-1", quantity: 50 },
   ]);
   assert.equal(cart.amountPaise, 497500);
+  assert.equal(cart.lines[0].name, descriptionRow.title);
+  descriptionRow.title = " \t ";
+  for (const products of [
+    await integrated("lib/catalog.ts").buildErpProductList(),
+    await category.fetchProductsByItemCategory("Wedding Card"),
+    await category.fetchWeddingCardsWithCategories(),
+  ]) {
+    assert.equal(products[0].name, publicRow.name);
+  }
   const draft = draftPrice(itemId, "draft-checkout");
   priceRows.push(draft);
   draftTransactions.push(draftTransaction("draft-checkout"));

@@ -7,12 +7,11 @@ import {
   buildErpProductList,
   compareWeddingCardProducts,
   isWeddingCardProduct,
-  mapCatalogRowToProduct,
+  resolveCatalogProducts,
   type CatalogProduct,
   type WebProductRow,
 } from "@/lib/catalog";
 import { applyResellerPricingToProducts } from "@/lib/reseller";
-import { applySellingPrices } from "@/lib/catalog-pricing";
 
 export type CategorizedCatalogProduct = CatalogProduct & { itemCategory: string };
 
@@ -37,7 +36,7 @@ async function readPublishedItemCategories(itemCategory?: string) {
 /**
  * The public catalogue view does not yet expose Item Category. Read only the
  * published item IDs through the server client. Product content comes from the
- * public catalogue view, with the same Selling row prices as the main catalogue.
+ * public catalogue view, with the same titles and Selling prices as the main catalogue.
  */
 const readProductsByItemCategory = unstable_cache(
   async (itemCategory: string): Promise<CategorizedCatalogProduct[]> => {
@@ -54,15 +53,15 @@ const readProductsByItemCategory = unstable_cache(
         .returns<WebProductRow[]>();
 
       if (error) throw new Error(`Product catalogue unavailable: ${error.message}`);
-      products.push(...(await applySellingPrices(data ?? [])).map((row) => ({
-        ...mapCatalogRowToProduct(row),
-        itemCategory: categories.get(row.id) ?? "",
+      products.push(...(await resolveCatalogProducts(data ?? [])).map((product) => ({
+        ...product,
+        itemCategory: categories.get(product.catalogId) ?? "",
       })));
     }
 
     return products.sort(compareWeddingCardProducts);
   },
-  ["products-by-item-category-v5-draft-selling-prices"],
+  ["products-by-item-category-v6-item-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -87,7 +86,7 @@ const readWeddingCardsWithCategories = unstable_cache(
       isWeddingCardProduct(product),
     ).sort(compareWeddingCardProducts);
   },
-  ["wedding-cards-with-item-categories-v4-draft-selling-prices"],
+  ["wedding-cards-with-item-categories-v5-item-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

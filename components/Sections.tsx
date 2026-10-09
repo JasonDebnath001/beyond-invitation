@@ -31,9 +31,7 @@ function SectionHeading({
 }) {
   return (
     <div
-      className={`mb-10 ${
-        align === "center" ? "text-center" : "text-left"
-      }`}
+      className={`mb-10 ${align === "center" ? "text-center" : "text-left"}`}
     >
       <Eyebrow>{eyebrow}</Eyebrow>
 
@@ -101,7 +99,9 @@ export function Hero() {
               key={s.label}
               className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur sm:rounded-3xl sm:p-6"
             >
-              <p className="font-serif text-2xl text-white sm:text-3xl">{s.num}</p>
+              <p className="font-serif text-2xl text-white sm:text-3xl">
+                {s.num}
+              </p>
               <p className="mt-2 text-sm text-stone-300">{s.label}</p>
             </div>
           ))}
@@ -110,7 +110,6 @@ export function Hero() {
     </section>
   );
 }
-
 
 /** Shop by Category section. */
 export function CelebrationGrid({
@@ -193,22 +192,20 @@ export function CelebrationGrid({
 }
 
 /** Sale collection section, using the prices supplied by the catalogue. */
-export function SaleCollection({ products }: { products: Product[] }) {
-  const saleProducts: Product[] = products.map((product) => {
-    const onSale = product.price > 0 && product.mrp > product.price;
-
-    return {
-      ...product,
-      badge: onSale ? "SALE" : product.badge,
-      onSale,
-    };
-  });
-
+export function SaleCollection({
+  products,
+  nextOffset,
+}: {
+  products: Product[];
+  nextOffset: number | null;
+}) {
   return (
     <ProductSection
       label="Limited time offer"
       title="Sale Collection"
-      products={saleProducts}
+      products={products}
+      nextOffset={nextOffset}
+      sale
       viewAllHref="/collections/wedding"
       viewAllText="View All Sale Products"
       shaded
@@ -247,9 +244,7 @@ export function FeatureStrip() {
                   {it.title}
                 </h3>
 
-                <p className="mt-2 text-sm leading-6 text-white/65">
-                  {it.sub}
-                </p>
+                <p className="mt-2 text-sm leading-6 text-white/65">{it.sub}</p>
               </div>
             </div>
           ))}
@@ -332,7 +327,10 @@ export function Testimonials() {
 
         <div className="grid gap-6 md:grid-cols-3">
           {reviews.map((r) => (
-            <div key={r.author} className="rounded-[2rem] bg-white p-8 shadow-sm">
+            <div
+              key={r.author}
+              className="rounded-[2rem] bg-white p-8 shadow-sm"
+            >
               <p className="text-sm tracking-[0.2em] text-amber-600">★★★★★</p>
 
               <blockquote className="mt-5 leading-8 text-stone-700">
@@ -443,36 +441,36 @@ export function Catalogue() {
       price: "MRP below Rs. 50",
       image: "/collections/cat1.png",
       href: "/collections/affordable",
-      className: "lg:col-span-1"
+      className: "lg:col-span-1",
     },
     {
       title: "Mid - Range",
       price: "MRP Rs. 50 to Rs. 150",
       image: "/collections/cat2.png",
       href: "/collections/mid-range",
-      className: "lg:col-span-1"
+      className: "lg:col-span-1",
     },
     {
       title: "Premium",
       price: "MRP Rs. 150 to Rs. 300",
       image: "/collections/cat3.png",
       href: "/collections/premium",
-      className: "lg:col-span-1"
+      className: "lg:col-span-1",
     },
     {
       title: "Stock Clearance",
       price: "MRP Rs. 5 to Rs. 100",
       image: "/collections/cat4.png",
       href: "/collections/stock-clearance",
-      className: "lg:col-span-2"
+      className: "lg:col-span-2",
     },
     {
       title: "Fast Selling Cards",
       price: "MRP Rs. 50 to Rs. 300",
       image: "/collections/cat5.png",
       href: "/collections/fast-selling-cards",
-      className: "lg:col-span-1"
-    }
+      className: "lg:col-span-1",
+    },
   ];
 
   return (

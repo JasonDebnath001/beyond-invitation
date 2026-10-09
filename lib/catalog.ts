@@ -7,6 +7,7 @@ import type { Product, ProductCategory } from "@/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { applySellingPrices } from "@/lib/catalog-pricing";
 import { applyCatalogTitles } from "@/lib/catalog-titles";
+import { PRODUCTS_PER_PAGE } from "@/lib/product-page";
 import {
   applyResellerPricingToProducts,
   applyResellerPricingToProduct,
@@ -214,6 +215,19 @@ export async function fetchErpProductsBase(): Promise<CatalogProduct[]> {
 
 export async function fetchErpProducts(): Promise<CatalogProduct[]> {
   return applyResellerPricingToProducts(await buildErpProductList());
+}
+
+/** Only send a page of products to the storefront, priced for this visitor. */
+export async function fetchErpProductPage(offset = 0): Promise<{
+  products: CatalogProduct[];
+  nextOffset: number | null;
+}> {
+  const products = await buildErpProductList();
+  const end = offset + PRODUCTS_PER_PAGE;
+  return {
+    products: await applyResellerPricingToProducts(products.slice(offset, end)),
+    nextOffset: end < products.length ? end : null,
+  };
 }
 
 export async function fetchWeddingCardProductsBase(): Promise<

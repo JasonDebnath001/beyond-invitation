@@ -73,7 +73,8 @@ export default function KindWords() {
                 src={review.image}
                 alt={review.name}
                 fill
-                priority={active === 0}
+                sizes="(min-width:1280px) 608px, (min-width:1024px) calc(50vw - 32px), (min-width:640px) calc(100vw - 48px), calc(100vw - 32px)"
+                loading="lazy"
                 className="object-cover"
               />
             </div>

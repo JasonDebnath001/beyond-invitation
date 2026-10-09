@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
+import { subscribeMediaQuery } from "@/lib/media-query";
 
 import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
@@ -521,11 +522,7 @@ export default function Navbar() {
       }
     };
 
-    mediaQuery.addEventListener("change", handleDesktopViewport);
-
-    return () => {
-      mediaQuery.removeEventListener("change", handleDesktopViewport);
-    };
+    return subscribeMediaQuery(mediaQuery, handleDesktopViewport);
   }, []);
 
   /*

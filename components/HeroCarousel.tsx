@@ -42,44 +42,31 @@ export default function HeroCarousel() {
         const shuffledCards = gsap.utils.shuffle([...cards]);
 
         // A random shuffle can still return left-to-right order; avoid that result.
-        if (shuffledCards.every((card, index) => card === cards[index])) {
+        if (cards.length > 1 && shuffledCards.every((card, index) => card === cards[index])) {
           [shuffledCards[0], shuffledCards[1]] = [
             shuffledCards[1],
             shuffledCards[0],
           ];
         }
 
-        let cancelled = false;
-        const imagesReady = Promise.all(
-          cards.map((card) => card.decode().catch(() => undefined)),
+        // Keep every card visible as it loads. One slow image must not hold
+        // the entire hero behind a decode promise or a hidden animation state.
+        gsap.fromTo(
+          shuffledCards,
+          {
+            y: 24,
+            scale: 0.96,
+            transformOrigin: "center bottom",
+          },
+          {
+            y: 0,
+            scale: 1,
+            duration: 0.85,
+            stagger: 0.12,
+            ease: "back.out(1.35)",
+            clearProps: "transform,transformOrigin",
+          },
         );
-        const timeline = gsap.timeline({ paused: true });
-
-        gsap.set(cards, {
-          y: (_index, card: HTMLImageElement) =>
-            root.clientHeight - card.offsetTop + 12,
-          scale: 0.96,
-          autoAlpha: 0,
-          transformOrigin: "center bottom",
-        });
-
-        timeline.to(shuffledCards, {
-          y: 0,
-          scale: 1,
-          autoAlpha: 1,
-          duration: 0.85,
-          stagger: 0.24,
-          ease: "back.out(1.35)",
-          clearProps: "transform,transformOrigin,opacity,visibility",
-        });
-
-        void imagesReady.then(() => {
-          if (!cancelled) timeline.play();
-        });
-
-        return () => {
-          cancelled = true;
-        };
       },
       root,
     );

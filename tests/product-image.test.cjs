@@ -17,9 +17,12 @@ function loadComponent(file, overrides = {}) {
     exports,
     require(name) {
       if (name in overrides) return overrides[name];
-      if (name.startsWith("@/")) {
-        const target = name.slice(2);
-        return loadComponent(`${target}.${fs.existsSync(path.resolve(__dirname, "..", `${target}.ts`)) ? "ts" : "tsx"}`, overrides);
+      if (name.startsWith("@/") || name.startsWith("./") || name.startsWith("../")) {
+        const target = name.startsWith("@/")
+          ? path.resolve(__dirname, "..", name.slice(2))
+          : path.resolve(path.dirname(filename), name);
+        const resolved = [`${target}.ts`, `${target}.tsx`, path.join(target, "index.ts")].find(fs.existsSync);
+        return loadComponent(resolved, overrides);
       }
       return require(name);
     },
@@ -112,4 +115,41 @@ test("a price-on-request collection tile keeps its photo on optimizer failure an
   await fail();
   assert.equal(image(), null);
   assert.match(document.body.textContent, /Photo on request/);
+}));
+
+test("product cards serve responsive lazy images and retain their original-photo fallback", () => withImages(async ({ render, image, fail, document }) => {
+  const ProductCard = loadComponent("components/ProductCard.tsx", {
+    "next/link": ({ children, ...props }) => React.createElement("a", props, children),
+    "./WishlistButton": () => null,
+    "./AddToCartButton": () => null,
+  }).default;
+  const product = {
+    slug: "card-1", name: "Invitation", itemCode: "CARD-1", price: 100, mrp: 150,
+    images: ["https://photos.test/card.png"], category: "wedding", description: "", emoji: "",
+  };
+  const imageSizes = "(min-width:1280px) 212px, 50vw";
+  await render(React.createElement(ProductCard, { product, imageSizes }));
+  assert.equal(new URL(image().src).pathname, "/_next/image");
+  assert.equal(new URL(image().src).searchParams.get("q"), "75");
+  assert.equal(image().getAttribute("loading"), "lazy");
+  assert.equal(image().getAttribute("sizes"), imageSizes);
+  assert.ok(image().getAttribute("srcset"));
+  assert.match(image().className, /object-contain/);
+  assert.equal(image().style.position, "absolute");
+  assert.match(image().parentElement.className, /aspect-square/);
+  assert.equal(image().alt, "Invitation (CARD-1)");
+  await fail();
+  assert.equal(image().getAttribute("src"), product.images[0]);
+  assert.doesNotMatch(document.body.textContent, /Image coming soon/);
+  await fail();
+  assert.equal(image(), null);
+  assert.match(document.body.textContent, /Image coming soon/);
+
+  await render(React.createElement(ProductCard, {
+    product: { ...product, images: ["http://legacy.test/card.png"] },
+  }));
+  assert.equal(image().getAttribute("src"), "http://legacy.test/card.png");
+  assert.equal(image().getAttribute("srcset"), null);
+  await fail();
+  assert.equal(image(), null);
 }));

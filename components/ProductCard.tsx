@@ -11,10 +11,12 @@ import { formatProductName } from "@/lib/product-name";
 import AddToCartButton from "./AddToCartButton";
 import WishlistButton from "./WishlistButton";
 import ProductPrice from "./ProductPrice";
+import ProductImage from "@/components/ProductImage";
 
 interface ProductCardProps {
   product: Product & { subject?: string };
   categoryLabel?: string;
+  imageSizes?: string;
 }
 
 const categoryLabels: Record<Product["category"], string> = {
@@ -127,7 +129,11 @@ function getMainProductImage(images: string[] | undefined) {
   return cleanImages[0] ?? "";
 }
 
-export default function ProductCard({ product, categoryLabel }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  categoryLabel,
+  imageSizes = "(min-width:1280px) 268px, (min-width:1024px) calc(33.333vw - 54px), (min-width:640px) calc(50vw - 52px), calc(50vw - 36px)",
+}: ProductCardProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const productName = formatProductName(product.name, product.itemCode);
 
@@ -150,14 +156,18 @@ export default function ProductCard({ product, categoryLabel }: ProductCardProps
           className="product-card-image relative flex aspect-square w-full items-center justify-center overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-carbon"
         >
           {showImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ProductImage
               src={src}
               alt={productName}
+              fill
+              sizes={imageSizes}
+              quality={75}
               loading="lazy"
               decoding="async"
+              // Preserve legacy HTTP sources outside the HTTPS optimizer allowlist.
+              unoptimized={src.startsWith("http://")}
               onError={() => setFailedSrc(src)}
-              className="h-full w-full object-contain p-2 transition-transform duration-[240ms] group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none sm:p-3"
+              className="object-contain p-2 transition-transform duration-[240ms] group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none sm:p-3"
             />
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center text-[#8b7561]">

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { subscribeMediaQuery } from "@/lib/media-query";
 import WeddingCardTile from "@/components/wedding-cards/WeddingCardTile";
 import { useWeddingCardsMotion } from "@/components/wedding-cards/WeddingCardsMotion";
 import {
@@ -228,11 +229,11 @@ export default function WeddingCardsBrowser({
     const onDesktop = () => {
       if (desktop.matches) setSheetOpen(false);
     };
-    desktop.addEventListener("change", onDesktop);
+    const unsubscribeDesktop = subscribeMediaQuery(desktop, onDesktop);
     document.addEventListener("keydown", onKey);
     return () => {
       window.cancelAnimationFrame(frame);
-      desktop.removeEventListener("change", onDesktop);
+      unsubscribeDesktop();
       document.removeEventListener("keydown", onKey);
     };
   }, [sheetOpen, motion]);

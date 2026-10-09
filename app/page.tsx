@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 
 import { getAllCategories } from "@/lib/products";
-import { fetchErpProducts, type ErpProduct } from "@/lib/catalog";
+import { fetchErpProductPage, type ErpProduct } from "@/lib/catalog";
 
 import JsonLd from "@/components/seo/JsonLd";
 import { getSiteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site-config";
@@ -119,10 +119,13 @@ export default async function HomePage() {
   const categories = await getAllCategories();
 
   let catalogProducts: ErpProduct[] = [];
+  let nextOffset: number | null = null;
   let catalogError = "";
 
   try {
-    catalogProducts = await fetchErpProducts();
+    const firstPage = await fetchErpProductPage();
+    catalogProducts = firstPage.products;
+    nextOffset = firstPage.nextOffset;
   } catch (error) {
     console.error("Catalogue product fetch failed on homepage:", error);
     catalogError =
@@ -131,7 +134,7 @@ export default async function HomePage() {
         : "Unknown Catalogue product fetch error";
   }
 
-  const featuredProducts = catalogProducts.slice(0, 10);
+  const featuredProducts = catalogProducts;
 
   const homepageProducts = catalogProducts;
 
@@ -190,12 +193,15 @@ export default async function HomePage() {
         description: product.description || description,
         image: getAbsoluteImageUrl(product.images?.[0]),
         url: `${siteUrl}/products/${product.slug}`,
-        offers: product.price > 0 ? {
-          "@type": "Offer",
-          priceCurrency: "INR",
-          price: product.price,
-          availability: "https://schema.org/InStock",
-        } : undefined,
+        offers:
+          product.price > 0
+            ? {
+                "@type": "Offer",
+                priceCurrency: "INR",
+                price: product.price,
+                availability: "https://schema.org/InStock",
+              }
+            : undefined,
       },
     })),
   };
@@ -236,12 +242,16 @@ export default async function HomePage() {
           </section>
         ) : (
           <>
-            <SaleCollection products={catalogProducts} />
+            <SaleCollection
+              products={catalogProducts}
+              nextOffset={nextOffset}
+            />
 
             <ProductSection
               label="Fresh from our catalogue"
               title="Trendy Collection"
               products={homepageProducts}
+              nextOffset={nextOffset}
               viewAllHref="/catalog"
               viewAllText="View All Products"
             />
@@ -252,6 +262,7 @@ export default async function HomePage() {
               label="Exclusive & elegant"
               title="Premium Invitations"
               products={homepageProducts}
+              nextOffset={nextOffset}
               viewAllHref="/collections/luxe"
               viewAllText="View All Premium Cards"
               shaded

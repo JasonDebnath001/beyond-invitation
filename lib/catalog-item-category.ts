@@ -61,7 +61,7 @@ const readProductsByItemCategory = unstable_cache(
 
     return products.sort(compareWeddingCardProducts);
   },
-  ["products-by-item-category-v6-item-titles"],
+  ["products-by-item-category-v7-web-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -86,7 +86,7 @@ const readWeddingCardsWithCategories = unstable_cache(
       isWeddingCardProduct(product),
     ).sort(compareWeddingCardProducts);
   },
-  ["wedding-cards-with-item-categories-v5-item-titles"],
+  ["wedding-cards-with-item-categories-v6-web-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

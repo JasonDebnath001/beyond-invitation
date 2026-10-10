@@ -33,7 +33,7 @@ export type ErpProduct = CatalogProduct;
 
 type NullableNumber = number | string | null;
 
-/** Public product content; Selling prices and description titles are applied server-side. */
+/** Public product content; Selling prices and Web Titles are applied server-side. */
 export interface WebProductRow {
   id: string;
   item_code: string;
@@ -197,7 +197,7 @@ const readCatalogProducts = unstable_cache(
 
     return products;
   },
-  ["buildErpProductList-v6-item-titles"],
+  ["buildErpProductList-v7-web-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

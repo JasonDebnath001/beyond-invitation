@@ -997,19 +997,18 @@ test("main catalogue, category collections and checkout resolve titles and Selli
   const priceRow = selling(itemId, { website_price: 99.5, rate: 150 });
   const priceRows = [priceRow];
   const draftTransactions = [];
-  const descriptionRow = { id: "description", item_id: itemId, line_no: 1, title: "Ivory White & Gold Floral Wedding Invitation" };
+  const titleItem = {
+    ...published(itemId),
+    web_title: "  Ivory White & Gold Floral Wedding Invitation  ",
+    "item_categories.name": "Wedding Card",
+    item_categories: { name: "Wedding Card" },
+  };
   const adminDb = pricingDb({
-    items: [
-      {
-        ...published(itemId),
-        "item_categories.name": "Wedding Card",
-        item_categories: { name: "Wedding Card" },
-      },
-    ],
+    items: [titleItem],
     price_list_transaction_items: priceRows,
     price_list_transactions: draftTransactions,
     price_lists: [{ id: "standard", code: "PL0001" }],
-    item_descriptions: [descriptionRow],
+    item_descriptions: [{ id: "description", item_id: itemId, line_no: 1, title: "Old description title" }],
   });
   const integrated = loader({
     react: { cache: (fn) => fn },
@@ -1030,16 +1029,17 @@ test("main catalogue, category collections and checkout resolve titles and Selli
     assert.equal(products.length, 1);
     assert.equal(products[0].price, 99.5);
     assert.equal(products[0].mrp, 150);
-    assert.equal(products[0].name, descriptionRow.title);
+    assert.equal(products[0].name, titleItem.web_title.trim());
     assert.equal(products[0].description, "Product description");
   }
-  assert.equal((await integrated("lib/catalog.ts").fetchErpProductBySlug("design-1")).name, descriptionRow.title);
+  assert.equal((await integrated("lib/catalog.ts").fetchErpProductBySlug("design-1")).name, titleItem.web_title.trim());
   const cart = await integrated("lib/checkout.ts").resolveCartProducts([
     { slug: "design-1", quantity: 50 },
   ]);
   assert.equal(cart.amountPaise, 497500);
-  assert.equal(cart.lines[0].name, descriptionRow.title);
-  descriptionRow.title = " \t ";
+  assert.equal(cart.lines[0].name, titleItem.web_title.trim());
+  assert.ok(adminDb.calls.every(({ table }) => table !== "item_descriptions"));
+  titleItem.web_title = " \t ";
   for (const products of [
     await integrated("lib/catalog.ts").buildErpProductList(),
     await category.fetchProductsByItemCategory("Wedding Card"),

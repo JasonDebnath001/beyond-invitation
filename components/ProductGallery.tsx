@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Play } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
 
 interface ProductGalleryProps {
   images: string[];
@@ -414,6 +415,9 @@ export default function ProductGallery({
 
   const total = media.length;
   const hasMedia = total > 0;
+  const mainImageSizes = total > 1
+    ? "(min-width:1536px) 564px, (min-width:1280px) 596px, (min-width:1024px) calc(100vw - 584px), (min-width:640px) calc(100vw - 48px), calc(100vw - 32px)"
+    : "(min-width:1536px) 700px, (min-width:1280px) 716px, (min-width:1024px) calc(100vw - 496px), (min-width:640px) calc(100vw - 48px), calc(100vw - 32px)";
 
   const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
   const activeKey = activeItem ? canonicalMediaKey(activeItem.src) : "";
@@ -628,10 +632,15 @@ export default function ProductGallery({
                   </span>
                 </span>
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <ProductImage
                   src={src}
                   alt={`${alt} thumbnail ${index + 1}`}
+                  width={96}
+                  height={96}
+                  quality={75}
+                  loading="lazy"
+                  decoding="async"
+                  unoptimized={src.startsWith("http://")}
                   onError={() => removeBrokenMedia(item, index)}
                   className="h-full w-full rounded-[10px] object-contain p-1 transition duration-500 group-hover:scale-[1.04]"
                 />
@@ -666,15 +675,22 @@ export default function ProductGallery({
             <>
               {activeItem.type === "image" ? (
                 activeSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <ProductImage
+                    key={activeKey}
                     src={activeSrc}
                     alt={alt}
+                    fill
+                    sizes={mainImageSizes}
+                    quality={80}
+                    priority={active === 0}
+                    loading="eager"
+                    fetchPriority={active === 0 ? "high" : "auto"}
+                    unoptimized={activeSrc.startsWith("http://")}
                     onLoad={(event) => {
                       saveImageSize(activeKey, event.currentTarget);
                     }}
                     onError={() => removeBrokenMedia(activeItem, active)}
-                    className="h-full w-full object-contain p-0"
+                    className="object-contain p-0"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">

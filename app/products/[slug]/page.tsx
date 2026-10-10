@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import {
   fetchErpProductBySlug,
-  fetchErpProductsByCategory,
+  fetchRelatedErpProducts,
   type ErpProduct,
 } from "@/lib/catalog";
 import type { Product } from "@/types";
@@ -204,11 +204,55 @@ async function resolveProduct(slug: string): Promise<ProductLike | null> {
 
 async function resolveRelated(product: ProductLike): Promise<Product[]> {
   try {
-    const all = await fetchErpProductsByCategory(product.category);
-    return all.filter((p) => p.slug !== product.slug).slice(0, 4);
+    return await fetchRelatedErpProducts(product);
   } catch {
     return [];
   }
+}
+
+/** Recommendations must never hold back the product's gallery and buy box. */
+async function RelatedProducts({ product }: { product: ProductLike }) {
+  const related = await resolveRelated(product);
+  if (!related.length) return null;
+
+  return (
+    <section className="mt-14 sm:mt-20">
+      <JsonLdScript data={buildRelatedJsonLd(related)} />
+      <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:mb-10 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
+            More to love
+          </p>
+          <h2 className="mt-2 font-display text-[26px] font-semibold text-carbon sm:text-[28px] md:text-[34px]">
+            You May Also Like
+          </h2>
+          <div className="mt-4 h-px w-14 bg-carbon" />
+        </div>
+        <Link
+          href={`/collections/${product.category}`}
+          className="inline-flex shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon"
+        >
+          View collection <span>→</span>
+        </Link>
+      </div>
+      <ProductGrid products={related} />
+    </section>
+  );
+}
+
+function RelatedProductsLoading() {
+  return (
+    <section className="mt-14 sm:mt-20" role="status" aria-label="Loading related products">
+      <div aria-hidden="true" className="motion-safe:animate-pulse">
+        <div className="mb-8 h-8 w-56 rounded bg-paper" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="aspect-square rounded-xl bg-paper" />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export async function generateMetadata({
@@ -556,7 +600,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   if (!product) notFound();
 
-  const related = await resolveRelated(product);
   const discount = discountPercent(product);
   const categoryLabel = product.category.replace(/-/g, " ");
   const subject = getSubject(product);
@@ -599,7 +642,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(product);
   const webPageJsonLd = buildWebPageJsonLd(product);
   const faqJsonLd = buildFaqJsonLd(product);
-  const relatedJsonLd = buildRelatedJsonLd(related);
 
   return (
     <>
@@ -607,7 +649,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
       <JsonLdScript data={breadcrumbJsonLd} />
       <JsonLdScript data={webPageJsonLd} />
       <JsonLdScript data={faqJsonLd} />
-      <JsonLdScript data={relatedJsonLd} />
 
       <div className="bg-white">
         <div className="mx-auto max-w-7xl overflow-x-clip px-4 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:py-12">
@@ -639,6 +680,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
             {/* Left: Gallery */}
             <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
               <ProductGallery
+                key={product.slug}
                 images={product.images || []}
                 videos={product.videos}
                 emoji={product.emoji}
@@ -839,32 +881,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
 
           {/* Related products */}
-          {related.length > 0 && (
-            <section className="mt-14 sm:mt-20">
-              <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:mb-10 sm:flex-row sm:items-end">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
-                    More to love
-                  </p>
-
-                  <h2 className="mt-2 font-display text-[26px] font-semibold text-carbon sm:text-[28px] md:text-[34px]">
-                    You May Also Like
-                  </h2>
-
-                  <div className="mt-4 h-px w-14 bg-carbon" />
-                </div>
-
-                <Link
-                  href={`/collections/${product.category}`}
-                  className="inline-flex shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon"
-                >
-                  View collection <span>→</span>
-                </Link>
-              </div>
-
-              <ProductGrid products={related} />
-            </section>
-          )}
+          <Suspense fallback={<RelatedProductsLoading />}>
+            <RelatedProducts product={product} />
+          </Suspense>
         </div>
       </div>
     </>

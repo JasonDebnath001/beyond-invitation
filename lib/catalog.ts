@@ -166,7 +166,9 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
   };
 }
 
-export async function resolveCatalogProducts(rows: WebProductRow[]): Promise<CatalogProduct[]> {
+export async function resolveCatalogProducts(
+  rows: WebProductRow[],
+): Promise<CatalogProduct[]> {
   const pricedRows = await applySellingPrices(rows);
   const titledRows = await applyCatalogTitles(pricedRows);
   return titledRows.map(mapCatalogRowToProduct);
@@ -191,13 +193,34 @@ const readCatalogProducts = unstable_cache(
         throw new Error(`Product catalogue unavailable: ${error.message}`);
 
       const rows = data ?? [];
-      products.push(...await resolveCatalogProducts(rows));
+      products.push(...(await resolveCatalogProducts(rows)));
       if (rows.length < pageSize) break;
     }
 
     return products;
   },
   ["buildErpProductList-v7-web-titles"],
+  { revalidate: 60, tags: ["catalogue"] },
+);
+
+// Detail pages need only one published product, even when the full catalogue
+// cache is cold. Keep Selling prices and Web Titles on the same resolution path.
+const readCatalogProductBySlug = unstable_cache(
+  async (slug: string): Promise<CatalogProduct | null> => {
+    const { data, error } = await getSupabaseServerClient()
+      .from("v_web_products")
+      .select("*")
+      .eq("slug", slug)
+      .limit(1)
+      .returns<WebProductRow[]>();
+
+    if (error)
+      throw new Error(`Product catalogue unavailable: ${error.message}`);
+    if (!data?.length) return null;
+
+    return (await resolveCatalogProducts(data))[0] ?? null;
+  },
+  ["catalogProductBySlug-v1-web-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -260,12 +283,28 @@ export async function fetchWeddingCardProducts(): Promise<CatalogProduct[]> {
   return applyResellerPricingToProducts(await fetchWeddingCardProductsBase());
 }
 
-export async function fetchErpProductBySlug(
-  slug: string,
-): Promise<CatalogProduct | null> {
-  const products = await buildErpProductList();
-  return applyResellerPricingToProduct(
-    products.find((product) => product.slug === slug) ?? null,
+// Metadata and the page share one lookup and one visitor-pricing operation per
+// render. Only the base product enters the persistent cache above.
+export const fetchErpProductBySlug = cache(
+  async (slug: string): Promise<CatalogProduct | null> =>
+    applyResellerPricingToProduct(await readCatalogProductBySlug(slug)),
+);
+
+/** Preserve collection ordering, but only reprice the related products shown. */
+export async function fetchRelatedErpProducts(
+  product: Pick<CatalogProduct, "slug" | "category">,
+  limit = 4,
+): Promise<CatalogProduct[]> {
+  const products =
+    product.category === "wedding"
+      ? await fetchWeddingCardProductsBase()
+      : (await buildErpProductList()).filter(
+          (candidate) => candidate.category === product.category,
+        );
+  return applyResellerPricingToProducts(
+    products
+      .filter((candidate) => candidate.slug !== product.slug)
+      .slice(0, limit),
   );
 }
 

@@ -977,8 +977,20 @@ test("main catalogue, category collections and checkout resolve titles and Selli
   const publicDb = {
     from(table) {
       assert.equal(table, "v_web_products");
+      let slug;
+      let rowLimit;
       return {
         select() {
+          return this;
+        },
+        eq(field, value) {
+          assert.equal(field, "slug");
+          slug = value;
+          return this;
+        },
+        limit(value) {
+          assert.equal(value, 1);
+          rowLimit = value;
           return this;
         },
         order() {
@@ -990,7 +1002,12 @@ test("main catalogue, category collections and checkout resolve titles and Selli
         in() {
           return this;
         },
-        returns: async () => ({ data: [publicRow], error: null }),
+        returns: async () => ({
+          data: [publicRow]
+            .filter((row) => slug === undefined || row.slug === slug)
+            .slice(0, rowLimit),
+          error: null,
+        }),
       };
     },
   };

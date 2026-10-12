@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 
-import { fetchProductsByItemCategory, type CategorizedCatalogProduct } from "@/lib/catalog-item-category";
+import { fetchWeddingProductPage } from "@/lib/catalog-browse";
+import { facetCounts, weddingFiltersFromSearchParams, type WeddingProductPage, type WeddingSearchParams } from "@/lib/wedding-cards";
 import WeddingCardsCollection from "@/components/wedding-cards/WeddingCardsCollection";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const ITEM_CATEGORY = "Wedding Card";
 
 export const metadata: Metadata = {
   title: "Muslim Wedding Cards – Beyond Invitation",
@@ -14,24 +13,24 @@ export const metadata: Metadata = {
     "A curated collection of Muslim wedding invitation cards — elegant layouts, refined details and graceful designs for nikah and wedding celebrations.",
 };
 
-export default async function MuslimWeddingCardPage() {
-  let products: CategorizedCatalogProduct[] = [];
+export default async function MuslimWeddingCardPage({ searchParams }: { searchParams: Promise<WeddingSearchParams> }) {
+  const initialFilters = weddingFiltersFromSearchParams(await searchParams, "muslim");
+  let initialPage: WeddingProductPage = { products: [], nextOffset: null, total: 0, facets: facetCounts([]) };
   let errorMessage = "";
 
   try {
-    products = await fetchProductsByItemCategory(ITEM_CATEGORY);
+    initialPage = await fetchWeddingProductPage({ collectionType: "muslim", filters: initialFilters });
   } catch (error) {
-    errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unable to fetch products from Catalogue.";
+    console.error("Muslim wedding cards page fetch failed:", error);
+    errorMessage = "Unable to load wedding cards.";
   }
 
   return (
     <WeddingCardsCollection
       title="Muslim Wedding Cards"
       collectionType="muslim"
-      products={products}
+      initialPage={initialPage}
+      initialFilters={initialFilters}
       errorMessage={errorMessage}
       emptyTitle="No Muslim wedding cards just yet"
     />

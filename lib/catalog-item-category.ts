@@ -13,21 +13,28 @@ import {
 } from "@/lib/catalog";
 import { applyResellerPricingToProducts } from "@/lib/reseller";
 
-export type CategorizedCatalogProduct = CatalogProduct & { itemCategory: string };
+export type CategorizedCatalogProduct = CatalogProduct & {
+  itemCategory: string;
+};
 
 async function readPublishedItemCategories(itemCategory?: string) {
   const admin = getSupabaseAdminClient();
   const categories = new Map<string, string>();
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
-    let query = admin.from("items").select("id,item_categories!inner(name)")
-      .eq("show_on_website", true).eq("is_active", true);
+    let query = admin
+      .from("items")
+      .select("id,item_categories!inner(name)")
+      .eq("show_on_website", true)
+      .eq("is_active", true);
     if (itemCategory) query = query.eq("item_categories.name", itemCategory);
-    const { data, error } = await query.order("id", { ascending: true })
+    const { data, error } = await query
+      .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1)
       .returns<{ id: string; item_categories: { name: string } }[]>();
     if (error) throw new Error(`Item category unavailable: ${error.message}`);
-    for (const row of data ?? []) categories.set(row.id, row.item_categories.name);
+    for (const row of data ?? [])
+      categories.set(row.id, row.item_categories.name);
     if ((data?.length ?? 0) < pageSize) break;
   }
   return categories;
@@ -52,11 +59,14 @@ const readProductsByItemCategory = unstable_cache(
         .in("id", itemIds.slice(offset, offset + 100))
         .returns<WebProductRow[]>();
 
-      if (error) throw new Error(`Product catalogue unavailable: ${error.message}`);
-      products.push(...(await resolveCatalogProducts(data ?? [])).map((product) => ({
-        ...product,
-        itemCategory: categories.get(product.catalogId) ?? "",
-      })));
+      if (error)
+        throw new Error(`Product catalogue unavailable: ${error.message}`);
+      products.push(
+        ...(await resolveCatalogProducts(data ?? [])).map((product) => ({
+          ...product,
+          itemCategory: categories.get(product.catalogId) ?? "",
+        })),
+      );
     }
 
     return products.sort(compareWeddingCardProducts);
@@ -65,31 +75,54 @@ const readProductsByItemCategory = unstable_cache(
   { revalidate: 60, tags: ["catalogue"] },
 );
 
-export async function fetchProductsByItemCategory(itemCategory: string): Promise<CategorizedCatalogProduct[]> {
+export async function fetchProductsByItemCategory(
+  itemCategory: string,
+): Promise<CategorizedCatalogProduct[]> {
   const name = itemCategory.trim();
   if (!name) return [];
   // Visitor-specific prices are never included in the shared category cache.
   return applyResellerPricingToProducts(await readProductsByItemCategory(name));
 }
 
+/** Base data for the migration-compatible server pagination path. */
+export async function fetchProductsByItemCategoryBase(
+  itemCategory: string,
+): Promise<CategorizedCatalogProduct[]> {
+  const name = itemCategory.trim();
+  return name ? readProductsByItemCategory(name) : [];
+}
+
 const readWeddingCardsWithCategories = unstable_cache(
   async (): Promise<CategorizedCatalogProduct[]> => {
     const [products, categories] = await Promise.all([
-      buildErpProductList(), readPublishedItemCategories(),
+      buildErpProductList(),
+      readPublishedItemCategories(),
     ]);
-    return products.map((product) => ({
-      ...product,
-      itemCategory: categories.get(product.catalogId) ?? "",
-    })).filter((product) =>
-      product.itemCategory === "Hindu Wedding Card" ||
-      product.itemCategory === "Wedding Card" ||
-      isWeddingCardProduct(product),
-    ).sort(compareWeddingCardProducts);
+    return products
+      .map((product) => ({
+        ...product,
+        itemCategory: categories.get(product.catalogId) ?? "",
+      }))
+      .filter(
+        (product) =>
+          product.itemCategory === "Hindu Wedding Card" ||
+          product.itemCategory === "Wedding Card" ||
+          isWeddingCardProduct(product),
+      )
+      .sort(compareWeddingCardProducts);
   },
   ["wedding-cards-with-item-categories-v6-web-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
-export async function fetchWeddingCardsWithCategories(): Promise<CategorizedCatalogProduct[]> {
+export async function fetchWeddingCardsWithCategories(): Promise<
+  CategorizedCatalogProduct[]
+> {
   return applyResellerPricingToProducts(await readWeddingCardsWithCategories());
+}
+
+export async function fetchWeddingCardsWithCategoriesBase(): Promise<
+  CategorizedCatalogProduct[]
+> {
+  return readWeddingCardsWithCategories();
 }

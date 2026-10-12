@@ -5,9 +5,9 @@ import { unstable_cache } from "next/cache";
 import DOMPurify from "isomorphic-dompurify";
 import type { Product, ProductCategory } from "@/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { applySellingPrices } from "@/lib/catalog-pricing";
-import { applyCatalogTitles } from "@/lib/catalog-titles";
+import { applyCatalogDetails } from "@/lib/catalog-pricing";
 import { PRODUCTS_PER_PAGE } from "@/lib/product-page";
+import { readStorefrontPage, readStorefrontRows } from "@/lib/storefront-data";
 import {
   applyResellerPricingToProducts,
   applyResellerPricingToProduct,
@@ -26,6 +26,7 @@ export type CatalogProduct = Product & {
   gstPct: number | null;
   hasPrice: boolean;
   updatedAt: string;
+  itemCategory?: string;
 };
 
 /** Compatibility with the existing page and checkout imports. */
@@ -60,6 +61,7 @@ export interface WebProductRow {
   height_mm: NullableNumber;
   weight_g: NullableNumber;
   updated_at: string;
+  item_category?: string;
 }
 
 function numberOrNull(value: NullableNumber): number | null {
@@ -127,6 +129,11 @@ export function isWeddingCardProduct(
 export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
   const price = numberOrNull(row.price) ?? 0;
   const tags = mediaList(row.tags);
+  // Filename positions define gallery order and the main image everywhere.
+  // Unnumbered images follow numbered ones, retaining their original order.
+  const images = mediaList([row.image_url, ...mediaList(row.images)]).sort(
+    (a, b) => photoOrder(a) - photoOrder(b),
+  );
 
   return {
     catalogId: row.id,
@@ -134,11 +141,8 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
     name: row.name,
     price,
     mrp: numberOrNull(row.mrp) ?? 0,
-    // Filename positions define gallery order and the main image everywhere.
-    // Unnumbered images follow numbered ones, retaining their original order.
-    images: mediaList([row.image_url, ...mediaList(row.images)]).sort(
-      (a, b) => photoOrder(a) - photoOrder(b),
-    ),
+    images,
+    imageCount: images.length,
     videos: mediaList(row.videos),
     emoji: "",
     category: normalizeCategory(row.subject),
@@ -163,15 +167,15 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
     gstPct: numberOrNull(row.gst_pct),
     hasPrice: price > 0,
     updatedAt: row.updated_at,
+    itemCategory: row.item_category,
   };
 }
 
 export async function resolveCatalogProducts(
   rows: WebProductRow[],
 ): Promise<CatalogProduct[]> {
-  const pricedRows = await applySellingPrices(rows);
-  const titledRows = await applyCatalogTitles(pricedRows);
-  return titledRows.map(mapCatalogRowToProduct);
+  const resolvedRows = await applyCatalogDetails(rows);
+  return resolvedRows.map(mapCatalogRowToProduct);
 }
 
 const readCatalogProducts = unstable_cache(
@@ -181,6 +185,12 @@ const readCatalogProducts = unstable_cache(
     const products: CatalogProduct[] = [];
 
     for (let offset = 0; ; offset += pageSize) {
+      const optimized = await readStorefrontRows({ offset, limit: pageSize });
+      if (optimized !== null) {
+        products.push(...optimized.map(mapCatalogRowToProduct));
+        if (optimized.length < pageSize) break;
+        continue;
+      }
       const { data, error } = await supabase
         .from("v_web_products")
         .select("*")
@@ -199,7 +209,7 @@ const readCatalogProducts = unstable_cache(
 
     return products;
   },
-  ["buildErpProductList-v7-web-titles"],
+  ["buildErpProductList-v8-storefront"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -207,6 +217,9 @@ const readCatalogProducts = unstable_cache(
 // cache is cold. Keep Selling prices and Web Titles on the same resolution path.
 const readCatalogProductBySlug = unstable_cache(
   async (slug: string): Promise<CatalogProduct | null> => {
+    const optimized = await readStorefrontRows({ slug, limit: 1 });
+    if (optimized !== null)
+      return optimized[0] ? mapCatalogRowToProduct(optimized[0]) : null;
     const { data, error } = await getSupabaseServerClient()
       .from("v_web_products")
       .select("*")
@@ -220,7 +233,51 @@ const readCatalogProductBySlug = unstable_cache(
 
     return (await resolveCatalogProducts(data))[0] ?? null;
   },
-  ["catalogProductBySlug-v1-web-titles"],
+  ["catalogProductBySlug-v2-storefront"],
+  { revalidate: 60, tags: ["catalogue"] },
+);
+
+// Read one extra row to detect another page without counting or resolving the
+// full catalogue. The sentinel is not priced, titled or sent to the browser.
+const readCatalogProductPage = unstable_cache(
+  async (
+    offset: number,
+  ): Promise<{
+    products: CatalogProduct[];
+    nextOffset: number | null;
+  }> => {
+    const optimized = await readStorefrontPage({
+      p_offset: offset,
+      p_limit: PRODUCTS_PER_PAGE,
+    });
+    if (optimized !== null)
+      return {
+        products: optimized.products.map(mapCatalogRowToProduct),
+        nextOffset: optimized.nextOffset,
+      };
+    const { data, error } = await getSupabaseServerClient()
+      .from("v_web_products")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + PRODUCTS_PER_PAGE)
+      .returns<WebProductRow[]>();
+
+    if (error)
+      throw new Error(`Product catalogue unavailable: ${error.message}`);
+
+    const rows = data ?? [];
+    return {
+      products: rows.length
+        ? await resolveCatalogProducts(rows.slice(0, PRODUCTS_PER_PAGE))
+        : [],
+      // Advance by source rows, even if an item was unpublished during
+      // enrichment. Advancing by the surviving count would repeat products.
+      nextOffset:
+        rows.length > PRODUCTS_PER_PAGE ? offset + PRODUCTS_PER_PAGE : null,
+    };
+  },
+  ["catalogProductPage-v2-storefront", String(PRODUCTS_PER_PAGE)],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -240,16 +297,22 @@ export async function fetchErpProducts(): Promise<CatalogProduct[]> {
   return applyResellerPricingToProducts(await buildErpProductList());
 }
 
-/** Only send a page of products to the storefront, priced for this visitor. */
+/** Cache only this page's base products, then price it for the current visitor. */
 export async function fetchErpProductPage(offset = 0): Promise<{
   products: CatalogProduct[];
   nextOffset: number | null;
 }> {
-  const products = await buildErpProductList();
-  const end = offset + PRODUCTS_PER_PAGE;
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    offset > 2147483647 - PRODUCTS_PER_PAGE
+  ) {
+    throw new Error("Provide a valid product offset.");
+  }
+  const page = await readCatalogProductPage(offset);
   return {
-    products: await applyResellerPricingToProducts(products.slice(offset, end)),
-    nextOffset: end < products.length ? end : null,
+    products: await applyResellerPricingToProducts(page.products),
+    nextOffset: page.nextOffset,
   };
 }
 
@@ -290,11 +353,23 @@ export const fetchErpProductBySlug = cache(
     applyResellerPricingToProduct(await readCatalogProductBySlug(slug)),
 );
 
+/** Read one published gallery on demand without any visitor-pricing lookup. */
+export async function fetchErpProductImages(slug: string): Promise<string[] | null> {
+  return (await readCatalogProductBySlug(slug))?.images ?? null;
+}
+
 /** Preserve collection ordering, but only reprice the related products shown. */
 export async function fetchRelatedErpProducts(
   product: Pick<CatalogProduct, "slug" | "category">,
   limit = 4,
 ): Promise<CatalogProduct[]> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return [];
+  const optimized = await readRelatedStorefrontProducts(
+    product.slug,
+    product.category,
+    limit,
+  );
+  if (optimized !== null) return applyResellerPricingToProducts(optimized);
   const products =
     product.category === "wedding"
       ? await fetchWeddingCardProductsBase()
@@ -307,6 +382,21 @@ export async function fetchRelatedErpProducts(
       .slice(0, limit),
   );
 }
+
+const readRelatedStorefrontProducts = unstable_cache(
+  async (slug: string, category: string, limit: number) => {
+    const result = await readStorefrontPage({
+      p_limit: limit,
+      p_exclude_slug: slug,
+      ...(category === "wedding"
+        ? { p_wedding_only: true, p_sort: "recommended" }
+        : { p_category: category }),
+    });
+    return result === null ? null : result.products.map(mapCatalogRowToProduct);
+  },
+  ["relatedStorefrontProducts-v1"],
+  { revalidate: 60, tags: ["catalogue"] },
+);
 
 export async function fetchErpProductsByCategory(
   category: ProductCategory,

@@ -1,48 +1,34 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import type { CategorizedCatalogProduct } from "@/lib/catalog-item-category";
-import { WEDDING_BOX_FAQS, type BrowserProduct, type WeddingCollectionType } from "@/lib/wedding-cards";
+import { WEDDING_BOX_FAQS, type WeddingProductPage, type WeddingFilters, type WeddingCollectionType } from "@/lib/wedding-cards";
 import { WeddingCardsMotion } from "@/components/wedding-cards/WeddingCardsMotion";
 import WeddingCardsBrowser, { WeddingCardsSkeleton } from "@/components/wedding-cards/WeddingCardsBrowser";
 import WeddingCardsFaq from "@/components/wedding-cards/WeddingCardsFaq";
 
 export default function WeddingCardsCollection({
   title = "Wedding cards",
-  products,
+  initialPage,
+  initialFilters,
   collectionType,
   errorMessage = "",
   emptyTitle = "No wedding cards just yet",
 }: {
   title?: string;
-  products: CategorizedCatalogProduct[];
+  initialPage: WeddingProductPage;
+  initialFilters: WeddingFilters;
   collectionType?: WeddingCollectionType;
   errorMessage?: string;
   emptyTitle?: string;
 }) {
   const productLabel = collectionType === "boxes" ? "wedding boxes" : "wedding cards";
-  const browserProducts: BrowserProduct[] = products.map((product) => ({
-    slug: product.slug,
-    designNo: product.itemCode || product.slug,
-    name: product.name,
-    price: product.price,
-    mrp: product.mrp,
-    image: product.images[0] || "",
-    imageCount: product.images.length,
-    subject: product.subject,
-    itemCategory: product.itemCategory,
-    itemGroup: product.itemGroup,
-    hasPrice: product.hasPrice,
-    minOrderQty: product.minOrderQty,
-    updatedAt: product.updatedAt,
-  }));
 
   return (
     <WeddingCardsMotion>
-      <section id="collection" aria-labelledby="wedding-cards-title" className="mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:px-8">
+      <section id="collection" aria-labelledby="wedding-cards-title" className="mx-auto max-w-[1800px] px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:px-8">
         <header className="mb-3 sm:mb-5">
           <h1 id="wedding-cards-title" className="text-[28px] font-semibold leading-tight tracking-[-0.025em] text-maroon sm:text-[32px]">{title}</h1>
         </header>
-        {errorMessage || !products.length ? (
+        {errorMessage || !initialPage.facets.total ? (
           <div className="rounded-3xl border border-gold/20 bg-white/80 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-light text-maroon">
               {errorMessage ? `Unable to load ${productLabel}.` : emptyTitle}
@@ -61,7 +47,7 @@ export default function WeddingCardsCollection({
           </div>
         ) : (
           <Suspense fallback={<WeddingCardsSkeleton productLabel={productLabel} />}>
-            <WeddingCardsBrowser products={browserProducts} collectionType={collectionType} />
+            <WeddingCardsBrowser initialPage={initialPage} initialFilters={initialFilters} collectionType={collectionType} />
           </Suspense>
         )}
       </section>

@@ -1,8 +1,8 @@
 export const focusClass = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2";
 export const primaryClass = `inline-flex items-center justify-center rounded-full bg-carbon px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-carbon-dark motion-reduce:transition-none ${focusClass}`;
 export const secondaryClass = `inline-flex items-center justify-center gap-2 rounded-full border border-carbon/20 px-6 py-3 text-sm font-semibold text-carbon transition-colors hover:bg-paper disabled:opacity-50 motion-reduce:transition-none ${focusClass}`;
-export const gridClass = "grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4";
-export const contentClass = "relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16";
+export const gridClass = "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4";
+export const contentClass = "relative mx-auto max-w-[1800px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16";
 
 export function WishlistHeader({ shared = false, count, ready = true, signedIn = false }: {
   shared?: boolean; count: number; ready?: boolean; signedIn?: boolean;

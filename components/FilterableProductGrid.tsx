@@ -1,29 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { Product } from "@/types";
-import { discountPercent } from "@/types";
+import type { CatalogBrowsePage, CatalogPrice, CatalogScope, CatalogSort } from "@/lib/catalog-browse-options";
+import { useCatalogPagination } from "@/components/useCatalogPagination";
+import { CatalogPaginationControls } from "@/components/PaginatedProductGrid";
 import { ProductGrid } from "./ProductGrid";
 
 interface PriceRange {
-  key: string;
+  key: CatalogPrice;
   label: string;
-  min: number;
-  max: number;
 }
-
-const PRODUCTS_PER_LOAD = 10;
 
 /**
  * Price buckets.
  * Edit this array to change the available ranges.
  */
 const PRICE_RANGES: PriceRange[] = [
-  { key: "all", label: "All Prices", min: 0, max: Infinity },
-  { key: "under-100", label: "Under ₹100", min: 0, max: 100 },
-  { key: "100-300", label: "₹100 – ₹300", min: 100, max: 300 },
-  { key: "300-1000", label: "₹300 – ₹1000", min: 300, max: 1000 },
-  { key: "above-1000", label: "Above ₹1000", min: 1000, max: Infinity },
+  { key: "all", label: "All Prices" },
+  { key: "under-100", label: "Under ₹100" },
+  { key: "100-300", label: "₹100 – ₹300" },
+  { key: "300-1000", label: "₹300 – ₹1000" },
+  { key: "above-1000", label: "Above ₹1000" },
 ];
 
 /**
@@ -37,76 +33,17 @@ const SORT_OPTIONS = [
 ];
 
 interface FilterableProductGridProps {
-  products: Product[];
+  initialPage: CatalogBrowsePage;
+  scope?: CatalogScope;
 }
 
 export default function FilterableProductGrid({
-  products,
+  initialPage,
+  scope = {},
 }: FilterableProductGridProps) {
-  const [priceKey, setPriceKey] = useState("all");
-  const [sortKey, setSortKey] = useState("featured");
-  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_LOAD);
-
+  const pagination = useCatalogPagination(initialPage, scope);
+  const { page, price: priceKey, sort: sortKey, setPrice, setSort, clearFilters, loading, error } = pagination;
   const isFiltered = priceKey !== "all" || sortKey !== "featured";
-
-  /**
-   * Filtered + sorted list, recomputed only when inputs change.
-   */
-  const visibleProducts = useMemo(() => {
-    const range =
-      PRICE_RANGES.find((r) => r.key === priceKey) ?? PRICE_RANGES[0];
-
-    let result = products.filter(
-      (p) => p.price >= range.min && p.price < range.max,
-    );
-
-    switch (sortKey) {
-      case "price-asc":
-        result = [...result].sort((a, b) => a.price - b.price);
-        break;
-
-      case "price-desc":
-        result = [...result].sort((a, b) => b.price - a.price);
-        break;
-
-      case "discount":
-        result = [...result].sort(
-          (a, b) => discountPercent(b) - discountPercent(a),
-        );
-        break;
-
-      default:
-        break;
-      // "featured" — keep original order
-    }
-
-    return result;
-  }, [products, priceKey, sortKey]);
-
-  /**
-   * Reset visible products whenever filter/sort/product list changes.
-   */
-  useEffect(() => {
-    setVisibleCount(PRODUCTS_PER_LOAD);
-  }, [products, priceKey, sortKey]);
-
-  const displayedProducts = useMemo(() => {
-    return visibleProducts.slice(0, visibleCount);
-  }, [visibleProducts, visibleCount]);
-
-  const hasMoreProducts = visibleCount < visibleProducts.length;
-
-  function clearFilters() {
-    setPriceKey("all");
-    setSortKey("featured");
-    setVisibleCount(PRODUCTS_PER_LOAD);
-  }
-
-  function handleLoadMore() {
-    setVisibleCount((currentCount) =>
-      Math.min(currentCount + PRODUCTS_PER_LOAD, visibleProducts.length),
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -118,7 +55,8 @@ export default function FilterableProductGrid({
             <button
               key={range.key}
               type="button"
-              onClick={() => setPriceKey(range.key)}
+              onClick={() => setPrice(range.key)}
+              aria-pressed={priceKey === range.key}
               className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition ${
                 priceKey === range.key
                   ? "border-maroon bg-maroon text-gold-light"
@@ -138,7 +76,7 @@ export default function FilterableProductGrid({
           <select
             id="sort-products"
             value={sortKey}
-            onChange={(e) => setSortKey(e.target.value)}
+            onChange={(e) => setSort(e.target.value as CatalogSort)}
             className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-cream px-3 py-1.5 text-[13px] text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold md:flex-none"
           >
             {SORT_OPTIONS.map((opt) => (
@@ -152,15 +90,17 @@ export default function FilterableProductGrid({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-mid" aria-live="polite">
+          {loading === "replace" ? "Loading products…" : error && page.products.length === 0 ? "Products unavailable" : <>
           Showing{" "}
           <span className="font-semibold text-ink">
-            {displayedProducts.length}
+            {page.products.length}
           </span>{" "}
           of{" "}
           <span className="font-semibold text-ink">
-            {visibleProducts.length}
+            {page.total}
           </span>{" "}
-          {visibleProducts.length === 1 ? "product" : "products"}
+          {page.total === 1 ? "product" : "products"}
+          </>}
         </p>
 
         {isFiltered && (
@@ -174,19 +114,20 @@ export default function FilterableProductGrid({
         )}
       </div>
 
-      <ProductGrid products={displayedProducts} />
-
-      {hasMoreProducts && (
-        <div className="flex justify-center pt-4">
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            className="rounded-full border border-maroon bg-maroon px-8 py-3 text-sm font-semibold text-gold-light shadow-sm transition hover:bg-maroon-dark focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2"
-          >
-            Load More
-          </button>
-        </div>
-      )}
+      <div aria-busy={Boolean(loading)}>
+        {loading === "replace" ? (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4" aria-hidden="true">
+            {Array.from({ length: 10 }, (_, index) => (
+              <div key={index} className="min-w-0 motion-safe:animate-pulse">
+                <div className="aspect-square bg-neutral-100" />
+                <div className="mt-2 h-4 w-4/5 bg-neutral-100" />
+                <div className="mt-2 h-4 w-1/2 bg-neutral-100" />
+              </div>
+            ))}
+          </div>
+        ) : !error || page.products.length > 0 ? <ProductGrid products={page.products} /> : null}
+        <CatalogPaginationControls {...pagination} />
+      </div>
     </div>
   );
 }

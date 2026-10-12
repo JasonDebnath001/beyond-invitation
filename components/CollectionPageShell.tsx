@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-import type { ErpProduct } from "@/lib/catalog";
+import type { CatalogBrowsePage, CatalogScope } from "@/lib/catalog-browse-options";
 
 type BreadcrumbItem = {
   label: string;
@@ -12,7 +12,8 @@ type CollectionPageShellProps = {
   eyebrow?: string;
   title: string;
   description: string;
-  products: ErpProduct[];
+  initialPage: CatalogBrowsePage;
+  scope: CatalogScope;
   errorMessage?: string;
   emptyTitle: string;
   emptyDescription: string;
@@ -25,7 +26,8 @@ export default function CollectionPageShell({
   eyebrow = "Collection",
   title,
   description,
-  products,
+  initialPage,
+  scope,
   errorMessage = "",
   emptyTitle,
   emptyDescription,
@@ -36,7 +38,7 @@ export default function CollectionPageShell({
   return (
     <main className="bg-white">
       <section className="border-b border-gold/20 bg-gradient-to-br from-paper via-white to-[#fff8f2]">
-        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1800px] px-4 py-5 sm:px-6 lg:px-8">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-ink-light">
             {breadcrumb.map((item, index) => (
               <div key={`${item.label}-${index}`} className="flex items-center gap-2">
@@ -84,11 +86,11 @@ export default function CollectionPageShell({
 
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">
-                  Showing
+                  Collection
                 </p>
                 <p className="text-sm font-semibold text-carbon">
-                  {products.length}{" "}
-                  {products.length === 1 ? "Product" : "Products"}
+                  {initialPage.total}{" "}
+                  {initialPage.total === 1 ? "Product" : "Products"}
                 </p>
               </div>
             </div>
@@ -96,7 +98,7 @@ export default function CollectionPageShell({
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+      <section className="mx-auto max-w-[1800px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
         {errorMessage ? (
           <div className="min-w-0 break-words rounded-3xl border border-red-200 bg-red-50 p-6 [overflow-wrap:anywhere]">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
@@ -115,7 +117,7 @@ export default function CollectionPageShell({
               Please try again shortly or contact us for help finding your invitation.
             </div>
           </div>
-        ) : products.length === 0 ? (
+        ) : initialPage.products.length === 0 ? (
           <div className="rounded-3xl border border-gold/20 bg-paper/60 p-8 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl shadow-sm ring-1 ring-gold/20">
               {accentIcon}
@@ -150,7 +152,7 @@ export default function CollectionPageShell({
               </div>
             </div>
 
-            <FilterableProductGrid products={products} />
+            <FilterableProductGrid initialPage={initialPage} scope={scope} />
           </>
         )}
       </section>

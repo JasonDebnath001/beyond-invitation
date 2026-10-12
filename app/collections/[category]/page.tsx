@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 
 import CategoryCollectionPageClient from "@/components/CategoryCollectionPage";
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchErpProductsByCategory, type ErpProduct } from "@/lib/catalog";
+import type { ErpProduct } from "@/lib/catalog";
+import { fetchCatalogProductPage } from "@/lib/catalog-browse";
+import { emptyCatalogPage } from "@/lib/catalog-browse-options";
 import { getAllCategories, getCategoryBySlug } from "@/lib/products";
 import {
   DEFAULT_OG_IMAGE,
@@ -165,16 +167,17 @@ export default async function CollectionPage({ params }: PageProps) {
     notFound();
   }
 
-  let products: ErpProduct[] = [];
+  let page = emptyCatalogPage();
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsByCategory(category.slug);
+    page = await fetchCatalogProductPage({ category: category.slug });
   } catch (error) {
     console.error(`${category.name} collection fetch failed:`, error);
     errorMessage = "Unable to load this collection.";
   }
 
+  const products = page.products;
   const collectionUrl = siteUrl(`/collections/${category.slug}`);
 
   const seo = getCategorySeo(
@@ -247,7 +250,8 @@ export default async function CollectionPage({ params }: PageProps) {
       <CategoryCollectionPageClient
         categoryName={category.name}
         categoryDescription={category.description}
-        products={products}
+        initialPage={page}
+        category={category.slug}
         errorMessage={errorMessage}
       />
     </>

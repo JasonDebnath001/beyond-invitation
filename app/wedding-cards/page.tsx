@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
 import WeddingCardsCollection from "@/components/wedding-cards/WeddingCardsCollection";
-import { fetchWeddingCardsWithCategories, type CategorizedCatalogProduct } from "@/lib/catalog-item-category";
-import { WEDDING_FAQS } from "@/lib/wedding-cards";
+import { fetchWeddingProductPage } from "@/lib/catalog-browse";
+import { facetCounts, weddingFiltersFromSearchParams, WEDDING_FAQS, type WeddingProductPage, type WeddingSearchParams } from "@/lib/wedding-cards";
 import {
   BUSINESS_ADDRESS,
   DEFAULT_OG_IMAGE,
@@ -62,11 +62,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function WeddingCardsPage() {
-  let products: CategorizedCatalogProduct[] = [];
+export default async function WeddingCardsPage({ searchParams }: { searchParams: Promise<WeddingSearchParams> }) {
+  const initialFilters = weddingFiltersFromSearchParams(await searchParams);
+  let initialPage: WeddingProductPage = { products: [], nextOffset: null, total: 0, facets: facetCounts([]) };
   let errorMessage = "";
   try {
-    products = await fetchWeddingCardsWithCategories();
+    initialPage = await fetchWeddingProductPage({ filters: initialFilters });
   } catch (error) {
     console.error("Wedding cards page Catalogue fetch failed:", error);
     errorMessage = "Unable to load wedding cards.";
@@ -114,15 +115,15 @@ export default async function WeddingCardsPage() {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Wedding cards by Beyond Invitation",
-    itemListElement: products.slice(0, 24).map((product, index) => ({
+    itemListElement: initialPage.products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: siteUrl(`/products/${product.slug}`),
       item: {
         "@type": "Product",
         name: product.name,
-        description: product.description || description,
-        image: siteUrl(product.images[0] || DEFAULT_OG_IMAGE),
+        description,
+        image: siteUrl(product.image || DEFAULT_OG_IMAGE),
         url: siteUrl(`/products/${product.slug}`),
         offers:
           product.price > 0
@@ -152,7 +153,7 @@ export default async function WeddingCardsPage() {
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={itemListJsonLd} />
       <JsonLd data={faqJsonLd} />
-      <WeddingCardsCollection products={products} errorMessage={errorMessage} />
+      <WeddingCardsCollection initialPage={initialPage} initialFilters={initialFilters} errorMessage={errorMessage} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useNearViewport } from "@/lib/use-near-viewport";
 
 const REVIEW_VIDEOS = [
   "https://ik.imagekit.io/71sbb5rn6/WhatsApp%20Video%202026-07-16%20at%2012.03.57%20PM.mp4",
@@ -10,12 +11,25 @@ const REVIEW_VIDEOS = [
 const CUSTOMER_QUOTE =
   "From the first design discussion to the final delivery, hear what the Beyond Invitation experience felt like — straight from our customer.";
 
-function ReviewVideo({ src, index }: { src: string; index: number }) {
+function ReviewVideo({ src, index, enabled }: {
+  src: string;
+  index: number;
+  enabled: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playRequested, setPlayRequested] = useState(false);
+  const loadSource = enabled || playRequested;
 
   const handlePlay = () => {
-    void videoRef.current?.play().catch(() => setIsPlaying(false));
+    const video = videoRef.current;
+    if (!video) return;
+    // Keyboard focus can reach this button before the observer's callback.
+    if (!loadSource) {
+      video.src = src;
+      setPlayRequested(true);
+    }
+    void video.play().catch(() => setIsPlaying(false));
   };
 
   return (
@@ -25,10 +39,10 @@ function ReviewVideo({ src, index }: { src: string; index: number }) {
     >
       <video
         ref={videoRef}
-        src={src}
+        src={loadSource ? src : undefined}
         aria-label={`Customer review video ${index + 1}`}
         controls={isPlaying}
-        preload="metadata"
+        preload={loadSource ? "metadata" : "none"}
         playsInline
         onPlay={() => setIsPlaying(true)}
         onEnded={() => setIsPlaying(false)}
@@ -61,14 +75,22 @@ function ReviewVideo({ src, index }: { src: string; index: number }) {
 }
 
 export default function CustomerReviewVideo() {
-  const sectionRef = useRef<HTMLElement | null>(null);
+  const [sectionRef, isNearViewport] = useNearViewport<HTMLElement>();
 
   useEffect(() => {
+    if (
+      !isNearViewport ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) return;
+    let mounted = true;
     let cleanup: (() => void) | undefined;
 
     async function runAnimation() {
-      const gsapModule = await import("gsap");
-      const scrollTriggerModule = await import("gsap/ScrollTrigger");
+      const [gsapModule, scrollTriggerModule] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (!mounted) return;
 
       const gsap = gsapModule.gsap;
       const ScrollTrigger = scrollTriggerModule.ScrollTrigger;
@@ -79,12 +101,11 @@ export default function CustomerReviewVideo() {
       if (!section) return;
 
       const ctx = gsap.context(() => {
-        // Text column: eyebrow → heading → quote, staggered in.
+        // Keep loaded content visible while adding a short entrance movement.
         gsap.from("[data-review-text] > *", {
-          opacity: 0,
-          y: 40,
-          duration: 0.8,
-          stagger: 0.12,
+          y: 16,
+          duration: 0.35,
+          stagger: 0.03,
           ease: "power3.out",
           scrollTrigger: {
             trigger: section,
@@ -92,14 +113,10 @@ export default function CustomerReviewVideo() {
             once: true,
           },
         });
-
-        // Video card: rises, scales and un-rotates into place.
         gsap.from("[data-review-video]", {
-          opacity: 0,
-          y: 80,
-          scale: 0.92,
-          rotate: 3,
-          duration: 1,
+          y: 20,
+          scale: 0.98,
+          duration: 0.4,
           ease: "power3.out",
           scrollTrigger: {
             trigger: section,
@@ -108,31 +125,20 @@ export default function CustomerReviewVideo() {
           },
         });
 
-        // Gold frame behind the video drifts in slightly later for depth.
-        gsap.from("[data-review-frame]", {
-          opacity: 0,
-          x: 24,
-          y: 24,
-          duration: 1,
-          delay: 0.25,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: section,
-            start: "top 70%",
-            once: true,
-          },
-        });
       }, section);
 
       cleanup = () => ctx.revert();
     }
 
-    runAnimation();
+    void runAnimation().catch((error) => {
+      console.warn("Customer review animation failed:", error);
+    });
 
     return () => {
-      if (cleanup) cleanup();
+      mounted = false;
+      cleanup?.();
     };
-  }, []);
+  }, [isNearViewport, sectionRef]);
 
   return (
     <section
@@ -159,7 +165,12 @@ export default function CustomerReviewVideo() {
           {/* Portrait review videos */}
           <div className="flex flex-wrap justify-center gap-6 lg:justify-end">
             {REVIEW_VIDEOS.map((src, index) => (
-              <ReviewVideo key={src} src={src} index={index} />
+              <ReviewVideo
+                key={src}
+                src={src}
+                index={index}
+                enabled={isNearViewport}
+              />
             ))}
           </div>
         </div>

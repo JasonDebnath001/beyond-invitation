@@ -186,8 +186,7 @@ export function WishlistMotion({ children, count, renderedSlugs, phase = "ready"
 
   return (
     <WishlistMotionContext.Provider value={contextValue}>
-      <div ref={rootRef} data-wishlist-page data-no-text-motion className="relative min-h-screen overflow-x-clip bg-[#fbf6ee] text-ink motion-reduce:[&_*]:!animate-none motion-reduce:[&_*]:!transition-none">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-40 top-10 h-96 w-96 rounded-full bg-[#dcb162]/10 blur-3xl" />
+      <div ref={rootRef} data-wishlist-page data-no-text-motion className="relative min-h-screen overflow-x-clip bg-white text-ink motion-reduce:[&_*]:!animate-none motion-reduce:[&_*]:!transition-none">
         {children}
       </div>
     </WishlistMotionContext.Provider>

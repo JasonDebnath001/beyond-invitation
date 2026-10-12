@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 
-import {
-  fetchErpProductsBySubject,
-  type ErpProduct,
-} from "@/lib/catalog";
+import { fetchCatalogProductPage } from "@/lib/catalog-browse";
+import { emptyCatalogPage } from "@/lib/catalog-browse-options";
 import CollectionPageShell from "@/components/CollectionPageShell";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +16,11 @@ export const metadata: Metadata = {
 };
 
 export default async function ShagunEnvelopesPage() {
-  let products: ErpProduct[] = [];
+  let page = emptyCatalogPage();
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsBySubject(SUBJECT);
+    page = await fetchCatalogProductPage({ subjects: [SUBJECT] });
   } catch (error) {
     console.error("Catalogue Shagun Envelopes fetch failed:", error);
 
@@ -37,7 +35,8 @@ export default async function ShagunEnvelopesPage() {
       eyebrow="Premium Collection"
       title="Shagun Envelopes"
       description="Premium envelopes for weddings, gifting, festive celebrations and special occasions."
-      products={products}
+      initialPage={page}
+      scope={{ subjects: [SUBJECT] }}
       errorMessage={errorMessage}
       emptyTitle="No Shagun Envelopes found"
       emptyDescription="This collection is being updated. Please check back soon or contact us for help finding your invitation."

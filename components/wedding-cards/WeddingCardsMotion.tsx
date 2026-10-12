@@ -369,7 +369,7 @@ export function WeddingCardsMotion({ children }: { children: ReactNode }) {
         ref={rootRef}
         data-wedding-cards-page
         data-no-text-motion
-        className="min-h-screen overflow-x-clip bg-[#faf8f5] text-ink"
+        className="min-h-screen overflow-x-clip bg-white text-ink"
       >
         {children}
       </main>

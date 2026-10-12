@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 
 import FilterableProductGrid from "@/components/FilterableProductGrid";
-import {
-  fetchErpProductsBySubject,
-  type ErpProduct,
-} from "@/lib/catalog";
+import { fetchCatalogProductPage } from "@/lib/catalog-browse";
+import { emptyCatalogPage } from "@/lib/catalog-browse-options";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,11 +21,11 @@ export const metadata: Metadata = {
 };
 
 export default async function WeddingCardPage() {
-  let products: ErpProduct[] = [];
+  let page = emptyCatalogPage();
   let errorMessage = "";
 
   try {
-    products = await fetchErpProductsBySubject(SUBJECTS);
+    page = await fetchCatalogProductPage({ subjects: SUBJECTS });
   } catch (error) {
     console.error("Catalogue Wedding Card fetch failed:", error);
 
@@ -40,7 +38,7 @@ export default async function WeddingCardPage() {
   return (
     <main className="bg-white">
       <section className="border-b border-gold/20 bg-paper">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
             Collection
           </p>
@@ -59,15 +57,15 @@ export default async function WeddingCardPage() {
 
             {!errorMessage && (
               <p className="text-sm font-semibold text-carbon">
-                {products.length}{" "}
-                {products.length === 1 ? "Product" : "Products"}
+                {page.total}{" "}
+                {page.total === 1 ? "Product" : "Products"}
               </p>
             )}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-[1800px] px-4 py-7 sm:px-6 lg:px-8">
         {errorMessage ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
@@ -82,7 +80,7 @@ export default async function WeddingCardPage() {
               Please try again shortly.
             </p>
           </div>
-        ) : products.length === 0 ? (
+        ) : page.products.length === 0 ? (
           <div className="rounded-2xl border border-gold/20 bg-paper p-8 text-center">
             <h2 className="font-serif text-2xl font-semibold text-maroon">
               No wedding cards found
@@ -93,7 +91,7 @@ export default async function WeddingCardPage() {
             </p>
           </div>
         ) : (
-          <FilterableProductGrid products={products} />
+          <FilterableProductGrid initialPage={page} scope={{ subjects: SUBJECTS }} />
         )}
       </section>
     </main>

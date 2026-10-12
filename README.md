@@ -8,6 +8,8 @@ Supabase supplies the product catalogue and Selling prices through a public view
 
 **Website order setup:** Apply [supabase/migrations/20260916_website_orders.sql](supabase/migrations/20260916_website_orders.sql), configure a server-only Supabase secret key and the Razorpay webhook, and restart the app. See [supabase/ORDERS_SETUP.md](supabase/ORDERS_SETUP.md). The migration is required even though the catalogue and authentication already work.
 
+**Storefront performance:** Stage 2 adds paginated collections, consolidated product queries and deferred media. Apply [supabase/migrations/20261012_storefront_products.sql](supabase/migrations/20261012_storefront_products.sql) to enable the optimized database path. See [supabase/STOREFRONT_PERFORMANCE.md](supabase/STOREFRONT_PERFORMANCE.md) for rollout and verification.
+
 ---
 
 ## Features

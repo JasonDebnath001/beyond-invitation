@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/NavigationLink";
 import { BRAND, TAGLINE } from "./siteConfig";
 
 const footerColumns = [
@@ -28,7 +28,14 @@ const socials = [
     label: "Instagram",
     href: "https://www.instagram.com/beyond_invitationofficial/",
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
         <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
         <circle cx="12" cy="12" r="4" />
         <circle cx="17" cy="7" r="1" fill="currentColor" stroke="none" />
@@ -108,7 +115,10 @@ export default function Footer() {
           </div>
 
           {footerColumns.map((col) => (
-            <div key={col.heading} className="lg:border-r lg:border-white/10 lg:pr-6 last:border-r-0 xl:pr-10">
+            <div
+              key={col.heading}
+              className="lg:border-r lg:border-white/10 lg:pr-6 last:border-r-0 xl:pr-10"
+            >
               <h4 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#f0d99b]">
                 {col.heading}
               </h4>

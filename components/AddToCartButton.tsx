@@ -55,7 +55,7 @@ export default function AddToCartButton({
     : "border border-carbon bg-white text-carbon hover:bg-carbon hover:text-white";
   const isCard = variant === "card";
   const buttonClassName = isCard
-    ? `flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs font-semibold transition-colors duration-[240ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2 motion-reduce:transition-none sm:text-[13px] ${added ? "border-carbon bg-carbon text-white" : "border-[#e6d4d5] bg-[#fbf5f5] text-carbon hover:border-carbon hover:bg-carbon hover:text-white"}`
+    ? `flex min-h-8 w-full items-center justify-center px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white transition-[background-color,transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(112,39,35,0.16)] active:translate-y-0 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carbon motion-reduce:transform-none motion-reduce:transition-none sm:text-[11px] ${added ? "bg-[#702723]" : "bg-[#96352f]/95 hover:bg-[#7e2a26]"}`
     : `${base} ${size} ${colors}`;
 
   if (!Number.isFinite(product.price) || product.price <= 0) {
@@ -76,12 +76,13 @@ export default function AddToCartButton({
       className={buttonClassName}
       aria-label={`Add ${product.name} to cart`}
     >
-      {isCard && (
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0">
-          {added ? <path d="m5 12 4 4L19 6" /> : <><path d="M6 7h12l1 13H5L6 7Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></>}
-        </svg>
-      )}
-      <span role="status">{added ? (isCard ? "Added to cart" : "\u2713 Added to Cart") : "Add to Cart"}</span>
+      <span role="status">
+        {added
+          ? isCard
+            ? "Added to cart"
+            : "\u2713 Added to Cart"
+          : "Add to Cart"}
+      </span>
     </button>
   );
 }

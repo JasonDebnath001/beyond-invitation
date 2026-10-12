@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import JsonLd from "@/components/seo/JsonLd";
-import { fetchProductsByItemCategory, type CategorizedCatalogProduct } from "@/lib/catalog-item-category";
-import type { ErpProduct } from "@/lib/catalog";
+import { fetchWeddingProductPage } from "@/lib/catalog-browse";
+import { facetCounts, weddingFiltersFromSearchParams, type BrowserProduct, type WeddingProductPage, type WeddingSearchParams } from "@/lib/wedding-cards";
 import {
   DEFAULT_OG_IMAGE,
   SITE_NAME,
@@ -72,8 +72,8 @@ export const metadata: Metadata = {
   },
 };
 
-function getProductImage(product: ErpProduct) {
-  const image = product.images?.[0];
+function getProductImage(product: BrowserProduct) {
+  const image = product.image;
 
   if (!image) {
     return siteUrl(DEFAULT_OG_IMAGE);
@@ -90,32 +90,16 @@ function getProductImage(product: ErpProduct) {
   return siteUrl(`/products/${image}`);
 }
 
-async function getWeddingBoxProducts(): Promise<{
-  products: CategorizedCatalogProduct[];
-  errorMessage: string;
-}> {
+export default async function WeddingBoxesPage({ searchParams }: { searchParams: Promise<WeddingSearchParams> }) {
+  const initialFilters = weddingFiltersFromSearchParams(await searchParams, "boxes");
+  let initialPage: WeddingProductPage = { products: [], nextOffset: null, total: 0, facets: facetCounts([]) };
+  let errorMessage = "";
   try {
-    const products = await fetchProductsByItemCategory(ITEM_CATEGORY);
-
-    return {
-      products,
-      errorMessage: "",
-    };
+    initialPage = await fetchWeddingProductPage({ collectionType: "boxes", filters: initialFilters });
   } catch (error) {
     console.error("Wedding boxes page fetch failed:", error);
-
-    return {
-      products: [],
-      errorMessage:
-        error instanceof Error
-          ? error.message
-          : "Unable to load wedding boxes.",
-    };
+    errorMessage = "Unable to load wedding boxes.";
   }
-}
-
-export default async function WeddingBoxesPage() {
-  const { products, errorMessage } = await getWeddingBoxProducts();
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -140,14 +124,14 @@ export default async function WeddingBoxesPage() {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Wedding boxes by Beyond Invitation",
-    itemListElement: products.slice(0, 24).map((product, index) => ({
+    itemListElement: initialPage.products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: siteUrl(`/products/${product.slug}`),
       item: {
         "@type": "Product",
         name: product.name,
-        description: product.description || description,
+        description,
         image: getProductImage(product),
         url: siteUrl(`/products/${product.slug}`),
         category: ITEM_CATEGORY,
@@ -164,12 +148,13 @@ export default async function WeddingBoxesPage() {
   return (
     <>
       <JsonLd data={breadcrumbJsonLd} />
-      {products.length > 0 ? <JsonLd data={itemListJsonLd} /> : null}
+      {initialPage.products.length > 0 ? <JsonLd data={itemListJsonLd} /> : null}
 
       <WeddingCardsCollection
         title="Wedding Boxes"
         collectionType="boxes"
-        products={products}
+        initialPage={initialPage}
+        initialFilters={initialFilters}
         errorMessage={errorMessage}
         emptyTitle="No wedding boxes just yet"
       />

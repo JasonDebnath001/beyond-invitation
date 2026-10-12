@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchErpProductPage } from "@/lib/catalog";
+import { PRODUCTS_PER_PAGE } from "@/lib/product-page";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,11 @@ const headers = { "Cache-Control": "private, no-store" };
 export async function GET(request: Request) {
   const rawOffset = new URL(request.url).searchParams.get("offset") ?? "0";
   const offset = Number(rawOffset);
-  if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset)) {
+  if (
+    !/^\d+$/.test(rawOffset) ||
+    !Number.isSafeInteger(offset) ||
+    offset > 2147483647 - PRODUCTS_PER_PAGE
+  ) {
     return NextResponse.json(
       { error: "Provide a valid product offset." },
       { status: 400, headers },

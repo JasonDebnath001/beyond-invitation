@@ -3,25 +3,29 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
-import type { ErpProduct } from "@/lib/catalog";
-import ProductCard from "@/components/ProductCard";
+import type { ProductCategory } from "@/types";
+import type { CatalogBrowsePage } from "@/lib/catalog-browse-options";
+import PaginatedProductGrid from "@/components/PaginatedProductGrid";
 
 type CategoryCollectionPageClientProps = {
   categoryName: string;
   categoryDescription?: string;
-  products: ErpProduct[];
+  initialPage: CatalogBrowsePage;
+  category: ProductCategory;
   errorMessage?: string;
 };
 
 export default function CategoryCollectionPageClient({
   categoryName,
   categoryDescription = "",
-  products,
+  initialPage,
+  category,
   errorMessage = "",
 }: CategoryCollectionPageClientProps) {
   const rootRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let mounted = true;
     let cleanup: (() => void) | undefined;
 
@@ -36,60 +40,15 @@ export default function CategoryCollectionPageClient({
 
         if (!root) return;
 
-        const reduceMotion = window.matchMedia(
-          "(prefers-reduced-motion: reduce)",
-        ).matches;
-
         const ctx = gsap.context(() => {
           const introItems = root.querySelectorAll("[data-page-intro]");
-          const cards = root.querySelectorAll("[data-category-card]");
-
-          if (reduceMotion) {
-            gsap.set([introItems, cards], {
-              opacity: 1,
-              y: 0,
-              filter: "blur(0px)",
-            });
-            return;
-          }
-
-          gsap
-            .timeline({
-              defaults: {
-                ease: "power3.out",
-              },
-            })
-            .fromTo(
-              introItems,
-              {
-                opacity: 0,
-                y: 16,
-                filter: "blur(8px)",
-              },
-              {
-                opacity: 1,
-                y: 0,
-                filter: "blur(0px)",
-                duration: 0.7,
-                stagger: 0.07,
-              },
-            )
-            .fromTo(
-              cards,
-              {
-                opacity: 0,
-                y: 28,
-                filter: "blur(8px)",
-              },
-              {
-                opacity: 1,
-                y: 0,
-                filter: "blur(0px)",
-                duration: 0.75,
-                stagger: 0.07,
-              },
-              "-=0.35",
-            );
+          // Products remain visible immediately, including newly appended pages.
+          gsap.fromTo(introItems, { y: 10 }, {
+            y: 0,
+            duration: 0.3,
+            ease: "power2.out",
+            clearProps: "transform",
+          });
         }, root);
 
         cleanup = () => ctx.revert();
@@ -104,18 +63,18 @@ export default function CategoryCollectionPageClient({
       mounted = false;
       cleanup?.();
     };
-  }, [products.length]);
+  }, []);
 
   return (
     <main
       ref={rootRef}
       data-no-text-motion
-      className="min-h-screen bg-[#fff8ec] text-[#2a1810]"
+      className="min-h-screen bg-white text-[#2a1810]"
     >
-      <section className="relative overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <section className="relative mx-auto max-w-[1800px] overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top_left,rgba(201,168,76,0.2),transparent_34%),radial-gradient(circle_at_top_right,rgba(123,28,46,0.09),transparent_32%)]" />
 
-        <div className="relative mx-auto max-w-7xl">
+        <div className="relative">
           <nav
             data-page-intro
             aria-label="Breadcrumb"
@@ -175,7 +134,7 @@ export default function CategoryCollectionPageClient({
                 Please refresh the page or contact us for available designs.
               </p>
             </div>
-          ) : products.length === 0 ? (
+          ) : initialPage.products.length === 0 ? (
             <div className="rounded-[1.75rem] border border-[#e4d2a5] bg-white/70 p-6 text-center shadow-sm sm:p-10">
               <p className="text-5xl text-[#7b1c2e]">✦</p>
               <h2 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[#2a1810] sm:text-3xl">
@@ -186,13 +145,7 @@ export default function CategoryCollectionPageClient({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
-              {products.map((product) => (
-                <div key={product.slug} data-category-card className="min-w-0">
-                  <ProductCard product={product} categoryLabel={categoryName} />
-                </div>
-              ))}
-            </div>
+            <PaginatedProductGrid initialPage={initialPage} scope={{ category }} categoryLabel={categoryName} />
           )}
         </div>
       </section>

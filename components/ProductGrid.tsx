@@ -21,12 +21,12 @@ export function ProductGrid({ products }: ProductGridProps) {
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-2 gap-2 min-[360px]:gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4">
       {products.map((product) => (
         <ProductCard
           key={product.slug}
           product={product}
-          imageSizes="(min-width: 1280px) 212px, (min-width: 1024px) calc(25vw - 47px), (min-width: 768px) calc(33.333vw - 47px), (min-width: 640px) calc(50vw - 52px), calc(50vw - 36px)"
+          imageSizes="(min-width: 1800px) 419px, (min-width: 1024px) calc(25vw - 31px), (min-width: 768px) calc(33.333vw - 29.333px), (min-width: 640px) calc(50vw - 34px), calc(50vw - 22px)"
         />
       ))}
     </div>
@@ -42,7 +42,7 @@ interface ProductSectionProps {
   viewAllHref?: string;
   viewAllText?: string;
 
-  /** Apply the soft off-white background band */
+  /** Retained for callers; product listings use a consistent white background. */
   shaded?: boolean;
 }
 
@@ -134,9 +134,9 @@ export function ProductSection({
 
   return (
     <section
-      className={shaded ? "bg-cream/60 py-14 md:py-20" : "py-14 md:py-20"}
+      className="bg-white py-14 md:py-20"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-col gap-4 md:mb-10 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-gold">

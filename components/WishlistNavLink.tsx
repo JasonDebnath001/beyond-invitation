@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/NavigationLink";
 import { useWishlist } from "./WishlistProvider";
 
 type WishlistNavLinkProps = {

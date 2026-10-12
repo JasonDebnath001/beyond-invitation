@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { useNearViewport } from "@/lib/use-near-viewport";
 
 const COLLECTION_HREF = "/wedding-boxes";
 // If you create a new category slug later, change this to:
@@ -14,6 +15,15 @@ const IMAGES = {
   top: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_09_42%20PM.png",
   bottom: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_12_38%20PM.png",
 };
+
+const IMAGE_WIDTHS = [240, 360, 480, 640, 800, 1040];
+
+function resizedImage(src: string, width: number) {
+  const url = new URL(src);
+  // Width-only resizing keeps the original composition and aspect ratio.
+  url.searchParams.set("tr", `w-${width},q-85,f-auto`);
+  return url.toString();
+}
 
 const DETAILS = [
   {
@@ -34,13 +44,16 @@ function ImageFrame({
   src,
   alt,
   className = "",
-  priority = false,
+  sizes,
 }: {
   src: string;
   alt: string;
   className?: string;
-  priority?: boolean;
+  sizes: string;
 }) {
+  const [fallbackSource, setFallbackSource] = useState<string>();
+  const useOriginal = fallbackSource === src;
+
   return (
     <div
       data-image-card
@@ -48,11 +61,18 @@ function ImageFrame({
     >
       {src ? (
         <img
-          src={src}
+          src={useOriginal ? src : resizedImage(src, 640)}
+          srcSet={useOriginal ? undefined : IMAGE_WIDTHS.map(
+            (width) => `${resizedImage(src, width)} ${width}w`,
+          ).join(", ")}
+          sizes={sizes}
           alt={alt}
-          loading={priority ? "eager" : "lazy"}
+          loading="lazy"
           decoding="async"
           draggable={false}
+          onError={() => {
+            if (!useOriginal) setFallbackSource(src);
+          }}
           className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
         />
       ) : (
@@ -75,14 +95,22 @@ function ImageFrame({
 }
 
 export default function WeddingBoxesEditorial() {
-  const rootRef = useRef<HTMLElement | null>(null);
+  const [rootRef, isNearViewport] = useNearViewport<HTMLElement>();
 
   useEffect(() => {
+    if (
+      !isNearViewport ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) return;
+    let mounted = true;
     let cleanup: (() => void) | undefined;
 
     async function runAnimation() {
-      const gsapModule = await import("gsap");
-      const scrollTriggerModule = await import("gsap/ScrollTrigger");
+      const [gsapModule, scrollTriggerModule] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (!mounted) return;
 
       const gsap = gsapModule.gsap;
       const ScrollTrigger = scrollTriggerModule.ScrollTrigger;
@@ -92,26 +120,12 @@ export default function WeddingBoxesEditorial() {
       const root = rootRef.current;
       if (!root) return;
 
-      const reduceMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)"
-      ).matches;
-
       const ctx = gsap.context(() => {
         const revealItems = root.querySelectorAll("[data-editorial-reveal]");
         const imageCards = root.querySelectorAll("[data-image-card]");
         const floatingItems = root.querySelectorAll("[data-float-soft]");
         const parallaxItems = root.querySelectorAll("[data-parallax-soft]");
         const detailCards = root.querySelectorAll("[data-detail-card]");
-
-        if (reduceMotion) {
-          gsap.set([revealItems, imageCards, detailCards], {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            filter: "blur(0px)",
-          });
-          return;
-        }
 
         const introTimeline = gsap.timeline({
           scrollTrigger: {
@@ -125,52 +139,42 @@ export default function WeddingBoxesEditorial() {
           .fromTo(
             revealItems,
             {
-              opacity: 0,
-              y: 34,
-              filter: "blur(10px)",
+              y: 16,
             },
             {
-              opacity: 1,
               y: 0,
-              filter: "blur(0px)",
-              duration: 0.95,
+              duration: 0.35,
               ease: "power3.out",
-              stagger: 0.12,
+              stagger: 0.03,
             }
           )
           .fromTo(
             imageCards,
             {
-              opacity: 0,
-              y: 48,
-              scale: 0.96,
-              filter: "blur(8px)",
+              y: 20,
+              scale: 0.98,
             },
             {
-              opacity: 1,
               y: 0,
               scale: 1,
-              filter: "blur(0px)",
-              duration: 1,
+              duration: 0.4,
               ease: "power3.out",
-              stagger: 0.14,
+              stagger: 0.04,
             },
-            "-=0.65"
+            "<"
           )
           .fromTo(
             detailCards,
             {
-              opacity: 0,
-              y: 20,
+              y: 12,
             },
             {
-              opacity: 1,
               y: 0,
-              duration: 0.75,
+              duration: 0.3,
               ease: "power2.out",
-              stagger: 0.1,
+              stagger: 0.03,
             },
-            "-=0.55"
+            "<"
           );
 
         gsap.to(floatingItems, {
@@ -203,12 +207,15 @@ export default function WeddingBoxesEditorial() {
       cleanup = () => ctx.revert();
     }
 
-    runAnimation();
+    void runAnimation().catch((error) => {
+      console.warn("Wedding boxes animation failed:", error);
+    });
 
     return () => {
+      mounted = false;
       cleanup?.();
     };
-  }, []);
+  }, [isNearViewport, rootRef]);
 
   return (
     <section
@@ -296,7 +303,7 @@ export default function WeddingBoxesEditorial() {
               src={IMAGES.main}
               alt="Premium wedding invitation box editorial view"
               className="aspect-[4/5]"
-              priority
+              sizes="(min-width: 1280px) 450px, (min-width: 1024px) 36vw, (min-width: 768px) 520px, 68vw"
             />
           </div>
 
@@ -309,6 +316,7 @@ export default function WeddingBoxesEditorial() {
               src={IMAGES.top}
               alt="Wedding box close up detail"
               className="aspect-[4/5] rounded-[1.7rem]"
+              sizes="(min-width: 1280px) 320px, (min-width: 1024px) 26vw, (min-width: 768px) 340px, 48vw"
             />
           </div>
 
@@ -321,6 +329,7 @@ export default function WeddingBoxesEditorial() {
               src={IMAGES.bottom}
               alt="Open wedding box presentation"
               className="aspect-[5/4] rounded-[1.7rem]"
+              sizes="(min-width: 1280px) 390px, (min-width: 1024px) 31vw, (min-width: 768px) 430px, 58vw"
             />
           </div>
 

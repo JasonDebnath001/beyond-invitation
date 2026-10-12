@@ -1,9 +1,9 @@
 // app/page.tsx
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { getAllCategories } from "@/lib/products";
-import { fetchErpProductPage, type ErpProduct } from "@/lib/catalog";
 
 import JsonLd from "@/components/seo/JsonLd";
 import { getSiteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site-config";
@@ -11,15 +11,13 @@ import { absoluteUrl } from "@/lib/seo";
 
 import {
   CelebrationGrid,
-  SaleCollection,
-  FeatureStrip,
   WhyUs,
   OurShowroom,
   Catalogue,
 } from "@/components/Sections";
 
 import HeroCarousel from "@/components/HeroCarousel";
-import { ProductSection } from "@/components/ProductGrid";
+import HomeProducts, { HomeProductsSkeleton } from "@/components/home/HomeProducts";
 import KindWords from "@/components/KindWords";
 import InstagramReels from "@/components/InstagramReels";
 import HomeTextAnimation from "@/components/HomeTextAnimation";
@@ -101,42 +99,8 @@ export const metadata: Metadata = {
   },
 };
 
-function getAbsoluteImageUrl(image?: string) {
-  if (!image) return undefined;
-
-  if (image.startsWith("http://") || image.startsWith("https://")) {
-    return image;
-  }
-
-  if (image.startsWith("/")) {
-    return `${siteUrl}${image}`;
-  }
-
-  return `${siteUrl}/${image}`;
-}
-
 export default async function HomePage() {
   const categories = await getAllCategories();
-
-  let catalogProducts: ErpProduct[] = [];
-  let nextOffset: number | null = null;
-  let catalogError = "";
-
-  try {
-    const firstPage = await fetchErpProductPage();
-    catalogProducts = firstPage.products;
-    nextOffset = firstPage.nextOffset;
-  } catch (error) {
-    console.error("Catalogue product fetch failed on homepage:", error);
-    catalogError =
-      error instanceof Error
-        ? error.message
-        : "Unknown Catalogue product fetch error";
-  }
-
-  const featuredProducts = catalogProducts;
-
-  const homepageProducts = catalogProducts;
 
   const localBusinessJsonLd = {
     "@context": "https://schema.org",
@@ -179,41 +143,10 @@ export default async function HomePage() {
     },
   };
 
-  const productListJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Featured wedding cards and invitation stationery",
-    itemListElement: featuredProducts.map((product, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      url: `${siteUrl}/products/${product.slug}`,
-      item: {
-        "@type": "Product",
-        name: product.name,
-        description: product.description || description,
-        image: getAbsoluteImageUrl(product.images?.[0]),
-        url: `${siteUrl}/products/${product.slug}`,
-        offers:
-          product.price > 0
-            ? {
-                "@type": "Offer",
-                priceCurrency: "INR",
-                price: product.price,
-                availability: "https://schema.org/InStock",
-              }
-            : undefined,
-      },
-    })),
-  };
-
   return (
     <>
       <JsonLd data={localBusinessJsonLd} />
       <JsonLd data={websiteJsonLd} />
-
-      {!catalogError && featuredProducts.length > 0 ? (
-        <JsonLd data={productListJsonLd} />
-      ) : null}
 
       <div data-home-text-motion className="overflow-hidden">
         <HeroCarousel />
@@ -224,51 +157,13 @@ export default async function HomePage() {
 
         <CelebrationGrid categories={categories} />
 
-        {catalogError ? (
-          <section className="mx-auto max-w-6xl px-4 py-16">
-            <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em]">
-                Catalogue Error
-              </p>
-
-              <h2 className="mt-3 font-serif text-3xl">
-                Products could not be loaded
-              </h2>
-
-              <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-2xl bg-white p-4 text-xs">
-                Please try again shortly.
-              </pre>
-            </div>
-          </section>
-        ) : (
-          <>
-            <SaleCollection
-              products={catalogProducts}
-              nextOffset={nextOffset}
-            />
-
-            <ProductSection
-              label="Fresh from our catalogue"
-              title="Trendy Collection"
-              products={homepageProducts}
-              nextOffset={nextOffset}
-              viewAllHref="/catalog"
-              viewAllText="View All Products"
-            />
-
-            <FeatureStrip />
-
-            <ProductSection
-              label="Exclusive & elegant"
-              title="Premium Invitations"
-              products={homepageProducts}
-              nextOffset={nextOffset}
-              viewAllHref="/collections/luxe"
-              viewAllText="View All Premium Cards"
-              shaded
-            />
-          </>
-        )}
+        {/* Stream the catalogue independently of the hero and editorial content.
+            Keep streamed headings out of the one-time page animation scan. */}
+        <div data-no-text-motion>
+          <Suspense fallback={<HomeProductsSkeleton />}>
+            <HomeProducts description={description} />
+          </Suspense>
+        </div>
 
         <WhyUs />
 

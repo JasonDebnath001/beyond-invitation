@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 
-import { fetchProductsByItemCategory, type CategorizedCatalogProduct } from "@/lib/catalog-item-category";
+import { fetchWeddingProductPage } from "@/lib/catalog-browse";
+import { facetCounts, weddingFiltersFromSearchParams, type WeddingProductPage, type WeddingSearchParams } from "@/lib/wedding-cards";
 import WeddingCardsCollection from "@/components/wedding-cards/WeddingCardsCollection";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const ITEM_CATEGORY = "Hindu Wedding Card";
 
 export const metadata: Metadata = {
   title: "Hindu Wedding Cards – Beyond Invitation",
@@ -14,24 +13,24 @@ export const metadata: Metadata = {
     "A curated collection of Hindu wedding invitation cards — sacred motifs, auspicious hues and timeless craftsmanship for the big day.",
 };
 
-export default async function HinduWeddingCardPage() {
-  let products: CategorizedCatalogProduct[] = [];
+export default async function HinduWeddingCardPage({ searchParams }: { searchParams: Promise<WeddingSearchParams> }) {
+  const initialFilters = weddingFiltersFromSearchParams(await searchParams, "hindu");
+  let initialPage: WeddingProductPage = { products: [], nextOffset: null, total: 0, facets: facetCounts([]) };
   let errorMessage = "";
 
   try {
-    products = await fetchProductsByItemCategory(ITEM_CATEGORY);
+    initialPage = await fetchWeddingProductPage({ collectionType: "hindu", filters: initialFilters });
   } catch (error) {
-    errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unable to fetch products from Catalogue.";
+    console.error("Hindu wedding cards page fetch failed:", error);
+    errorMessage = "Unable to load wedding cards.";
   }
 
   return (
     <WeddingCardsCollection
       title="Hindu Wedding Cards"
       collectionType="hindu"
-      products={products}
+      initialPage={initialPage}
+      initialFilters={initialFilters}
       errorMessage={errorMessage}
       emptyTitle="No Hindu wedding cards just yet"
     />

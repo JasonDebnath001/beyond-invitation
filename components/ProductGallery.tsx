@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Play } from "lucide-react";
-import ProductImage from "@/components/ProductImage";
+import ProductImage, { getProductImageProps } from "@/components/ProductImage";
+import { getStorageImageUrl } from "@/lib/product-image-loader";
 
 interface ProductGalleryProps {
   images: string[];
@@ -361,6 +362,7 @@ export default function ProductGallery({
 
   const stageRef = useRef<HTMLDivElement | null>(null);
   const desktopThumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const warmedImages = useRef(new Map<string, HTMLImageElement>());
 
   const allMedia: GalleryItem[] = useMemo(() => {
     /*
@@ -428,6 +430,61 @@ export default function ProductGallery({
       : activeItem?.type === "video"
         ? getVideoSrc(activeItem.src)
         : "";
+
+  const zoomSrc = activeSrc ? getStorageImageUrl(activeSrc, 2000, 90) || activeSrc : "";
+
+  useEffect(() => {
+    const requests = warmedImages.current;
+    return () => {
+      for (const image of requests.values()) {
+        image.onload = null;
+        image.onerror = null;
+        image.removeAttribute("srcset");
+        image.removeAttribute("src");
+      }
+      requests.clear();
+    };
+  }, []);
+
+  function warmImage(item: GalleryItem | undefined) {
+    if (!item || item.type !== "image") return;
+    const connection = (window.navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    if (connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType || "")) return;
+
+    const src = getImageSrc(item.src);
+    if (!src || src.startsWith("http://")) return;
+    let props: ReturnType<typeof getProductImageProps>["props"];
+    try {
+      props = getProductImageProps({
+        src,
+        alt: "",
+        fill: true,
+        sizes: mainImageSizes,
+        quality: 80,
+        storageTransform: true,
+      }).props;
+    } catch {
+      // Optional warming must not interrupt displaying the selected image.
+      return;
+    }
+    // Do not speculatively fetch unresized originals (for example SVG sources).
+    if (!props.srcSet && props.src === src) return;
+    const key = `${props.srcSet || props.src}|${props.sizes || ""}`;
+    if (warmedImages.current.has(key)) return;
+
+    const image = new window.Image();
+    warmedImages.current.set(key, image);
+    image.fetchPriority = "low";
+    image.decoding = "async";
+    image.onerror = () => {
+      warmedImages.current.delete(key);
+    };
+    if (props.sizes) image.sizes = props.sizes;
+    if (props.srcSet) image.srcset = props.srcSet;
+    image.src = props.src;
+  }
 
   useEffect(() => {
     if (active >= total && total > 0) {
@@ -508,6 +565,10 @@ export default function ProductGallery({
   }
 
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
+    if (window.matchMedia && !window.matchMedia("(min-width: 1024px) and (hover: hover) and (pointer: fine)").matches) {
+      setZoomVisible(false);
+      return;
+    }
     if (activeItem?.type !== "image") {
       setZoomVisible(false);
       return;
@@ -611,6 +672,12 @@ export default function ProductGallery({
                 setZoomVisible(false);
                 setActive(index);
               }}
+              onPointerEnter={() => {
+                if (!isActive) warmImage(item);
+              }}
+              onFocus={() => {
+                if (!isActive) warmImage(item);
+              }}
               aria-label={`View ${item.type} ${index + 1}`}
               aria-current={isActive}
               className={`group relative aspect-square shrink-0 snap-start overflow-hidden rounded-[15px] border bg-white p-1.5 shadow-[0_5px_16px_rgba(73,25,31,0.06)] transition-all duration-300 ${
@@ -638,6 +705,7 @@ export default function ProductGallery({
                   width={96}
                   height={96}
                   quality={75}
+                  storageTransform
                   loading="lazy"
                   decoding="async"
                   unoptimized={src.startsWith("http://")}
@@ -682,12 +750,14 @@ export default function ProductGallery({
                     fill
                     sizes={mainImageSizes}
                     quality={80}
+                    storageTransform
                     priority={active === 0}
                     loading="eager"
                     fetchPriority={active === 0 ? "high" : "auto"}
                     unoptimized={activeSrc.startsWith("http://")}
                     onLoad={(event) => {
                       saveImageSize(activeKey, event.currentTarget);
+                      if (total > 1) warmImage(media[(active + 1) % total]);
                     }}
                     onError={() => removeBrokenMedia(activeItem, active)}
                     className="object-contain p-0"
@@ -737,9 +807,9 @@ export default function ProductGallery({
 
           {activeItem?.type === "image" && zoomVisible && activeSrc && (
             <div
-              className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-white bg-no-repeat shadow-xl lg:block"
+              className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-no-repeat shadow-xl lg:block"
               style={{
-                backgroundImage: `url("${activeSrc}")`,
+                backgroundImage: `url("${zoomSrc}")`,
                 backgroundSize: `${ZOOM_SCALE * 100}%`,
                 backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
               }}

@@ -14,6 +14,9 @@ export interface Product {
   /** Image file names located in /public/products/ or absolute catalogue image URLs */
   images: string[];
 
+  /** Full gallery count when a listing includes only its first image. */
+  imageCount?: number;
+
   /** Video URLs from the catalogue */
   videos?: string[];
 

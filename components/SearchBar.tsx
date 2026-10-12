@@ -2,8 +2,9 @@
 
 import { formatProductName } from "@/lib/product-name";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { NavigationFeedback } from "@/components/NavigationLink";
 import type { Product } from "@/types";
 
 const MAX_DROPDOWN_RESULTS = 6;
@@ -14,6 +15,7 @@ type SearchBarProps = {
 
 export default function SearchBar({ onNavigate }: SearchBarProps) {
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
@@ -84,14 +86,14 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
 
     setOpen(false);
     onNavigate?.();
-    router.push(`/search?q=${encodeURIComponent(q)}`);
+    startNavigation(() => router.push(`/search?q=${encodeURIComponent(q)}`));
   }
 
   function goToProduct(slug: string) {
     setOpen(false);
     setQuery("");
     onNavigate?.();
-    router.push(`/products/${slug}`);
+    startNavigation(() => router.push(`/products/${slug}`));
   }
 
   const shown = results.slice(0, MAX_DROPDOWN_RESULTS);
@@ -99,6 +101,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
 
   return (
     <div ref={containerRef} className="relative w-full">
+      <NavigationFeedback pending={navigating} />
       <form onSubmit={handleSubmit}>
         <div className="relative flex items-center">
           <span className="pointer-events-none absolute left-3 text-neutral-400">

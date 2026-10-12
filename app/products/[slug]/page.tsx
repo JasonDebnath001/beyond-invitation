@@ -245,7 +245,7 @@ function RelatedProductsLoading() {
     <section className="mt-14 sm:mt-20" role="status" aria-label="Loading related products">
       <div aria-hidden="true" className="motion-safe:animate-pulse">
         <div className="mb-8 h-8 w-56 rounded bg-paper" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4">
           {[0, 1, 2, 3].map((index) => (
             <div key={index} className="aspect-square rounded-xl bg-paper" />
           ))}
@@ -880,7 +880,10 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Related products */}
+        </div>
+
+        <div className="mx-auto max-w-[1800px] px-4 pb-12 sm:px-6 lg:px-8">
+          {/* Related products use the wider collection grid. */}
           <Suspense fallback={<RelatedProductsLoading />}>
             <RelatedProducts product={product} />
           </Suspense>

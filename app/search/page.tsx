@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const results = query ? await searchProducts(query) : [];
 
   return (
-    <div className="mx-auto min-w-0 max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto min-w-0 max-w-[1800px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
       <div className="mb-10">
         <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-gold">
           Search Results

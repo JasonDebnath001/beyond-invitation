@@ -47,6 +47,13 @@ export const CARD_TYPES = [
 ] as const;
 export type WeddingCardType = (typeof CARD_TYPES)[number]["value"];
 export type WeddingCollectionType = WeddingCardType | "boxes";
+export type WeddingProductPage = {
+  products: BrowserProduct[];
+  nextOffset: number | null;
+  total: number;
+  facets: ReturnType<typeof facetCounts>;
+};
+export type WeddingSearchParams = Record<string, string | string[] | undefined>;
 const hasPrice = (price: number) => Number.isFinite(price) && price > 0;
 
 export function priceBucketFor(price: number): PriceBucket {
@@ -82,6 +89,19 @@ export function serializeWeddingFilters(filters: WeddingFilters) {
   if (filters.price !== "any") params.set("price", filters.price);
   if (filters.sort !== "recommended") params.set("sort", filters.sort);
   return params.toString();
+}
+
+export function weddingFiltersFromSearchParams(
+  params: WeddingSearchParams,
+  collectionType?: WeddingCollectionType,
+): WeddingFilters {
+  const filters = parseWeddingFilters({
+    get(key) {
+      const value = params[key];
+      return (Array.isArray(value) ? value[0] : value) ?? null;
+    },
+  });
+  return collectionType ? { ...filters, type: "all" } : filters;
 }
 
 export function applyWeddingFilters(

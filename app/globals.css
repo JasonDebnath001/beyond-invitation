@@ -43,6 +43,38 @@
   }
 }
 
+/* A gentle reveal shared by catalogue and wishlist purchase bars. */
+.product-card-cart {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition:
+    opacity 200ms ease-out,
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:is(.product-card, [data-wishlist-card]):is(:hover, :focus-within)
+  .product-card-cart {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .product-card-cart {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card-cart {
+    transform: none !important;
+    transition: none;
+  }
+}
+
 /* Prevent iOS from zooming the viewport when a compact form control is focused. */
 @media (max-width: 639px) {
   input:not([type="checkbox"]):not([type="radio"]),

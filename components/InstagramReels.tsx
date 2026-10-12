@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useNearViewport } from "@/lib/use-near-viewport";
 
 type InstagramReel = {
   id: string;
@@ -40,18 +41,24 @@ function InstagramIcon({ className = "" }: { className?: string }) {
 }
 
 export default function InstagramReels() {
+  const [sectionRef, isNearViewport] = useNearViewport<HTMLElement>();
   const [reels, setReels] = useState<InstagramReel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isNearViewport) return;
     let cancelled = false;
+    const controller = new AbortController();
 
     async function loadReels() {
       try {
         const response = await fetch("/api/instagram-reels", {
           cache: "no-store",
+          signal: controller.signal,
         });
+
+        if (!response.ok) throw new Error("Failed to load Instagram reels.");
 
         const data = (await response.json()) as InstagramReelsApiResponse;
 
@@ -82,11 +89,13 @@ export default function InstagramReels() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, []);
+  }, [isNearViewport]);
 
   return (
     <section
+      ref={sectionRef}
       id="instagram-reels"
       className="relative z-10 block bg-white py-16 sm:py-20"
     >
@@ -123,7 +132,7 @@ export default function InstagramReels() {
             {Array.from({ length: 14 }).map((_, index) => (
               <div
                 key={index}
-                className="aspect-[9/14] animate-pulse bg-neutral-100"
+                className="aspect-[9/14] motion-safe:animate-pulse bg-neutral-100"
               />
             ))}
           </div>

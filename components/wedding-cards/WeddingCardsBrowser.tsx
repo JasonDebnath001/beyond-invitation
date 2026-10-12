@@ -1,33 +1,29 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { subscribeMediaQuery } from "@/lib/media-query";
 import WeddingCardTile from "@/components/wedding-cards/WeddingCardTile";
 import { useWeddingCardsMotion } from "@/components/wedding-cards/WeddingCardsMotion";
 import {
-  applyWeddingFilters,
   DEFAULT_WEDDING_FILTERS,
-  facetCounts,
   parseWeddingFilters,
   serializeWeddingFilters,
-  sortWeddingProducts,
   WEDDING_SORTS,
-  type BrowserProduct,
   type WeddingFilters,
   type WeddingCollectionType,
+  type WeddingProductPage,
 } from "@/lib/wedding-cards";
 
 const gridClass =
-  "grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 md:grid-cols-3 xl:grid-cols-4";
+  "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4";
 const secondary =
   "rounded-md border border-carbon/20 bg-white px-6 py-3 text-sm font-semibold text-carbon transition-colors hover:bg-paper focus-visible:outline-gold";
 type FacetOption = { value: string; label: string; count: number };
@@ -99,10 +95,10 @@ export function WeddingCardsSkeleton({ productLabel = "wedding cards" }: { produ
       {Array.from({ length: 8 }, (_, index) => (
         <div
           key={index}
-          className="overflow-hidden rounded-2xl border border-gold/20 bg-white"
+          className="min-w-0"
         >
-          <div className="aspect-[4/5] bg-[#f3e7cf]/50" />
-          <div className="space-y-3 p-4">
+          <div className="aspect-square bg-neutral-100" />
+          <div className="space-y-3 pt-4">
             <div className="h-3 w-2/3 rounded bg-paper" />
             <div className="h-5 w-1/2 rounded bg-paper" />
           </div>
@@ -114,37 +110,36 @@ export function WeddingCardsSkeleton({ productLabel = "wedding cards" }: { produ
 }
 
 export default function WeddingCardsBrowser({
-  products,
+  initialPage,
+  initialFilters = DEFAULT_WEDDING_FILTERS,
   collectionType,
 }: {
-  products: BrowserProduct[];
+  initialPage: WeddingProductPage;
+  initialFilters?: WeddingFilters;
   collectionType?: WeddingCollectionType;
 }) {
   const productLabel = collectionType === "boxes" ? "wedding boxes" : "wedding cards";
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const paramsKey = searchParams.toString();
-  const filters = useMemo(
-    () => {
-      const parsed = parseWeddingFilters(new URLSearchParams(paramsKey));
-      // Collection membership is fixed by the server, even for a stale type URL.
-      return collectionType ? { ...parsed, type: "all" as const } : parsed;
-    },
-    [paramsKey, collectionType],
+  const normalizeFilters = useCallback(
+    (value: WeddingFilters): WeddingFilters =>
+      collectionType ? { ...value, type: "all" } : value,
+    [collectionType],
   );
+  const [filters, setFilters] = useState(() => normalizeFilters(initialFilters));
+  const [page, setPage] = useState(initialPage);
+  const [loading, setLoading] = useState<"replace" | "append" | null>(null);
+  const [error, setError] = useState("");
+  const request = useRef<AbortController | null>(null);
+  const failedRequest = useRef<{
+    filters: WeddingFilters;
+    offset: number;
+    append: boolean;
+  } | null>(null);
   const filterKey = serializeWeddingFilters(filters);
-  const [pagination, setPagination] = useState({ key: filterKey, count: 24 });
   const [sheetOpen, setSheetOpen] = useState(false);
   const pendingFilters = useRef(filters);
   const motion = useWeddingCardsMotion();
-  const facets = useMemo(() => facetCounts(products), [products]);
-  const matches = sortWeddingProducts(
-    applyWeddingFilters(products, filters),
-    filters.sort,
-  );
-  const shown = pagination.key === filterKey ? pagination.count : 24;
-  const visible = matches.slice(0, shown);
+  const facets = page.facets;
+  const visible = page.products;
   const visibleKey = visible.map((product) => product.slug).join("|");
   const hasFilters =
     filters.type !== "all" ||
@@ -157,9 +152,73 @@ export default function WeddingCardsBrowser({
   const sortId = useId();
   const sheetTitleId = useId();
 
+  const requestPage = useCallback(async (
+    nextFilters: WeddingFilters,
+    offset = 0,
+    append = false,
+  ) => {
+    if (append && request.current) return;
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    failedRequest.current = null;
+    setError("");
+    setLoading(append ? "append" : "replace");
+    if (!append) {
+      motion.reorderStart();
+      setPage((previous) => ({ ...previous, products: [], nextOffset: null, total: 0 }));
+    }
+    const query = new URLSearchParams(serializeWeddingFilters(nextFilters));
+    query.set("mode", "wedding");
+    if (collectionType) query.set("collectionType", collectionType);
+    query.set("offset", String(offset));
+    try {
+      const response = await fetch(`/api/catalog/browse?${query}`, {
+        signal: controller.signal,
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Unable to load designs.");
+      const result: WeddingProductPage = await response.json();
+      if (!Array.isArray(result.products) || !result.facets ||
+          !Number.isSafeInteger(result.total) || result.total < 0 ||
+          (result.nextOffset !== null &&
+            (!Number.isSafeInteger(result.nextOffset) || result.nextOffset <= offset))) {
+        throw new Error("Unable to load designs.");
+      }
+      if (controller.signal.aborted || request.current !== controller) return;
+      setPage((previous) => {
+        const products = append ? [...previous.products, ...result.products] : result.products;
+        const unique = new Map(products.map((product) => [product.slug, product]));
+        return { ...result, products: [...unique.values()] };
+      });
+    } catch {
+      if (controller.signal.aborted || request.current !== controller) return;
+      failedRequest.current = { filters: nextFilters, offset, append };
+      setError("Unable to load designs. Please try again.");
+    } finally {
+      if (request.current === controller) {
+        request.current = null;
+        setLoading(null);
+      }
+    }
+  }, [collectionType, motion]);
+
   useEffect(() => {
-    pendingFilters.current = filters;
-  }, [filters]);
+    request.current?.abort();
+    request.current = null;
+    failedRequest.current = null;
+    const next = normalizeFilters(initialFilters);
+    pendingFilters.current = next;
+    setFilters(next);
+    setPage(initialPage);
+    setLoading(null);
+    setError("");
+    return () => {
+      request.current?.abort();
+      request.current = null;
+    };
+  }, [initialPage, initialFilters, normalizeFilters]);
   useLayoutEffect(() => {
     const browser = browserRef.current;
     if (!browser) return;
@@ -171,10 +230,16 @@ export default function WeddingCardsBrowser({
   }, [visibleKey, filterKey, motion]);
 
   useEffect(() => {
-    const beforeHistoryChange = () => motion.reorderStart();
-    window.addEventListener("popstate", beforeHistoryChange);
-    return () => window.removeEventListener("popstate", beforeHistoryChange);
-  }, [motion]);
+    const onPopState = () => {
+      const next = normalizeFilters(parseWeddingFilters(new URLSearchParams(window.location.search)));
+      if (serializeWeddingFilters(next) === serializeWeddingFilters(pendingFilters.current)) return;
+      pendingFilters.current = next;
+      setFilters(next);
+      void requestPage(next);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [normalizeFilters, requestPage]);
 
   useEffect(() => {
     const sheet = sheetRef.current,
@@ -239,19 +304,18 @@ export default function WeddingCardsBrowser({
   }, [sheetOpen, motion]);
 
   function update(patch: Partial<WeddingFilters>) {
-    const next = { ...pendingFilters.current, ...patch };
+    const next = normalizeFilters({ ...pendingFilters.current, ...patch });
+    if (serializeWeddingFilters(next) === serializeWeddingFilters(pendingFilters.current)) return;
     pendingFilters.current = next;
-    motion.reorderStart();
-    const query = new URLSearchParams(searchParams.toString());
-    for (const key of ["type", "text", "price", "photos", "sort"])
+    setFilters(next);
+    const query = new URLSearchParams(window.location.search);
+    for (const key of ["type", "text", "price", "photos", "sort", "offset"])
       query.delete(key);
     new URLSearchParams(serializeWeddingFilters(next)).forEach((value, key) =>
       query.set(key, value),
     );
-    setPagination({ key: serializeWeddingFilters(next), count: 24 });
-    router.replace(`${pathname}${query.size ? `?${query}` : ""}`, {
-      scroll: false,
-    });
+    window.history.pushState(null, "", `${window.location.pathname}${query.size ? `?${query}` : ""}${window.location.hash}`);
+    void requestPage(next);
   }
 
   const facetControls = (
@@ -287,12 +351,12 @@ export default function WeddingCardsBrowser({
     <div
       data-wedding-browser
       ref={browserRef}
-      className="grid items-start gap-x-8 lg:grid-cols-[220px_minmax(0,1fr)] xl:gap-x-10 xl:grid-cols-[240px_minmax(0,1fr)]"
+      className="grid items-start gap-x-6 lg:grid-cols-[200px_minmax(0,1fr)]"
     >
       <aside
         aria-label={`Filter ${productLabel}`}
         data-filter-sidebar
-        className="hidden border-r border-carbon/10 pr-6 lg:block"
+        className="hidden border-r border-carbon/10 pr-4 lg:block"
       >
         <div className="mb-5 flex h-11 items-center justify-between gap-2 border-b border-carbon/10">
           <h2 className="text-base font-semibold text-carbon">Filters</h2>
@@ -321,7 +385,7 @@ export default function WeddingCardsBrowser({
             aria-live="polite"
             className="text-sm tabular-nums text-ink-mid"
           >
-            {matches.length} designs
+            {loading === "replace" ? "Loading designs…" : error && !visible.length ? "Unable to load designs" : `${page.total} designs`}
           </p>
           <div className="flex items-center gap-4">
             <button
@@ -375,7 +439,22 @@ export default function WeddingCardsBrowser({
             </div>
           </div>
         </div>
-        {visible.length ? (
+        {error ? (
+          <div role="alert" className="mb-5 rounded-md border border-carbon/15 bg-white p-4 text-sm text-ink-mid">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="mt-2 font-semibold text-maroon underline underline-offset-4"
+              onClick={() => {
+                const retry = failedRequest.current;
+                if (retry) void requestPage(retry.filters, retry.offset, retry.append);
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        ) : null}
+        {loading === "replace" ? <WeddingCardsSkeleton productLabel={productLabel} /> : visible.length ? (
           <>
             <div data-wedding-grid className={gridClass}>
               {visible.map((product, index) => (
@@ -384,22 +463,23 @@ export default function WeddingCardsBrowser({
             </div>
             <div className="mt-10 text-center">
               <p className="mb-4 text-sm text-ink-mid">
-                Showing {visible.length} of {matches.length} designs
+                Showing {visible.length} of {page.total} designs
               </p>
-              {visible.length < matches.length ? (
+              {page.nextOffset !== null ? (
                 <button
                   type="button"
-                  className={secondary}
-                  onClick={() =>
-                    setPagination({ key: filterKey, count: shown + 24 })
-                  }
+                  className={`${secondary} disabled:cursor-wait disabled:opacity-60`}
+                  disabled={loading !== null}
+                  onClick={() => {
+                    if (page.nextOffset !== null) void requestPage(pendingFilters.current, page.nextOffset, true);
+                  }}
                 >
-                  Show more
+                  {loading === "append" ? "Loading…" : "Show more"}
                 </button>
               ) : null}
             </div>
           </>
-        ) : (
+        ) : !error ? (
           <div className="border border-carbon/10 bg-white px-6 py-12 text-center">
             <p className="text-xl font-light text-maroon">
               No designs match these filters.
@@ -414,7 +494,7 @@ export default function WeddingCardsBrowser({
               Clear filters
             </button>
           </div>
-        )}
+        ) : null}
       </div>
       <div
         ref={backdropRef}
@@ -452,7 +532,7 @@ export default function WeddingCardsBrowser({
               onClick={() => setSheetOpen(false)}
               className="flex-1 rounded-md bg-carbon px-6 py-3 text-sm font-semibold text-white hover:bg-carbon-dark"
             >
-              Show {matches.length} designs
+              {loading === "replace" ? "Loading designs…" : `Show ${page.total} designs`}
             </button>
             {hasFilters ? (
               <button

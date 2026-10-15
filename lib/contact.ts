@@ -1,6 +1,7 @@
 export type EnquiryProduct = {
   slug: string;
   designNo: string;
+  printName?: string;
   name: string;
   image: string | null;
   subject: string;

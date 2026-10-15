@@ -39,6 +39,7 @@ export interface WebProductRow {
   id: string;
   item_code: string;
   design_no: string;
+  print_name?: string | null;
   slug: string;
   name: string;
   description: string | null;
@@ -157,6 +158,7 @@ export function mapCatalogRowToProduct(row: WebProductRow): CatalogProduct {
     },
     // Design numbers preserve existing product URLs and order item identities.
     itemCode: row.design_no,
+    printName: row.print_name?.trim() || undefined,
     itemGroup: row.group_name ?? "",
     erpName: row.design_no,
     subject: row.subject ?? "",
@@ -209,7 +211,7 @@ const readCatalogProducts = unstable_cache(
 
     return products;
   },
-  ["buildErpProductList-v8-storefront"],
+  ["buildErpProductList-v9-print-name"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -233,7 +235,7 @@ const readCatalogProductBySlug = unstable_cache(
 
     return (await resolveCatalogProducts(data))[0] ?? null;
   },
-  ["catalogProductBySlug-v2-storefront"],
+  ["catalogProductBySlug-v3-print-name"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -277,7 +279,7 @@ const readCatalogProductPage = unstable_cache(
         rows.length > PRODUCTS_PER_PAGE ? offset + PRODUCTS_PER_PAGE : null,
     };
   },
-  ["catalogProductPage-v2-storefront", String(PRODUCTS_PER_PAGE)],
+  ["catalogProductPage-v3-print-name", String(PRODUCTS_PER_PAGE)],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -394,7 +396,7 @@ const readRelatedStorefrontProducts = unstable_cache(
     });
     return result === null ? null : result.products.map(mapCatalogRowToProduct);
   },
-  ["relatedStorefrontProducts-v1"],
+  ["relatedStorefrontProducts-v2-print-name"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

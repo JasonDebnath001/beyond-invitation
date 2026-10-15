@@ -44,7 +44,7 @@ export default function ProductEnquiryBanner({
         <p className="text-sm font-semibold text-carbon">
           Enquiry for design {product.designNo}
         </p>
-        <p className="mt-1 break-words text-sm text-ink-mid">{formatProductName(product.name, product.designNo)}</p>
+        <p className="mt-1 break-words text-sm text-ink-mid">{formatProductName(product.name, product.printName)}</p>
         {product.minOrderQty != null && product.minOrderQty > 0 ? (
           <p className="mt-1 text-xs text-ink-light">
             Min. {product.minOrderQty} pieces

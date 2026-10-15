@@ -46,6 +46,19 @@ the previous catalogue reader. Pagination and media improvements still work, but
 the consolidated database read requires the migration. Permission and network
 errors are surfaced rather than silently falling back.
 
+For the title's bracketed suffix, apply
+[migrations/20261015_storefront_print_name.sql](migrations/20261015_storefront_print_name.sql)
+after the storefront migration. It appends `items.print_name` to
+`v_storefront_products`; the page function includes it automatically. The suffix
+uses this Print Name and is omitted when it is blank. Design numbers, product
+URLs and order item identities retain their existing fields.
+
+Before that migration is installed, optimized reads fetch Print Names only for
+the returned rows whose `print_name` column is absent, in batches of at most 200
+published item IDs. A present null or blank value does not trigger another read.
+The legacy reader includes Print Names in its existing published-item query.
+The new migration has not been applied to the hosted database by this change.
+
 Base data is cached for 60 seconds with the existing `catalogue` tag. Referral
 cookies are read outside the cache, and displayed prices are applied afterward.
 For price-dependent filtering and ordering, the numeric margin is part of the

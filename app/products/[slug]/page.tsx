@@ -672,7 +672,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <span className="shrink-0 text-gold">/</span>
 
-            <span className="min-w-0 truncate text-ink">{formatProductName(product.name, product.itemCode)}</span>
+            <span className="min-w-0 truncate text-ink">{formatProductName(product.name, product.printName)}</span>
           </nav>
 
           {/* Product layout */}
@@ -684,7 +684,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 images={product.images || []}
                 videos={product.videos}
                 emoji={product.emoji}
-                alt={formatProductName(product.name, product.itemCode)}
+                alt={formatProductName(product.name, product.printName)}
                 badge={product.badge}
               />
             </div>
@@ -706,7 +706,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
                 <div className="mt-3 flex items-start justify-between gap-4">
                   <h1 className="min-w-0 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[36px] 2xl:text-[40px]">
-                    {formatProductName(product.name, product.itemCode)}
+                    {formatProductName(product.name, product.printName)}
                   </h1>
                   <WishlistButton productSlug={product.slug} className="shrink-0" />
                 </div>

@@ -29,6 +29,7 @@ export default async function ContactPage({ searchParams }: {
         enquiryProduct = {
           slug: product.slug,
           designNo: product.itemCode || product.slug,
+          printName: product.printName,
           name: product.name,
           image: product.images[0] || null,
           subject: product.subject,

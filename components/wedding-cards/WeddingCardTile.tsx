@@ -20,6 +20,7 @@ export default function WeddingCardTile({
     mrp: product.mrp,
     images: product.image ? [product.image] : [],
     itemCode: product.designNo,
+    printName: product.printName,
     itemGroup: product.itemGroup,
     subject: product.subject,
     minOrderQty: product.minOrderQty,

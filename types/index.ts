@@ -46,6 +46,8 @@ export interface Product {
   /** Whether the product appears in the homepage "Premium" section */
   isPremium?: boolean;
   itemCode?: string;
+  /** Item master Print Name used beside the product title, when present. */
+  printName?: string;
   itemGroup?: string;
 }
 

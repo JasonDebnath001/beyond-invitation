@@ -18,7 +18,7 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
   mode?: "own" | "shared"; disabled?: boolean;
 }) {
   const article = useRef<HTMLElement>(null);
-  const productName = formatProductName(product.name, product.itemCode);
+  const productName = formatProductName(product.name, product.printName);
   const [failedSrc, setFailedSrc] = useState("");
   const src = getMainProductImage(product.images);
   const discount = discountPercent(product);

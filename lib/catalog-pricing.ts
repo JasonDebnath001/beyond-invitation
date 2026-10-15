@@ -7,6 +7,7 @@ type PublishedItem = {
   id: string;
   website_price_list_id: string | null;
   web_title?: string | null;
+  print_name?: string | null;
 };
 export type SellingPriceRow = {
   id: string;
@@ -92,7 +93,7 @@ export async function applySellingPrices<T extends PriceRow>(
   return (await resolveSellingPrices(rows, db)).rows;
 }
 
-/** Resolve storefront prices and Web Titles using the same published-item read. */
+/** Resolve prices, Web Titles and Print Names in the same published-item read. */
 export async function applyCatalogDetails<T extends PriceRow & { name: string }>(
   rows: T[],
   db = getSupabaseAdminClient(),
@@ -101,6 +102,7 @@ export async function applyCatalogDetails<T extends PriceRow & { name: string }>
   return resolved.rows.map((row) => ({
     ...row,
     name: resolved.items.get(row.id)?.web_title?.trim() || row.name,
+    print_name: resolved.items.get(row.id)?.print_name ?? null,
   }));
 }
 
@@ -117,7 +119,7 @@ async function resolveSellingPrices<T extends PriceRow>(
   const today = new Date().toISOString().slice(0, 10);
   for (let offset = 0; offset < rows.length; offset += 200) {
     const { data, error } = await db.from("items")
-      .select(includeTitles ? "id,website_price_list_id,web_title" : "id,website_price_list_id")
+      .select(includeTitles ? "id,website_price_list_id,web_title,print_name" : "id,website_price_list_id")
       .in("id", rows.slice(offset, offset + 200).map((row) => row.id))
       .eq("show_on_website", true).eq("is_active", true)
       .returns<PublishedItem[]>();

@@ -1,7 +1,7 @@
-/** Keep catalogue names unchanged while showing their code in the storefront. */
-export function formatProductName(name: string, itemCode?: string | null): string {
+/** Keep catalogue titles unchanged while showing their Print Name in brackets. */
+export function formatProductName(name: string, printName?: string | null): string {
   const title = name.trim();
-  const code = itemCode?.trim();
-  if (!code || title.endsWith(`(${code})`)) return title;
-  return title ? `${title} (${code})` : `(${code})`;
+  const suffix = printName?.trim();
+  if (!suffix || title === suffix || title.endsWith(`(${suffix})`)) return title;
+  return title ? `${title} (${suffix})` : `(${suffix})`;
 }

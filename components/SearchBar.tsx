@@ -159,7 +159,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
                 </span>
 
                 <span className="min-w-0 flex-1 break-words text-[13px] font-medium text-carbon">
-                  {formatProductName(product.name, product.itemCode)}
+                  {formatProductName(product.name, product.printName)}
                 </span>
               </button>
             ))}

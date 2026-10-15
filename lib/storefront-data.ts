@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { WebProductRow } from "@/lib/catalog";
+import { applyCatalogPrintNames } from "@/lib/catalog-titles";
 
 export interface StorefrontRow extends WebProductRow {
   item_category: string;
@@ -77,7 +78,7 @@ export async function readStorefrontRows(
     if (missingContract(error, resource)) return null;
     throw new Error(`Product catalogue unavailable: ${error.message}`);
   }
-  return data ?? [];
+  return applyCatalogPrintNames(data ?? []);
 }
 
 /** Returns base prices; the margin parameter only controls filtering and order. */
@@ -102,5 +103,6 @@ export async function readStorefrontPage(
   ) {
     throw new Error("Product catalogue returned an invalid page.");
   }
-  return data as StorefrontPageResult;
+  const result = data as StorefrontPageResult;
+  return { ...result, products: await applyCatalogPrintNames(result.products) };
 }

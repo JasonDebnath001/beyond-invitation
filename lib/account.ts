@@ -12,7 +12,7 @@ export type AccountOrder = {
   amount: string;
   status: "paid" | "pending";
   itemCount: number;
-  items: { name: string; itemCode: string; quantity: number; unitPrice: string; total: string }[];
+  items: { name: string; itemCode: string; printName?: string; quantity: number; unitPrice: string; total: string }[];
   paymentReference: string;
 };
 
@@ -20,6 +20,7 @@ export type SavedProduct = {
   slug: string;
   name: string;
   itemCode?: string;
+  printName?: string;
   images: string[];
   price: number;
   mrp: number;
@@ -74,6 +75,7 @@ export async function fetchRecentWebsiteOrders(client: SupabaseClient, userId: s
         // Only presentation fields cross the server/client boundary, including inside JSON items.
         const items = (Array.isArray(row.items) ? row.items : []).map((line) => ({
           name: String(line.name), itemCode: String(line.itemCode), quantity: Number(line.quantity),
+          printName: typeof line.printName === "string" ? line.printName : "",
           unitPrice: formatInr(Math.round(Number(line.price) * 100)),
           total: formatInr(Math.round(Number(line.price) * Number(line.quantity) * 100)),
         }));
@@ -99,7 +101,7 @@ export async function fetchSavedProducts(client: SupabaseClient, userId: string)
     const catalog = new Map((await getCatalogProducts()).map((product) => [product.slug, product]));
     return data.flatMap(({ product_slug }) => {
       const product = catalog.get(product_slug);
-      return product ? [{ slug: product.slug, name: product.name, itemCode: product.itemCode, images: product.images.slice(0, 1),
+      return product ? [{ slug: product.slug, name: product.name, itemCode: product.itemCode, printName: product.printName, images: product.images.slice(0, 1),
         price: product.price, mrp: product.mrp ?? 0 }] : [];
     }).slice(0, 6);
   } catch (error) {

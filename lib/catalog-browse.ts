@@ -23,7 +23,7 @@ function summary(product: CatalogProduct): CatalogProduct {
 
 function browserProduct(product: CatalogProduct): BrowserProduct {
   return {
-    slug: product.slug, designNo: product.itemCode || product.slug, name: product.name,
+    slug: product.slug, designNo: product.itemCode || product.slug, name: product.name, printName: product.printName,
     price: product.price, mrp: product.mrp, image: product.images[0] || "", imageCount: product.images.length,
     subject: product.subject, itemCategory: product.itemCategory ?? "", itemGroup: product.itemGroup,
     hasPrice: product.hasPrice, minOrderQty: product.minOrderQty, updatedAt: product.updatedAt,
@@ -65,7 +65,7 @@ const readCatalogBrowsePage = unstable_cache(async (options: Required<Pick<Catal
   if (options.sort === "discount") filtered.sort((a, b) => discountPercent(b.shown) - discountPercent(a.shown));
   const end = options.offset + COLLECTION_PAGE_SIZE;
   return { products: filtered.slice(options.offset, end).map(({ base }) => summary(base)), nextOffset: end < filtered.length ? end : null, total: filtered.length };
-}, ["catalogBrowsePage-v1"], { revalidate: 60, tags: ["catalogue"] });
+}, ["catalogBrowsePage-v2"], { revalidate: 60, tags: ["catalogue"] });
 
 export async function fetchCatalogProductPage(options: CatalogBrowseOptions = {}): Promise<CatalogBrowsePage> {
   const offset = options.offset ?? 0;
@@ -111,7 +111,7 @@ const readWeddingBrowsePage = unstable_cache(async (collectionType: WeddingColle
   const bySlug = new Map(source.map((p) => [p.slug, p]));
   const end = offset + COLLECTION_PAGE_SIZE;
   return { products: matches.slice(offset, end).map((p) => bySlug.get(p.slug)!), nextOffset: end < matches.length ? end : null, total: matches.length, facets: facetCounts(displayed) };
-}, ["weddingBrowsePage-v1"], { revalidate: 60, tags: ["catalogue"] });
+}, ["weddingBrowsePage-v2"], { revalidate: 60, tags: ["catalogue"] });
 
 export async function fetchWeddingProductPage({ collectionType, filters = DEFAULT_WEDDING_FILTERS, offset = 0 }: {
   collectionType?: WeddingCollectionType; filters?: WeddingFilters; offset?: number;

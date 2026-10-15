@@ -27,6 +27,7 @@ export type CartProduct = Product & {
 export interface CartItem {
   slug: string;
   itemCode: string;
+  printName?: string;
   subject: string;
   name: string;
   price: number;
@@ -100,6 +101,8 @@ function cartReducer(
                   itemCode:
                     action.product.itemCode ??
                     item.itemCode,
+                  printName: action.product.printName ?? "",
+                  name: action.product.name,
                   subject:
                     action.product.subject ??
                     item.subject,
@@ -121,6 +124,7 @@ function cartReducer(
             slug: action.product.slug,
             itemCode:
               action.product.itemCode ?? "",
+            printName: action.product.printName ?? "",
             subject,
             name: action.product.name,
             price: action.product.price,
@@ -177,6 +181,7 @@ function cartReducer(
           return {
             ...item,
             itemCode: item.itemCode ?? "",
+            printName: item.printName ?? "",
             subject,
             quantity: normalizeProductQuantity(
               Number(item.quantity),

@@ -1,6 +1,7 @@
 export type BrowserProduct = {
   slug: string;
   designNo: string;
+  printName?: string;
   name: string;
   price: number;
   mrp: number;

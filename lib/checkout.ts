@@ -13,6 +13,7 @@ export interface CheckoutLineInput {
 
 export interface ResolvedLine {
   itemCode: string;
+  printName: string;
   name: string;
   /** Authoritative base unit price from the public catalogue (INR). */
   basePrice: number;
@@ -85,6 +86,7 @@ export async function resolveCartProducts(
 
     lines.push({
       itemCode: product.itemCode,
+      printName: product.printName ?? "",
       name: product.name,
       basePrice,
       price,

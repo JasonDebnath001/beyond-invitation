@@ -24,7 +24,7 @@ export default function ProductCard({
   imageCount,
   placeholderLabel = "Image coming soon",
 }: ProductCardProps) {
-  const title = formatProductName(product.name, product.itemCode);
+  const title = formatProductName(product.name, product.printName);
   const photos = getProductCardImages(product.images);
   const totalPhotos = imageCount ?? product.imageCount ?? photos.length;
 

@@ -7,6 +7,7 @@ import { formatProductName } from "@/lib/product-name";
 import { getProductCardImages } from "@/lib/product-card-media";
 import ProductPrice from "./ProductPrice";
 import ProductCardPhotos from "./ProductCardPhotos";
+import AddToCartButton from "./AddToCartButton";
 
 interface ProductCardProps {
   product: Product & { subject?: string };
@@ -29,7 +30,7 @@ export default function ProductCard({
   const totalPhotos = imageCount ?? product.imageCount ?? photos.length;
 
   return (
-    <article className="product-card group flex h-full min-w-0 flex-col">
+    <article className="product-card group grid h-full min-w-0 grid-cols-1 grid-rows-[auto_1fr_auto] sm:grid-rows-[auto_1fr]">
       <ProductCardPhotos
         key={`${product.slug}:${totalPhotos}:${photos.join("|")}`}
         product={product}
@@ -41,7 +42,7 @@ export default function ProductCard({
         discount={discountPercent(product)}
         placeholderLabel={placeholderLabel}
       />
-      <div className="pt-2">
+      <div className="col-start-1 row-start-2 min-w-0 pt-2">
         <Link href={`/products/${product.slug}`} className="block focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-carbon">
           <h3 className="break-words text-[13px] font-normal leading-[1.45] tracking-[0.035em] text-[#161616] hover:underline hover:underline-offset-4 sm:text-[16px]">
             {title}
@@ -50,6 +51,9 @@ export default function ProductCard({
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <ProductPrice price={product.price} mrp={product.mrp} variant="card" />
         </div>
+      </div>
+      <div className="product-card-cart z-10 col-start-1 row-start-3 mt-3 self-end sm:row-start-1 sm:mx-3 sm:mb-4 sm:mt-0">
+        <AddToCartButton product={product} variant="card" />
       </div>
     </article>
   );

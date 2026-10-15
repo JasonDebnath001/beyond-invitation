@@ -25,8 +25,8 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
   const { minimum } = getProductQuantityRules(product);
 
   return (
-    <article ref={article} data-wishlist-card={product.slug} className="group relative flex h-full min-w-0 flex-col">
-      <div className="relative isolate">
+    <article ref={article} data-wishlist-card={product.slug} className="group relative grid h-full min-w-0 grid-cols-1 grid-rows-[auto_1fr_auto] sm:grid-rows-[auto_1fr]">
+      <div className="relative isolate col-start-1 row-start-1">
         <Link href={`/products/${product.slug}`} aria-label={`View ${productName}`} className={`relative flex aspect-square w-full items-center justify-center overflow-hidden focus-visible:ring-inset ${focusClass}`}>
           {src && src !== failedSrc ? (
             <Image src={src} alt={productName} fill sizes="(min-width:1800px) 419px, (min-width:1024px) calc(25vw - 31px), (min-width:768px) calc(33.333vw - 29.333px), (min-width:640px) calc(50vw - 34px), calc(50vw - 22px)"
@@ -45,11 +45,8 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
             <X aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
           </button>
         )}
-        <div className="product-card-cart absolute inset-x-3 bottom-4 z-10">
-          <AddToCartButton product={product} variant="card" />
-        </div>
       </div>
-      <div className="min-w-0 pt-2">
+      <div className="col-start-1 row-start-2 min-w-0 pt-2">
         <Link href={`/products/${product.slug}`} className={focusClass}>
           <h2 title={productName} className="break-words text-[13px] font-normal leading-[1.45] tracking-[0.035em] text-[#161616] hover:underline hover:underline-offset-4 sm:text-[16px]">{productName}</h2>
         </Link>
@@ -57,6 +54,9 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
           <ProductPrice price={product.price} mrp={product.mrp} variant="card" />
         </div>
         <p className="mt-1 text-[11px] leading-4 text-[#78695d] sm:text-xs">Min. {minimum} pieces</p>
+      </div>
+      <div className="product-card-cart z-10 col-start-1 row-start-3 mt-3 self-end sm:row-start-1 sm:mx-3 sm:mb-4 sm:mt-0">
+        <AddToCartButton product={product} variant="card" />
       </div>
     </article>
   );

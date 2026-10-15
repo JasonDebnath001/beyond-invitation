@@ -55,7 +55,7 @@ export default function AddToCartButton({
     : "border border-carbon bg-white text-carbon hover:bg-carbon hover:text-white";
   const isCard = variant === "card";
   const buttonClassName = isCard
-    ? `flex min-h-8 w-full items-center justify-center px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white transition-[background-color,transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(112,39,35,0.16)] active:translate-y-0 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carbon motion-reduce:transform-none motion-reduce:transition-none sm:text-[11px] ${added ? "bg-[#702723]" : "bg-[#96352f]/95 hover:bg-[#7e2a26]"}`
+    ? `flex min-h-11 w-full items-center justify-center whitespace-nowrap rounded-md px-3 py-2.5 text-xs font-semibold leading-4 tracking-[0.01em] text-white transition-[background-color,transform,box-shadow] duration-200 ease-out hover:shadow-[0_4px_12px_rgba(112,39,35,0.16)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carbon motion-reduce:transform-none motion-reduce:transition-none sm:min-h-8 sm:whitespace-normal sm:rounded-none sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.2em] sm:hover:-translate-y-0.5 sm:active:translate-y-0 ${added ? "bg-[#702723]" : "bg-[#96352f]/95 hover:bg-[#7e2a26]"}`
     : `${base} ${size} ${colors}`;
 
   if (!Number.isFinite(product.price) || product.price <= 0) {
@@ -81,7 +81,9 @@ export default function AddToCartButton({
           ? isCard
             ? "Added to cart"
             : "\u2713 Added to Cart"
-          : "Add to Cart"}
+          : isCard
+            ? "Add to cart"
+            : "Add to Cart"}
       </span>
     </button>
   );

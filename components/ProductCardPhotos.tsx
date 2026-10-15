@@ -6,7 +6,6 @@ import type { Product } from "@/types";
 import { getProductCardImages } from "@/lib/product-card-media";
 import Link from "@/components/NavigationLink";
 import ProductImage from "@/components/ProductImage";
-import AddToCartButton from "@/components/AddToCartButton";
 
 interface CardPhotosProps {
   product: Product;
@@ -92,7 +91,7 @@ export default function ProductCardPhotos({
   }
 
   return (
-    <div className="relative isolate">
+    <div className="relative isolate col-start-1 row-start-1">
       <Link
         href={`/products/${product.slug}`}
         aria-label={`View ${title}`}
@@ -180,9 +179,6 @@ export default function ProductCardPhotos({
         </>
       )}
 
-      <div className="product-card-cart absolute inset-x-3 bottom-4 z-10">
-        <AddToCartButton product={product} variant="card" />
-      </div>
       <span role="status" className="sr-only">
         {loading
           ? "Loading product photos"

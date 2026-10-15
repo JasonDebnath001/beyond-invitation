@@ -96,7 +96,11 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={assistant.variable}>
-      <body className="min-h-screen bg-white font-sans text-carbon antialiased">
+      {/* Suppress body-only attribute warnings from extensions such as ColorZilla. */}
+      <body
+        suppressHydrationWarning
+        className="min-h-screen bg-white font-sans text-carbon antialiased"
+      >
         <StorefrontShell>{children}</StorefrontShell>
       </body>
     </html>

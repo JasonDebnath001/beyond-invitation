@@ -239,11 +239,12 @@ const readCatalogProductBySlug = unstable_cache(
   { revalidate: 60, tags: ["catalogue"] },
 );
 
-// Read one extra row to detect another page without counting or resolving the
-// full catalogue. The sentinel is not priced, titled or sent to the browser.
+// The optimized reader filters before pagination. The legacy priced-only path
+// must resolve Selling prices before filtering; its public view has older prices.
 const readCatalogProductPage = unstable_cache(
   async (
     offset: number,
+    pricedOnly = false,
   ): Promise<{
     products: CatalogProduct[];
     nextOffset: number | null;
@@ -251,12 +252,25 @@ const readCatalogProductPage = unstable_cache(
     const optimized = await readStorefrontPage({
       p_offset: offset,
       p_limit: PRODUCTS_PER_PAGE,
+      ...(pricedOnly ? { p_priced_only: true } : {}),
     });
     if (optimized !== null)
       return {
         products: optimized.products.map(mapCatalogRowToProduct),
         nextOffset: optimized.nextOffset,
       };
+    if (pricedOnly) {
+      const products = (await readCatalogProducts()).filter(
+        (product) => Number.isFinite(product.price) && product.price > 0,
+      );
+      const end = offset + PRODUCTS_PER_PAGE;
+      return {
+        products: products.slice(offset, end),
+        nextOffset: end < products.length ? end : null,
+      };
+    }
+    // An extra source row detects the next unfiltered page without resolving
+    // the full catalogue. The sentinel is not sent to the browser.
     const { data, error } = await getSupabaseServerClient()
       .from("v_web_products")
       .select("*")
@@ -279,7 +293,7 @@ const readCatalogProductPage = unstable_cache(
         rows.length > PRODUCTS_PER_PAGE ? offset + PRODUCTS_PER_PAGE : null,
     };
   },
-  ["catalogProductPage-v3-print-name", String(PRODUCTS_PER_PAGE)],
+  ["catalogProductPage-v4-priced-only", String(PRODUCTS_PER_PAGE)],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -300,7 +314,7 @@ export async function fetchErpProducts(): Promise<CatalogProduct[]> {
 }
 
 /** Cache only this page's base products, then price it for the current visitor. */
-export async function fetchErpProductPage(offset = 0): Promise<{
+export async function fetchErpProductPage(offset = 0, pricedOnly = false): Promise<{
   products: CatalogProduct[];
   nextOffset: number | null;
 }> {
@@ -311,7 +325,7 @@ export async function fetchErpProductPage(offset = 0): Promise<{
   ) {
     throw new Error("Provide a valid product offset.");
   }
-  const page = await readCatalogProductPage(offset);
+  const page = await readCatalogProductPage(offset, pricedOnly);
   return {
     products: await applyResellerPricingToProducts(page.products),
     nextOffset: page.nextOffset,

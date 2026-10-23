@@ -39,6 +39,8 @@ interface ProductSectionProps {
   products: Product[];
   nextOffset: number | null;
   sale?: boolean;
+  pricedOnly?: boolean;
+  collection?: "wedding-boxes";
   viewAllHref?: string;
   viewAllText?: string;
 
@@ -53,6 +55,8 @@ export function ProductSection({
   products,
   nextOffset,
   sale = false,
+  pricedOnly = false,
+  collection,
   viewAllHref,
   viewAllText = "View All",
   shaded = false,
@@ -72,15 +76,18 @@ export function ProductSection({
       requestRef.current?.abort();
       requestRef.current = null;
     };
-  }, [products, nextOffset]);
+  }, [products, nextOffset, pricedOnly, collection]);
 
   const displayedProducts = useMemo(() => {
-    if (!sale) return loadedProducts;
-    return loadedProducts.map((product) => {
+    const visibleProducts = pricedOnly
+      ? loadedProducts.filter((product) => Number.isFinite(product.price) && product.price > 0)
+      : loadedProducts;
+    if (!sale) return visibleProducts;
+    return visibleProducts.map((product) => {
       const onSale = product.price > 0 && product.mrp > product.price;
       return { ...product, onSale, badge: onSale ? "SALE" : product.badge };
     });
-  }, [loadedProducts, sale]);
+  }, [loadedProducts, sale, pricedOnly]);
 
   const hasMoreProducts = offset !== null;
 
@@ -92,7 +99,10 @@ export function ProductSection({
     setError("");
 
     try {
-      const response = await fetch(`/api/catalog/products?offset=${offset}`, {
+      const params = new URLSearchParams({ offset: String(offset) });
+      if (pricedOnly) params.set("pricedOnly", "true");
+      if (collection) params.set("collection", collection);
+      const response = await fetch(`/api/catalog/products?${params}`, {
         credentials: "same-origin",
         cache: "no-store",
         signal: controller.signal,

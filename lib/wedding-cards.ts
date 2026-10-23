@@ -92,6 +92,21 @@ export function serializeWeddingFilters(filters: WeddingFilters) {
   return params.toString();
 }
 
+export function normalizeWeddingCollectionFilters(
+  filters: WeddingFilters,
+  collectionType?: WeddingCollectionType,
+): WeddingFilters {
+  if (!collectionType) return filters;
+  return {
+    ...filters,
+    type: "all",
+    price:
+      collectionType === "hindu" && filters.price === "on-request"
+        ? "any"
+        : filters.price,
+  };
+}
+
 export function weddingFiltersFromSearchParams(
   params: WeddingSearchParams,
   collectionType?: WeddingCollectionType,
@@ -102,7 +117,7 @@ export function weddingFiltersFromSearchParams(
       return (Array.isArray(value) ? value[0] : value) ?? null;
     },
   });
-  return collectionType ? { ...filters, type: "all" } : filters;
+  return normalizeWeddingCollectionFilters(filters, collectionType);
 }
 
 export function applyWeddingFilters(

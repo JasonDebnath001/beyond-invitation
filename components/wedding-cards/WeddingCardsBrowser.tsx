@@ -14,6 +14,7 @@ import WeddingCardTile from "@/components/wedding-cards/WeddingCardTile";
 import { useWeddingCardsMotion } from "@/components/wedding-cards/WeddingCardsMotion";
 import {
   DEFAULT_WEDDING_FILTERS,
+  normalizeWeddingCollectionFilters,
   parseWeddingFilters,
   serializeWeddingFilters,
   WEDDING_SORTS,
@@ -121,7 +122,7 @@ export default function WeddingCardsBrowser({
   const productLabel = collectionType === "boxes" ? "wedding boxes" : "wedding cards";
   const normalizeFilters = useCallback(
     (value: WeddingFilters): WeddingFilters =>
-      collectionType ? { ...value, type: "all" } : value,
+      normalizeWeddingCollectionFilters(value, collectionType),
     [collectionType],
   );
   const [filters, setFilters] = useState(() => normalizeFilters(initialFilters));

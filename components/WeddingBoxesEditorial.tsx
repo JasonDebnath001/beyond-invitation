@@ -8,8 +8,6 @@ const COLLECTION_HREF = "/wedding-boxes";
 // If you create a new category slug later, change this to:
 // const COLLECTION_HREF = "/collections/wedding-boxes";
 
-const QUOTE_HREF = "/contact";
-
 const IMAGES = {
   main: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_52_48%20PM.png",
   top: "https://ik.imagekit.io/71sbb5rn6/ChatGPT%20Image%20Jul%206,%202026,%2004_09_42%20PM.png",
@@ -261,34 +259,6 @@ export default function WeddingBoxesEditorial() {
                 →
               </span>
             </Link>
-
-            <Link
-              href={QUOTE_HREF}
-              className="inline-flex max-w-full items-center justify-center rounded-full border border-[#2a1810]/20 bg-white/50 px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#2a1810] transition duration-300 hover:-translate-y-0.5 hover:border-[#8b1e2d]/40 hover:bg-white sm:px-7 sm:text-sm sm:tracking-[0.2em]"
-            >
-              Request Custom Quote
-            </Link>
-          </div>
-
-          <div
-            data-editorial-reveal
-            className="mt-10 grid max-w-xl grid-cols-1 divide-y divide-[#d9b875]/30 border-y border-[#d9b875]/40 py-2 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:py-5"
-          >
-            <div className="py-3 sm:px-2 sm:py-0 sm:first:pl-0">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#7b604d] sm:text-xs sm:tracking-[0.22em]">
-                Premium Finish
-              </p>
-            </div>
-            <div className="py-3 sm:px-3 sm:py-0">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#7b604d] sm:text-xs sm:tracking-[0.22em]">
-                Customisable
-              </p>
-            </div>
-            <div className="py-3 sm:px-3 sm:py-0">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#7b604d] sm:text-xs sm:tracking-[0.22em]">
-                Gift Ready
-              </p>
-            </div>
           </div>
         </div>
 

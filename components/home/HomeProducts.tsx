@@ -1,4 +1,5 @@
 import { fetchErpProductPage } from "@/lib/catalog";
+import { fetchItemCategoryProductPage } from "@/lib/catalog-item-category";
 import { PRODUCTS_PER_PAGE } from "@/lib/product-page";
 import { getSiteUrl } from "@/lib/site-config";
 import { ProductSection } from "@/components/ProductGrid";
@@ -61,11 +62,15 @@ export function HomeProductsSkeleton() {
   );
 }
 
-/** One server fetch supplies every homepage collection and its structured data. */
+/** Sale and Trendy share a priced page; Premium features wedding boxes. */
 export default async function HomeProducts({ description }: { description: string }) {
-  let firstPage;
+  let weddingBoxesPage;
+  let pricedPage;
   try {
-    firstPage = await fetchErpProductPage();
+    [weddingBoxesPage, pricedPage] = await Promise.all([
+      fetchItemCategoryProductPage("Wedding Box"),
+      fetchErpProductPage(0, true),
+    ]);
   } catch (error) {
     console.error("Catalogue product fetch failed on homepage:", error);
     return (
@@ -81,13 +86,16 @@ export default async function HomeProducts({ description }: { description: strin
     );
   }
 
-  const { products, nextOffset } = firstPage;
+  const { products, nextOffset } = weddingBoxesPage;
+  const featuredProducts = Array.from(
+    new Map([...pricedPage.products, ...products].map((product) => [product.slug, product])).values(),
+  );
   const siteUrl = getSiteUrl();
   const productListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Featured wedding cards and invitation stationery",
-    itemListElement: products.map((product, index) => ({
+    itemListElement: featuredProducts.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: `${siteUrl}/products/${product.slug}`,
@@ -111,13 +119,14 @@ export default async function HomeProducts({ description }: { description: strin
 
   return (
     <>
-      {products.length > 0 ? <JsonLd data={productListJsonLd} /> : null}
-      <SaleCollection products={products} nextOffset={nextOffset} />
+      {featuredProducts.length > 0 ? <JsonLd data={productListJsonLd} /> : null}
+      <SaleCollection products={pricedPage.products} nextOffset={pricedPage.nextOffset} />
       <ProductSection
         label="Fresh from our catalogue"
         title="Trendy Collection"
-        products={products}
-        nextOffset={nextOffset}
+        products={pricedPage.products}
+        nextOffset={pricedPage.nextOffset}
+        pricedOnly
         viewAllHref="/catalog"
         viewAllText="View All Products"
       />
@@ -127,8 +136,9 @@ export default async function HomeProducts({ description }: { description: strin
         title="Premium Invitations"
         products={products}
         nextOffset={nextOffset}
-        viewAllHref="/collections/luxe"
-        viewAllText="View All Premium Cards"
+        collection="wedding-boxes"
+        viewAllHref="/wedding-boxes"
+        viewAllText="View All Wedding Boxes"
         shaded
       />
     </>

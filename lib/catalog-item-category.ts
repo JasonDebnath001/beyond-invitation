@@ -7,11 +7,14 @@ import {
   buildErpProductList,
   compareWeddingCardProducts,
   isWeddingCardProduct,
+  mapCatalogRowToProduct,
   resolveCatalogProducts,
   type CatalogProduct,
   type WebProductRow,
 } from "@/lib/catalog";
 import { applyResellerPricingToProducts } from "@/lib/reseller";
+import { PRODUCTS_PER_PAGE } from "@/lib/product-page";
+import { readStorefrontPage } from "@/lib/storefront-data";
 
 export type CategorizedCatalogProduct = CatalogProduct & {
   itemCategory: string;
@@ -90,6 +93,56 @@ export async function fetchProductsByItemCategoryBase(
 ): Promise<CategorizedCatalogProduct[]> {
   const name = itemCategory.trim();
   return name ? readProductsByItemCategory(name) : [];
+}
+
+const readItemCategoryProductPage = unstable_cache(
+  async (
+    itemCategory: string,
+    offset: number,
+  ): Promise<{ products: CatalogProduct[]; nextOffset: number | null }> => {
+    const optimized = await readStorefrontPage({
+      p_item_category: itemCategory,
+      p_offset: offset,
+      p_limit: PRODUCTS_PER_PAGE,
+      p_sort: "recommended",
+    });
+    if (optimized !== null) {
+      return {
+        products: optimized.products.map(mapCatalogRowToProduct),
+        nextOffset: optimized.nextOffset,
+      };
+    }
+
+    const products = await readProductsByItemCategory(itemCategory);
+    const end = offset + PRODUCTS_PER_PAGE;
+    return {
+      products: products.slice(offset, end),
+      nextOffset: end < products.length ? end : null,
+    };
+  },
+  ["itemCategoryProductPage-v1", String(PRODUCTS_PER_PAGE)],
+  { revalidate: 60, tags: ["catalogue"] },
+);
+
+/** Read one category page while keeping visitor prices out of shared caches. */
+export async function fetchItemCategoryProductPage(
+  itemCategory: string,
+  offset = 0,
+): Promise<{ products: CatalogProduct[]; nextOffset: number | null }> {
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    offset > 2147483647 - PRODUCTS_PER_PAGE
+  ) {
+    throw new Error("Provide a valid product offset.");
+  }
+  const name = itemCategory.trim();
+  if (!name) return { products: [], nextOffset: null };
+  const page = await readItemCategoryProductPage(name, offset);
+  return {
+    products: await applyResellerPricingToProducts(page.products),
+    nextOffset: page.nextOffset,
+  };
 }
 
 const readWeddingCardsWithCategories = unstable_cache(

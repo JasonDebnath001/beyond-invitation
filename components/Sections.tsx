@@ -161,31 +161,57 @@ export function CelebrationGrid({
   ];
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-20 lg:py-24">
-      <SectionHeading eyebrow="Browse by event" title="Shop by Category" />
+    <section
+      aria-labelledby="browse-by-event-heading"
+      className="bg-[#fcf7f0] px-4 pb-16 pt-14 sm:px-6 sm:pb-24 sm:pt-20 xl:px-[2.15%] xl:pb-[clamp(112px,13.9vw,250px)] xl:pt-[clamp(96px,10.2vw,184px)]"
+    >
+      <div className="mx-auto max-w-[1728px]">
+        <h2
+          id="browse-by-event-heading"
+          className="text-center [font-family:'Times_New_Roman',Times,serif] text-[42px] font-normal leading-[1.1] tracking-[-0.035em] text-[#70070b] sm:text-[60px] xl:text-[clamp(64px,5vw,90px)]"
+        >
+          Browse By Event
+        </h2>
 
-      <div className="mt-6 grid grid-cols-4 gap-x-2 gap-y-5 min-[360px]:gap-x-3 sm:gap-x-4 md:mt-12 md:gap-8 xl:grid-cols-8 xl:gap-6">
-        {categoryItems.map((cat) => (
-          <Link
-            key={cat.slug}
-            href={`/collections/${cat.slug}`}
-            className="group flex flex-col items-center text-center"
-          >
-            <div className="relative h-14 w-14 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-neutral-200 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-lg min-[360px]:h-16 min-[360px]:w-16 md:h-32 md:w-32">
-              <Image
-                src={cat.image}
-                alt={cat.name}
-                fill
-                sizes="(max-width: 359px) 56px, (max-width: 767px) 64px, 128px"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
+        <div aria-hidden="true" className="mx-auto mt-2.5 flex h-[30px] w-[220px] items-center gap-2 text-[#dfa566] sm:w-[300px]">
+          <span className="h-px flex-1 bg-current" />
+          <svg viewBox="0 0 48 32" className="h-[30px] w-[44px] shrink-0 fill-none stroke-current" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M24 27C15 20 17 10 24 2c7 8 9 18 0 25Z" />
+            <path d="M24 27C12 25 8 16 10 8c10 2 15 8 14 19Zm0 0c12-2 16-11 14-19-10 2-15 8-14 19Z" />
+            <path d="M24 27C12 30 5 24 2 17c10-2 18 1 22 10Zm0 0c12 3 19-3 22-10-10-2-18 1-22 10Z" />
+            <path d="M24 27C16 23 12 14 17 5m7 22c8-4 12-13 7-22M24 7v20m-6 1 6 3 6-3" />
+          </svg>
+          <span className="h-px flex-1 bg-current" />
+        </div>
 
-            <h3 className="mt-2 max-w-[64px] text-[8px] font-medium uppercase leading-tight tracking-[0.03em] text-carbon min-[360px]:max-w-[74px] min-[360px]:text-[9px] md:mt-4 md:max-w-[140px] md:text-[12px] md:tracking-[0.08em]">
-              {cat.name}
-            </h3>
-          </Link>
-        ))}
+        <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-6 sm:mt-12 sm:grid-cols-4 sm:gap-x-4 xl:mt-[48px] xl:grid-cols-8 xl:gap-x-[0.84vw]">
+          {categoryItems.map((cat) => (
+            <Link
+              key={cat.slug}
+              href={`/collections/${cat.slug}`}
+              aria-label={cat.name}
+              className="group flex min-w-0 flex-col text-center outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#70070b]"
+            >
+              <div className="rounded-t-full border border-b-0 border-[#e9b17c] p-[3px] pb-0">
+                <div className="relative aspect-[183/269] overflow-hidden rounded-t-full">
+                  <Image
+                    src={cat.image}
+                    alt={cat.name}
+                    fill
+                    sizes="(min-width: 1800px) 195px, (min-width: 1280px) 12vw, (min-width: 640px) 25vw, 50vw"
+                    className="object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-105"
+                  />
+                </div>
+              </div>
+
+              <h3 className="flex-1 whitespace-nowrap rounded-b-[24px] border border-t-0 border-[#e9b17c] px-px pb-6 pt-[18px] [font-family:'Times_New_Roman',Times,serif] text-[clamp(12px,3.8vw,18px)] font-normal uppercase leading-[1.3] text-[#7b0d12] sm:text-[clamp(12px,1.7vw,18px)] xl:min-h-[90px] xl:text-[clamp(12px,1.05vw,19px)]">
+                {cat.name.slice(0, cat.name.lastIndexOf(" "))}
+                <br />
+                {cat.name.slice(cat.name.lastIndexOf(" ") + 1)}
+              </h3>
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -206,6 +232,7 @@ export function SaleCollection({
       products={products}
       nextOffset={nextOffset}
       sale
+      pricedOnly
       viewAllHref="/collections/wedding"
       viewAllText="View All Sale Products"
       shaded

@@ -20,7 +20,10 @@ export type CategorizedCatalogProduct = CatalogProduct & {
   itemCategory: string;
 };
 
-async function readPublishedItemCategories(itemCategory?: string) {
+async function readPublishedItemCategories(
+  itemCategory?: string,
+  includeWebCategories = false,
+) {
   const admin = getSupabaseAdminClient();
   const categories = new Map<string, string>();
   const pageSize = 1000;
@@ -40,6 +43,46 @@ async function readPublishedItemCategories(itemCategory?: string) {
       categories.set(row.id, row.item_categories.name);
     if ((data?.length ?? 0) < pageSize) break;
   }
+
+  if (includeWebCategories && itemCategory) {
+    // Item Category (Web) stores subject IDs in a JSONB array, independently
+    // of the ordinary Item Category. Resolve every exact name match first.
+    for (let subjectOffset = 0; ; subjectOffset += pageSize) {
+      const { data: subjects, error: subjectError } = await admin
+        .from("subjects")
+        .select("id")
+        .eq("name", itemCategory)
+        .order("id", { ascending: true })
+        .range(subjectOffset, subjectOffset + pageSize - 1)
+        .returns<{ id: string }[]>();
+      if (subjectError)
+        throw new Error(`Web category unavailable: ${subjectError.message}`);
+
+      for (const subject of subjects ?? []) {
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await admin
+            .from("items")
+            .select("id,item_categories(name)")
+            .eq("show_on_website", true)
+            .eq("is_active", true)
+            .contains("web_category_ids", JSON.stringify([subject.id]))
+            .order("id", { ascending: true })
+            .range(offset, offset + pageSize - 1)
+            .returns<
+              { id: string; item_categories: { name: string } | null }[]
+            >();
+          if (error)
+            throw new Error(`Web category unavailable: ${error.message}`);
+          for (const row of data ?? []) {
+            if (!categories.has(row.id))
+              categories.set(row.id, row.item_categories?.name ?? "");
+          }
+          if ((data?.length ?? 0) < pageSize) break;
+        }
+      }
+      if ((subjects?.length ?? 0) < pageSize) break;
+    }
+  }
   return categories;
 }
 
@@ -49,9 +92,15 @@ async function readPublishedItemCategories(itemCategory?: string) {
  * public catalogue view, with the same titles and Selling prices as the main catalogue.
  */
 const readProductsByItemCategory = unstable_cache(
-  async (itemCategory: string): Promise<CategorizedCatalogProduct[]> => {
+  async (
+    itemCategory: string,
+    includeWebCategories = false,
+  ): Promise<CategorizedCatalogProduct[]> => {
     const publicCatalog = getSupabaseServerClient();
-    const categories = await readPublishedItemCategories(itemCategory);
+    const categories = await readPublishedItemCategories(
+      itemCategory,
+      includeWebCategories,
+    );
     const products: CategorizedCatalogProduct[] = [];
     const itemIds = [...categories.keys()];
     // Bound URL length and stay below the database's response-row limit.
@@ -74,7 +123,7 @@ const readProductsByItemCategory = unstable_cache(
 
     return products.sort(compareWeddingCardProducts);
   },
-  ["products-by-item-category-v7-web-titles"],
+  ["products-by-item-category-v8-web-categories"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 
@@ -90,9 +139,10 @@ export async function fetchProductsByItemCategory(
 /** Base data for the migration-compatible server pagination path. */
 export async function fetchProductsByItemCategoryBase(
   itemCategory: string,
+  includeWebCategories = false,
 ): Promise<CategorizedCatalogProduct[]> {
   const name = itemCategory.trim();
-  return name ? readProductsByItemCategory(name) : [];
+  return name ? readProductsByItemCategory(name, includeWebCategories) : [];
 }
 
 const readItemCategoryProductPage = unstable_cache(

@@ -42,6 +42,12 @@ import {
   type WeddingProductPage,
 } from "@/lib/wedding-cards";
 
+const WEDDING_COLLECTION_SUBJECTS = {
+  hindu: "hindu wedding card",
+  muslim: "muslim wedding card",
+  christian: "christian wedding card",
+} as const;
+
 function validateOffset(offset: number) {
   // The PostgreSQL page function uses an integer offset.
   if (
@@ -240,10 +246,11 @@ const readWeddingBrowsePage = unstable_cache(
     offset: number,
     margin: number,
   ) => {
-    const itemCategory =
-      collectionType === "boxes"
-        ? "Wedding Box"
-        : CARD_TYPES.find((t) => t.value === collectionType)?.itemCategory;
+    const subjects =
+      collectionType && collectionType !== "boxes"
+        ? [WEDDING_COLLECTION_SUBJECTS[collectionType], "common"]
+        : undefined;
+    const itemCategory = collectionType === "boxes" ? "Wedding Box" : undefined;
     const filterCategory = !collectionType
       ? CARD_TYPES.find((t) => t.value === filters.type)?.itemCategory
       : undefined;
@@ -253,6 +260,7 @@ const readWeddingBrowsePage = unstable_cache(
       p_limit: COLLECTION_PAGE_SIZE,
       p_sort: filters.sort,
       p_margin_percent: margin,
+      p_subjects: subjects,
       p_item_category: itemCategory,
       p_wedding_collection: !collectionType,
       p_filter_item_category: filterCategory,
@@ -263,8 +271,8 @@ const readWeddingBrowsePage = unstable_cache(
     if (result !== null) {
       if (!result.facets)
         throw new Error("Product catalogue returned no filter counts.");
-      // The RPC counts facets before applying price filters. Hindu's entire
-      // collection is priced-only, including its All prices count and options.
+      // Facets precede price filters in the RPC; Hindu's collection only
+      // includes priced products, even when no price bucket is selected.
       const facetTotal =
         result.facets.total -
         (pricedOnly ? (result.facets.prices["on-request"] ?? 0) : 0);
@@ -285,8 +293,8 @@ const readWeddingBrowsePage = unstable_cache(
           types: CARD_TYPES.map((t) => ({
             value: t.value,
             label: t.label,
-            count: pricedOnly
-              ? t.value === "hindu"
+            count: subjects
+              ? t.value === collectionType
                 ? facetTotal
                 : 0
               : (result.facets!.types[t.value] ?? 0),
@@ -296,9 +304,15 @@ const readWeddingBrowsePage = unstable_cache(
         },
       };
     }
-    const source = itemCategory
-      ? await fetchProductsByItemCategoryBase(itemCategory)
-      : await fetchWeddingCardsWithCategoriesBase();
+    const source = subjects
+      ? (await fetchErpProductsBase())
+          .filter((product) =>
+            subjects.includes(product.subject.trim().toLowerCase()),
+          )
+          .sort(compareWeddingCardProducts)
+      : itemCategory
+        ? await fetchProductsByItemCategoryBase(itemCategory)
+        : await fetchWeddingCardsWithCategoriesBase();
     const displayed = source
       .map((p) => browserProduct(forDisplay(p, margin)))
       .filter(
@@ -311,14 +325,22 @@ const readWeddingBrowsePage = unstable_cache(
     );
     const bySlug = new Map(source.map((p) => [p.slug, p]));
     const end = offset + COLLECTION_PAGE_SIZE;
+    const facets = facetCounts(displayed);
+    if (subjects) {
+      // Subject membership need not match the item's ordinary ERP category.
+      facets.types = facets.types.map((type) => ({
+        ...type,
+        count: type.value === collectionType ? displayed.length : 0,
+      }));
+    }
     return {
       products: matches.slice(offset, end).map((p) => bySlug.get(p.slug)!),
       nextOffset: end < matches.length ? end : null,
       total: matches.length,
-      facets: facetCounts(displayed),
+      facets,
     };
   },
-  ["weddingBrowsePage-v3-hindu-priced"],
+  ["weddingBrowsePage-v7-common-subject"],
   { revalidate: 60, tags: ["catalogue"] },
 );
 

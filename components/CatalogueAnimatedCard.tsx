@@ -1,14 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 
 type CatalogueAnimatedCardProps = {
   title: string;
   price: string;
   image: string;
-  href: string;
+  onClick: () => void;
   className?: string;
   index?: number;
 };
@@ -17,11 +16,11 @@ export default function CatalogueAnimatedCard({
   title,
   price,
   image,
-  href,
+  onClick,
   className = "",
   index = 0
 }: CatalogueAnimatedCardProps) {
-  const cardRef = useRef<HTMLAnchorElement | null>(null);
+  const cardRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -312,10 +311,13 @@ export default function CatalogueAnimatedCard({
   }, [index]);
 
   return (
-    <Link
+    <button
       ref={cardRef}
-      href={href}
-      className={`catalogue-gsap-card group relative block h-[280px] overflow-hidden bg-stone-950 outline-none [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-gold md:h-[300px] ${className}`}
+      type="button"
+      onClick={onClick}
+      aria-haspopup="dialog"
+      aria-label={`Explore ${title} wedding cards, ${price}`}
+      className={`catalogue-gsap-card group relative block h-[280px] w-full overflow-hidden bg-stone-950 text-left outline-none [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold md:h-[300px] ${className}`}
     >
       <Image
         src={image}
@@ -340,10 +342,10 @@ export default function CatalogueAnimatedCard({
 
         <div className="catalogue-card-line mt-4 h-px w-20 bg-gradient-to-r from-gold via-white/70 to-transparent" />
 
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
           Explore Range
         </p>
       </div>
-    </Link>
+    </button>
   );
 }

@@ -20,7 +20,7 @@ function SharedContent({ slugs, products, loading, error, retry, sortKey, setSor
   useLayoutEffect(() => motion.reorderEnd(), [sortKey, motion]);
   return (
     <main className={contentClass}>
-      <WishlistHeader shared count={products.length} ready={!loading} />
+      <WishlistHeader shared />
       <Link href="/wishlist" className={`mb-7 ${secondaryClass}`}>Go to my wishlist</Link>
       {loading ? <WishlistSkeleton /> : error ? <WishlistError message={error} onRetry={retry} /> : products.length ? (
         <>

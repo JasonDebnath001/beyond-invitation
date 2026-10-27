@@ -17,7 +17,6 @@ type CollectionPageShellProps = {
   errorMessage?: string;
   emptyTitle: string;
   emptyDescription: string;
-  subjectLabel: string;
   breadcrumb: BreadcrumbItem[];
   accentIcon?: string;
 };
@@ -31,7 +30,6 @@ export default function CollectionPageShell({
   errorMessage = "",
   emptyTitle,
   emptyDescription,
-  subjectLabel,
   breadcrumb,
   accentIcon = "✦",
 }: CollectionPageShellProps) {

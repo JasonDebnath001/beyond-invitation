@@ -50,7 +50,7 @@ Legacy ERPNext integrations still used outside order storage:
 - Contact leads
 - Referral pricing
 
-Older customer, Sales Order, reseller-management and Payment Entry helpers remain in the repository, but the website order/payment routes use Supabase. ERPNext order environment variables in the legacy examples below no longer configure checkout.
+Website orders and payments use Supabase through `lib/website-orders.ts`. The unused legacy ERPNext customer, Sales Order and Payment Entry helpers have been removed. ERPNext order environment variables in the legacy examples below no longer configure checkout.
 
 ### Wishlist
 
@@ -175,8 +175,7 @@ beyond-invitation/
 │   ├── wishlist.ts
 │   ├── catalog.ts
 │   ├── supabase/server.ts
-│   ├── erpnext.ts
-│   ├── instagram.ts
+│   ├── website-orders.ts
 │   ├── product-quantity.ts
 │   ├── products.ts
 │   ├── razorpay.ts
@@ -672,7 +671,7 @@ Important application API routes include:
 | `GET /api/wishlist` | Read the signed-in user's wishlist |
 | `POST /api/wishlist` | Save a product or merge guest selections |
 | `DELETE /api/wishlist` | Remove a product from the signed-in user's wishlist |
-| `POST /api/razorpay/order` | Create Razorpay + ERPNext draft order |
+| `POST /api/razorpay/order` | Create Razorpay order and Supabase website order |
 | `POST /api/razorpay/verify` | Verify payment and fulfil order |
 | `POST /api/razorpay/webhook` | Razorpay webhook fulfilment |
 
@@ -873,13 +872,12 @@ Before deploying production changes, verify:
 - Cart persists correctly
 - Checkout customer validation works
 - Razorpay order creation works
-- ERPNext draft Sales Order is created
+- Supabase website order is created
 - Razorpay checkout opens
 - Payment verification succeeds
-- ERPNext Sales Order becomes Paid
-- ERPNext Sales Order is submitted
+- Supabase website order becomes paid after verification
 - Razorpay webhook succeeds
-- My Orders displays completed orders
+- Account page displays recent website orders
 - Contact enquiries reach ERPNext
 - Instagram reels load
 - Sitemap and robots endpoints work
@@ -887,6 +885,8 @@ Before deploying production changes, verify:
 ---
 
 # Build Notes
+
+Development (`npm run dev`) writes to `.next-dev`; production builds and `npm start` use `.next`. Keeping these directories separate prevents builds from overwriting a running development server's chunks and client manifests. Both directories are generated and ignored by Git.
 
 `next.config.js` currently allows remote HTTPS images.
 
@@ -900,7 +900,7 @@ Because of this, run code-quality and type checks before production deployment r
 
 The live product source is Supabase `public.v_web_products`, accessed through `lib/catalog.ts`. `data/categories.json` supplies category definitions; `data/products.json` is retained as a legacy fixture and is not merged into the live catalogue.
 
-ERPNext continues to handle orders, customers, reseller records and contact leads. Its existing integration remains in `lib/erpnext.ts`.
+ERPNext supplies referral records through `lib/reseller.ts` and receives contact leads through `app/api/contact-lead/route.ts`. Website orders are stored in Supabase through `lib/website-orders.ts`.
 
 ---
 
@@ -910,9 +910,9 @@ ERPNext continues to handle orders, customers, reseller records and contact lead
 
 Public catalogue mapper, cached lists, collection filters, product lookup, and lazy server-only Supabase client.
 
-### `lib/erpnext.ts`
+### `lib/website-orders.ts`
 
-Retained ERPNext integration for customers, orders, payment metadata, fulfilment and order history. Legacy catalogue helpers remain for compatibility and gallery regression tests.
+Supabase website order creation, payment state and fulfilment helpers.
 
 ### `lib/checkout.ts`
 
@@ -934,7 +934,7 @@ Referral-code lookup, cookie-based reseller detection, and margin pricing.
 
 Minimum quantity and quantity-step rules.
 
-### `lib/instagram.ts`
+### `app/api/instagram-reels/route.ts`
 
 Instagram Graph API integration.
 

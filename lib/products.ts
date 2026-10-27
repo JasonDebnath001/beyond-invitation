@@ -1,10 +1,7 @@
 import categoriesData from "@/data/categories.json";
-import type { Product, Category, ProductCategory } from "@/types";
+import type { Product, Category } from "@/types";
 import {
-  fetchErpProducts,
   fetchErpProductsBase,
-  fetchErpProductsByCategory,
-  fetchErpProductBySlug,
   type CatalogProduct,
 } from "@/lib/catalog";
 import { applyResellerPricingToProducts } from "@/lib/reseller";
@@ -25,45 +22,12 @@ function normalizeSearchText(value: unknown): string {
 
 type SearchableProduct = CatalogProduct;
 
-export async function getAllProducts(): Promise<Product[]> {
-  return fetchErpProducts();
-}
-
-export async function getCatalogProducts(): Promise<CatalogProduct[]> {
-  return fetchErpProducts();
-}
-
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  return fetchErpProductBySlug(slug);
-}
-
-export async function getSaleProducts(): Promise<Product[]> {
-  return (await fetchErpProducts()).filter((product) => product.onSale);
-}
-
-export async function getPremiumProducts(): Promise<Product[]> {
-  return (await fetchErpProducts()).filter((product) => product.isPremium);
-}
-
-export async function getProductsByCategory(category: ProductCategory): Promise<Product[]> {
-  return fetchErpProductsByCategory(category);
-}
-
-export async function getRelatedProducts(product: Product, limit = 4): Promise<Product[]> {
-  return (await fetchErpProductsByCategory(product.category))
-    .filter((candidate) => candidate.slug !== product.slug).slice(0, limit);
-}
-
 export async function getAllCategories(): Promise<Category[]> {
   return categories;
 }
 
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
   return categories.find((category) => category.slug === slug) ?? null;
-}
-
-export async function getAllProductSlugs(): Promise<string[]> {
-  return (await fetchErpProductsBase()).map((product) => product.slug);
 }
 
 /** Search the cached public catalogue, retaining the existing field scores. */

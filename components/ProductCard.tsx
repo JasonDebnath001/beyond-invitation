@@ -14,7 +14,6 @@ interface ProductCardProps {
   categoryLabel?: string;
   imageSizes?: string;
   priority?: boolean;
-  imageCount?: number;
   placeholderLabel?: string;
 }
 
@@ -22,21 +21,18 @@ export default function ProductCard({
   product,
   imageSizes = "(min-width:1800px) 419px, (min-width:1024px) calc(25vw - 31px), (min-width:768px) calc(33.333vw - 29.333px), (min-width:640px) calc(50vw - 34px), calc(50vw - 22px)",
   priority = false,
-  imageCount,
   placeholderLabel = "Image coming soon",
 }: ProductCardProps) {
   const title = formatProductName(product.name, product.printName);
-  const photos = getProductCardImages(product.images);
-  const totalPhotos = imageCount ?? product.imageCount ?? photos.length;
+  const image = getProductCardImages(product.images)[0] || "";
 
   return (
     <article className="product-card group grid h-full min-w-0 grid-cols-1 grid-rows-[auto_1fr_auto] sm:grid-rows-[auto_1fr]">
       <ProductCardPhotos
-        key={`${product.slug}:${totalPhotos}:${photos.join("|")}`}
+        key={`${product.slug}:${image}`}
         product={product}
         title={title}
-        initialPhotos={photos}
-        imageCount={totalPhotos}
+        src={image}
         imageSizes={imageSizes}
         priority={priority}
         discount={discountPercent(product)}

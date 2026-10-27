@@ -13,11 +13,11 @@ import {
   CelebrationGrid,
   WhyUs,
   OurShowroom,
-  Catalogue,
 } from "@/components/Sections";
 
 import HeroCarousel from "@/components/HeroCarousel";
 import HomeProducts, { HomeProductsSkeleton } from "@/components/home/HomeProducts";
+import Catalogue from "@/components/home/Catalogue";
 import KindWords from "@/components/KindWords";
 import InstagramReels from "@/components/InstagramReels";
 import HomeTextAnimation from "@/components/HomeTextAnimation";

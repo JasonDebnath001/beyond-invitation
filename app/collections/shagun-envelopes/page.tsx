@@ -40,7 +40,6 @@ export default async function ShagunEnvelopesPage() {
       errorMessage={errorMessage}
       emptyTitle="No Shagun Envelopes found"
       emptyDescription="This collection is being updated. Please check back soon or contact us for help finding your invitation."
-      subjectLabel={SUBJECT}
       accentIcon="✉"
       breadcrumb={[
         { label: "Home", href: "/" },

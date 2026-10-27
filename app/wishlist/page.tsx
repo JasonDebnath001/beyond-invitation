@@ -76,11 +76,7 @@ function PersonalContent({
 
   return (
     <main className={contentClass}>
-      <WishlistHeader
-        count={wishlist.slugs.length}
-        ready={wishlist.ready}
-        signedIn={wishlist.signedIn}
-      />
+      <WishlistHeader />
       {wishlist.ready && !wishlist.signedIn && wishlist.slugs.length > 0 && (
         <div
           data-motion="nudge"

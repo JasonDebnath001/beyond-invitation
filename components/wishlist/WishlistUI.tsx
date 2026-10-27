@@ -4,8 +4,8 @@ export const secondaryClass = `inline-flex items-center justify-center gap-2 rou
 export const gridClass = "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4";
 export const contentClass = "relative mx-auto max-w-[1800px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16";
 
-export function WishlistHeader({ shared = false, count, ready = true, signedIn = false }: {
-  shared?: boolean; count: number; ready?: boolean; signedIn?: boolean;
+export function WishlistHeader({ shared = false }: {
+  shared?: boolean;
 }) {
   const title = shared ? "A shortlist for you" : "Your wishlist";
   return (

@@ -31,12 +31,10 @@ export default function WeddingCardTile({
 
   return (
     <div data-card={product.slug} data-flip-id={product.slug} className="h-full min-w-0">
-      {product.imageCount > 1 ? <span className="sr-only">{product.imageCount} photos</span> : null}
       <ProductCard
         product={cardProduct}
         categoryLabel={product.itemGroup}
         priority={priority}
-        imageCount={product.imageCount}
         placeholderLabel="Photo on request"
         imageSizes="(min-width:1800px) 363px, (min-width:1024px) calc(25vw - 87px), (min-width:768px) calc(33.333vw - 29.333px), (min-width:640px) calc(50vw - 34px), calc(50vw - 22px)"
       />

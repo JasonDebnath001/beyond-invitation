@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent, MouseEvent } from "react";
-import { Play } from "lucide-react";
-import ProductImage, { getProductImageProps } from "@/components/ProductImage";
-import { getStorageImageUrl } from "@/lib/product-image-loader";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import { createPortal } from "react-dom";
+import { ImageOff, X } from "lucide-react";
+import ProductImage from "@/components/ProductImage";
+import ProductGalleryVideo from "@/components/ProductGalleryVideo";
 
 interface ProductGalleryProps {
   images: string[];
@@ -220,27 +221,6 @@ function getVideoSrc(src: string) {
   return getPublicFileSrc(src);
 }
 
-function withAutoplayParams(src: string) {
-  try {
-    const url = new URL(src);
-
-    url.searchParams.set("autoplay", "1");
-    url.searchParams.set("mute", "1");
-    url.searchParams.set("muted", "1");
-    url.searchParams.set("playsinline", "1");
-    url.searchParams.set("controls", "0");
-    url.searchParams.set("loop", "1");
-
-    return url.toString();
-  } catch {
-    return (
-      src +
-      (src.includes("?") ? "&" : "?") +
-      "autoplay=1&mute=1&muted=1&playsinline=1&controls=0&loop=1"
-    );
-  }
-}
-
 function isEmbeddableVideo(src: string) {
   return (
     src.includes("youtube.com/embed/") ||
@@ -342,519 +322,266 @@ function dedupeByCanonicalKey(list: string[]) {
   });
 }
 
-export default function ProductGallery({
-  images,
-  videos = [],
-  emoji,
-  alt,
-  badge,
-}: ProductGalleryProps) {
-  const [active, setActive] = useState(0);
-  const [failedMediaKeys, setFailedMediaKeys] = useState<Set<string>>(
-    () => new Set(),
-  );
+function PhotoLightbox({ item, alt, label, onClose, onError }: {
+  item: Extract<GalleryItem, { type: "image" }>;
+  alt: string;
+  label: string;
+  onClose: () => void;
+  onError: () => void;
+}) {
+  const id = useId();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const backdropPressed = useRef(false);
+  const [imageSize, setImageSize] = useState<ImageSize | null>(null);
   const [zoomVisible, setZoomVisible] = useState(false);
-  const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({
-    x: 50,
-    y: 50,
-  });
-  const [imageSizes, setImageSizes] = useState<Record<string, ImageSize>>({});
+  const [zoomUnavailable, setZoomUnavailable] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState<ZoomPosition>({ x: 50, y: 50 });
+  const src = getImageSrc(item.src);
 
-  const stageRef = useRef<HTMLDivElement | null>(null);
-  const desktopThumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const warmedImages = useRef(new Map<string, HTMLImageElement>());
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const trigger = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const previousPadding = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      const padding = Number.parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${padding + scrollbarWidth}px`;
+    }
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    closeRef.current?.focus({ preventScroll: true });
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPadding;
+      if (trigger instanceof HTMLElement && trigger.isConnected) {
+        trigger.focus({ preventScroll: true });
+      }
+    };
+  }, []);
+
+  function outsideDialog(clientX: number, clientY: number) {
+    const bounds = dialogRef.current?.getBoundingClientRect();
+    return Boolean(bounds && (clientX < bounds.left || clientX > bounds.right || clientY < bounds.top || clientY > bounds.bottom));
+  }
+
+  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
+    if (
+      !imageSize || zoomUnavailable ||
+      !window.matchMedia("(min-width: 1024px) and (hover: hover) and (pointer: fine)").matches
+    ) {
+      setZoomVisible(false);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const scale = Math.min(rect.width / imageSize.width, rect.height / imageSize.height);
+    const renderedWidth = imageSize.width * scale;
+    const renderedHeight = imageSize.height * scale;
+    const left = (rect.width - renderedWidth) / 2;
+    const top = (rect.height - renderedHeight) / 2;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (x < left || x > left + renderedWidth || y < top || y > top + renderedHeight) {
+      setZoomVisible(false);
+      return;
+    }
+    // Scale the contained photo around the pointer without zooming blank margins.
+    setZoomPosition({ x: (x / rect.width) * 100, y: (y / rect.height) * 100 });
+    setZoomVisible(true);
+  }
+
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-description`}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onPointerDown={(event) => {
+        backdropPressed.current = event.target === event.currentTarget && outsideDialog(event.clientX, event.clientY);
+      }}
+      onClick={(event) => {
+        if (backdropPressed.current && event.target === event.currentTarget && outsideDialog(event.clientX, event.clientY)) onClose();
+        backdropPressed.current = false;
+      }}
+      className="fixed inset-0 m-auto max-h-[94dvh] w-[calc(100%_-_1rem)] max-w-6xl overflow-hidden rounded-2xl border-0 bg-white p-0 text-carbon shadow-2xl backdrop:bg-carbon/70 backdrop:backdrop-blur-sm sm:w-[calc(100%_-_3rem)]"
+    >
+      <header className="flex items-center justify-between gap-4 border-b border-gold/20 px-4 py-3 sm:px-6">
+        <div className="min-w-0">
+          <h2 id={`${id}-title`} className="truncate text-sm font-semibold sm:text-base">{alt}</h2>
+          <p id={`${id}-description`} className="mt-1 text-xs text-ink-light">{label}. Press Escape to close.</p>
+        </div>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label="Close product media"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/20 transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carbon">
+          <X aria-hidden="true" className="h-5 w-5" />
+        </button>
+      </header>
+      <div
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setZoomVisible(false)}
+        className="relative flex h-[min(76dvh,900px)] max-h-[calc(94dvh_-_5rem)] items-center justify-center overflow-hidden bg-ivory"
+      >
+        <ProductImage
+          src={src}
+          alt={`${alt} — ${label.toLowerCase()}`}
+          fill
+          sizes="(min-width: 1200px) 1152px, 100vw"
+          quality={90}
+          storageTransform
+          loading="eager"
+          unoptimized={src.startsWith("http://")}
+          onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+          onError={onError}
+          className="object-contain"
+        />
+        {zoomVisible && (
+          <div className="pointer-events-none absolute inset-0">
+            <ProductImage
+              src={src}
+              alt=""
+              aria-hidden="true"
+              fill
+              sizes="200vw"
+              quality={90}
+              storageTransform
+              loading="eager"
+              unoptimized={src.startsWith("http://")}
+              onError={() => { setZoomUnavailable(true); setZoomVisible(false); }}
+              className="object-contain"
+              style={{ transform: `scale(${ZOOM_SCALE})`, transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` }}
+            />
+          </div>
+        )}
+        <span className="pointer-events-none absolute bottom-4 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-full bg-carbon/80 px-3 py-1.5 text-xs text-white lg:block">
+          Move mouse over photo to zoom
+        </span>
+      </div>
+    </dialog>,
+    document.body,
+  );
+}
+
+export default function ProductGallery({ images, videos = [], emoji, alt, badge }: ProductGalleryProps) {
+  const [failedMediaKeys, setFailedMediaKeys] = useState<Set<string>>(() => new Set());
+  const [selected, setSelected] = useState<{ item: Extract<GalleryItem, { type: "image" }>; label: string } | null>(null);
 
   const allMedia: GalleryItem[] = useMemo(() => {
-    /*
-     * IMPORTANT:
-     * Images arrive in catalogue order, with the primary image first.
-     *
-     * photo order 1 = first image = main product image
-     * photo order 2 = second gallery image
-     * photo order 3 = third gallery image
-     *
-     * So do NOT reverse the image list here.
-     */
+    // Preserve catalogue photo order, with the primary product image first.
     const rawImages = cleanMediaList(images);
     const videosFoundInsideImages = rawImages.filter(isVideoLikeUrl);
-
-    /*
-     * Entries received through `videos` are already classified by the ERP
-     * layer, so retain extensionless File URLs as valid videos. Canonical
-     * deduplication also prevents the same attachment from appearing twice
-     * when it is discovered through both the Item document and File API.
-     */
+    // Dedicated video entries may be extensionless /files URLs. Canonical keys
+    // keep a video discovered in both source lists from appearing twice.
     const cleanVideos = dedupeByCanonicalKey(
       cleanMediaList([...videosFoundInsideImages, ...videos]),
     ).filter((src) => Boolean(getVideoSrc(src)));
-
     const videoKeys = new Set(cleanVideos.map(canonicalMediaKey));
-
     const cleanImages = rawImages
       .filter((src) => !videoKeys.has(canonicalMediaKey(src)))
       .filter(isImageLikeUrl)
       .filter((src) => Boolean(getImageSrc(src)));
-
-    // Photo order applies only to photos. Videos always occupy the final
-    // thumbnail position, whether their ERP photo order is 0, empty or set.
     return [
-      ...cleanImages.map((src) => ({
-        type: "image" as const,
-        src,
-      })),
-      ...cleanVideos.map((src) => ({
-        type: "video" as const,
-        src,
-      })),
+      ...cleanImages.map((src) => ({ type: "image" as const, src })),
+      ...cleanVideos.map((src) => ({ type: "video" as const, src })),
     ];
   }, [images, videos]);
 
-  const media = useMemo(() => {
-    return allMedia.filter(
-      (item) => !failedMediaKeys.has(canonicalMediaKey(item.src)),
-    );
-  }, [allMedia, failedMediaKeys]);
+  const media = allMedia.filter((item) => !failedMediaKeys.has(canonicalMediaKey(item.src)));
+  const photos = media.filter((item) => item.type === "image");
+  const clips = media.filter((item) => item.type === "video");
+  const imageSizes = media.length > 1
+    ? "(min-width: 1280px) 350px, (min-width: 1024px) calc((100vw - 512px) / 2), (min-width: 768px) calc((100vw - 64px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)"
+    : "(min-width: 1280px) 716px, (min-width: 1024px) calc(100vw - 496px), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)";
 
-  const total = media.length;
-  const hasMedia = total > 0;
-  const mainImageSizes = total > 1
-    ? "(min-width:1536px) 564px, (min-width:1280px) 596px, (min-width:1024px) calc(100vw - 584px), (min-width:640px) calc(100vw - 48px), calc(100vw - 32px)"
-    : "(min-width:1536px) 700px, (min-width:1280px) 716px, (min-width:1024px) calc(100vw - 496px), (min-width:640px) calc(100vw - 48px), calc(100vw - 32px)";
-
-  const activeItem = hasMedia ? media[Math.min(active, total - 1)] : null;
-  const activeKey = activeItem ? canonicalMediaKey(activeItem.src) : "";
-
-  const activeSrc =
-    activeItem?.type === "image"
-      ? getImageSrc(activeItem.src)
-      : activeItem?.type === "video"
-        ? getVideoSrc(activeItem.src)
-        : "";
-
-  const zoomSrc = activeSrc ? getStorageImageUrl(activeSrc, 2000, 90) || activeSrc : "";
-
-  useEffect(() => {
-    const requests = warmedImages.current;
-    return () => {
-      for (const image of requests.values()) {
-        image.onload = null;
-        image.onerror = null;
-        image.removeAttribute("srcset");
-        image.removeAttribute("src");
-      }
-      requests.clear();
-    };
-  }, []);
-
-  function warmImage(item: GalleryItem | undefined) {
-    if (!item || item.type !== "image") return;
-    const connection = (window.navigator as Navigator & {
-      connection?: { saveData?: boolean; effectiveType?: string };
-    }).connection;
-    if (connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType || "")) return;
-
-    const src = getImageSrc(item.src);
-    if (!src || src.startsWith("http://")) return;
-    let props: ReturnType<typeof getProductImageProps>["props"];
-    try {
-      props = getProductImageProps({
-        src,
-        alt: "",
-        fill: true,
-        sizes: mainImageSizes,
-        quality: 80,
-        storageTransform: true,
-      }).props;
-    } catch {
-      // Optional warming must not interrupt displaying the selected image.
-      return;
-    }
-    // Do not speculatively fetch unresized originals (for example SVG sources).
-    if (!props.srcSet && props.src === src) return;
-    const key = `${props.srcSet || props.src}|${props.sizes || ""}`;
-    if (warmedImages.current.has(key)) return;
-
-    const image = new window.Image();
-    warmedImages.current.set(key, image);
-    image.fetchPriority = "low";
-    image.decoding = "async";
-    image.onerror = () => {
-      warmedImages.current.delete(key);
-    };
-    if (props.sizes) image.sizes = props.sizes;
-    if (props.srcSet) image.srcset = props.srcSet;
-    image.src = props.src;
-  }
-
-  useEffect(() => {
-    if (active >= total && total > 0) {
-      setActive(total - 1);
-    }
-
-    if (total === 0 && active !== 0) {
-      setActive(0);
-    }
-  }, [active, total]);
-
-  useEffect(() => {
-    desktopThumbnailRefs.current[active]?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-    });
-  }, [active]);
-
-  const go = useCallback(
-    (delta: number) => {
-      if (total === 0) return;
-
-      setZoomVisible(false);
-
-      setActive((current) => {
-        return (current + delta + total) % total;
-      });
-    },
-    [total],
-  );
-
-  function removeBrokenMedia(item: GalleryItem, index: number) {
+  function removeBrokenMedia(item: GalleryItem) {
     const key = canonicalMediaKey(item.src);
-
-    setFailedMediaKeys((current) => {
-      const next = new Set(current);
-      next.add(key);
-      return next;
-    });
-
-    setZoomVisible(false);
-
-    setActive((current) => {
-      if (index < current) {
-        return Math.max(0, current - 1);
-      }
-
-      if (index === current) {
-        return Math.max(0, Math.min(current, total - 2));
-      }
-
-      return current;
-    });
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      go(-1);
-    }
-
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      go(1);
-    }
-  }
-
-  function saveImageSize(key: string, image: HTMLImageElement) {
-    if (!key) return;
-
-    setImageSizes((current) => ({
-      ...current,
-      [key]: {
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-      },
-    }));
-  }
-
-  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
-    if (window.matchMedia && !window.matchMedia("(min-width: 1024px) and (hover: hover) and (pointer: fine)").matches) {
-      setZoomVisible(false);
-      return;
-    }
-    if (activeItem?.type !== "image") {
-      setZoomVisible(false);
-      return;
-    }
-
-    const stage = stageRef.current;
-    const imageSize = imageSizes[activeKey];
-
-    if (!stage || !imageSize || !activeSrc) {
-      setZoomVisible(false);
-      return;
-    }
-
-    const rect = stage.getBoundingClientRect();
-
-    const containerWidth = rect.width;
-    const containerHeight = rect.height;
-
-    const imageAspect = imageSize.width / imageSize.height;
-    const containerAspect = containerWidth / containerHeight;
-
-    let renderedWidth = containerWidth;
-    let renderedHeight = containerHeight;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    if (imageAspect > containerAspect) {
-      renderedWidth = containerWidth;
-      renderedHeight = containerWidth / imageAspect;
-      offsetY = (containerHeight - renderedHeight) / 2;
-    } else {
-      renderedHeight = containerHeight;
-      renderedWidth = containerHeight * imageAspect;
-      offsetX = (containerWidth - renderedWidth) / 2;
-    }
-
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-
-    const imageX = mouseX - offsetX;
-    const imageY = mouseY - offsetY;
-
-    const isInsideImage =
-      imageX >= 0 &&
-      imageX <= renderedWidth &&
-      imageY >= 0 &&
-      imageY <= renderedHeight;
-
-    if (!isInsideImage) {
-      setZoomVisible(false);
-      return;
-    }
-
-    const xPercent = (imageX / renderedWidth) * 100;
-    const yPercent = (imageY / renderedHeight) * 100;
-
-    setZoomPosition({
-      x: Math.max(0, Math.min(100, xPercent)),
-      y: Math.max(0, Math.min(100, yPercent)),
-    });
-
-    setZoomVisible(true);
-  }
-
-  function handleMouseLeave() {
-    setZoomVisible(false);
-  }
-
-  function renderThumbnails(isDesktop = false) {
-    if (total <= 1) {
-      return null;
-    }
-
-    const wrapperClass = isDesktop
-      ? "hidden max-h-[640px] flex-col gap-3.5 overflow-y-auto overscroll-contain scroll-smooth rounded-[20px] border border-gold/15 bg-paper/55 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] [scrollbar-width:none] lg:flex xl:max-h-[720px] 2xl:max-h-[760px] [&::-webkit-scrollbar]:hidden"
-      : "mt-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden";
-
-    return (
-      <div className={wrapperClass} aria-label="Product media thumbnails">
-        {media.map((item, index) => {
-          const isActive = index === active;
-          const src =
-            item.type === "image"
-              ? getImageSrc(item.src)
-              : getVideoSrc(item.src);
-
-          if (!src) {
-            return null;
-          }
-
-          return (
-            <button
-              key={`${item.type}-${canonicalMediaKey(item.src)}-${index}`}
-              type="button"
-              ref={(element) => {
-                if (isDesktop) {
-                  desktopThumbnailRefs.current[index] = element;
-                }
-              }}
-              onClick={() => {
-                setZoomVisible(false);
-                setActive(index);
-              }}
-              onPointerEnter={() => {
-                if (!isActive) warmImage(item);
-              }}
-              onFocus={() => {
-                if (!isActive) warmImage(item);
-              }}
-              aria-label={`View ${item.type} ${index + 1}`}
-              aria-current={isActive}
-              className={`group relative aspect-square shrink-0 snap-start overflow-hidden rounded-[15px] border bg-white p-1.5 shadow-[0_5px_16px_rgba(73,25,31,0.06)] transition-all duration-300 ${
-                isDesktop ? "w-full" : "w-[72px] sm:w-20"
-              } ${
-                isActive
-                  ? "border-carbon ring-2 ring-carbon/10 shadow-[0_8px_22px_rgba(73,25,31,0.12)]"
-                  : "border-gold/20 hover:-translate-y-0.5 hover:border-gold/70 hover:shadow-[0_10px_24px_rgba(73,25,31,0.1)]"
-              }`}
-            >
-              {item.type === "video" ? (
-                <span className="flex h-full w-full items-center justify-center rounded-[10px] bg-[radial-gradient(circle_at_35%_25%,#9b2d45_0%,#6f172b_48%,#3f0b17_100%)] text-white">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-light/45 bg-white/10 shadow-[0_5px_18px_rgba(30,5,11,0.28)] backdrop-blur transition duration-300 group-hover:scale-105 sm:h-9 sm:w-9">
-                    <Play
-                      aria-hidden="true"
-                      className="ml-0.5 h-3.5 w-3.5 fill-gold-light text-gold-light sm:h-4 sm:w-4"
-                      strokeWidth={1.5}
-                    />
-                  </span>
-                </span>
-              ) : (
-                <ProductImage
-                  src={src}
-                  alt={`${alt} thumbnail ${index + 1}`}
-                  width={96}
-                  height={96}
-                  quality={75}
-                  storageTransform
-                  loading="lazy"
-                  decoding="async"
-                  unoptimized={src.startsWith("http://")}
-                  onError={() => removeBrokenMedia(item, index)}
-                  className="h-full w-full rounded-[10px] object-contain p-1 transition duration-500 group-hover:scale-[1.04]"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    );
+    setFailedMediaKeys((current) => new Set(current).add(key));
+    setSelected((current) => current && canonicalMediaKey(current.item.src) === key ? null : current);
   }
 
   return (
-    <div
-      className={`grid min-w-0 gap-4 sm:gap-5 ${
-        total > 1
-          ? "lg:grid-cols-[72px_minmax(0,1fr)] lg:gap-4 xl:grid-cols-[96px_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[108px_minmax(0,1fr)] 2xl:gap-7"
-          : ""
-      }`}
-      onKeyDown={onKeyDown}
-    >
-      {renderThumbnails(true)}
-
-      <div className="min-w-0 overflow-hidden">
-        <div
-          ref={stageRef}
-          tabIndex={0}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className="group relative flex aspect-[4/5] min-h-[360px] items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-ivory shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-carbon/30 focus-visible:ring-offset-2 sm:min-h-[560px] sm:rounded-[2rem] lg:aspect-auto lg:h-[calc(100svh-8rem)] lg:min-h-[520px] lg:max-h-[720px] 2xl:max-h-[760px]"
-        >
-          {hasMedia && activeItem ? (
-            <>
-              {activeItem.type === "image" ? (
-                activeSrc ? (
-                  <ProductImage
-                    key={activeKey}
-                    src={activeSrc}
-                    alt={alt}
-                    fill
-                    sizes={mainImageSizes}
-                    quality={80}
-                    storageTransform
-                    priority={active === 0}
-                    loading="eager"
-                    fetchPriority={active === 0 ? "high" : "auto"}
-                    unoptimized={activeSrc.startsWith("http://")}
-                    onLoad={(event) => {
-                      saveImageSize(activeKey, event.currentTarget);
-                      if (total > 1) warmImage(media[(active + 1) % total]);
-                    }}
-                    onError={() => removeBrokenMedia(activeItem, active)}
-                    className="object-contain p-0"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">
-                    {emoji}
-                  </div>
-                )
-              ) : isEmbeddableVideo(activeSrc) ? (
-                <div className="relative h-full w-full overflow-hidden bg-black">
-                  <iframe
-                    src={withAutoplayParams(activeSrc)}
-                    title={`${alt} video`}
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    className="absolute left-1/2 top-1/2 h-full w-[178%] max-w-none -translate-x-1/2 -translate-y-1/2 border-0"
-                  />
-                </div>
-              ) : canRenderNativeVideo(activeSrc) ? (
-                <video
-                  src={activeSrc}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  onError={() => removeBrokenMedia(activeItem, active)}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <a
-                  href={activeSrc}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-carbon px-5 py-3 text-sm font-semibold text-white"
-                >
-                  Open product video
-                </a>
-              )}
-            </>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl sm:text-7xl">
-              {emoji}
-            </div>
-          )}
-
-          {activeItem?.type === "image" && zoomVisible && activeSrc && (
-            <div
-              className="pointer-events-none absolute inset-0 z-20 hidden rounded-[2rem] border border-gold/30 bg-no-repeat shadow-xl lg:block"
-              style={{
-                backgroundImage: `url("${zoomSrc}")`,
-                backgroundSize: `${ZOOM_SCALE * 100}%`,
-                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-              }}
-            >
-              <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-carbon/80 px-3 py-1 text-xs font-semibold text-white">
-                Move mouse to zoom
-              </span>
-            </div>
-          )}
-
-          {badge && (
-            <span className="absolute left-4 top-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-carbon shadow-sm">
-              {badge}
-            </span>
-          )}
-
-          {total > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={() => go(-1)}
-                aria-label="Previous media"
-                className="absolute left-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/30 focus-visible:ring-offset-2"
-              >
-                ←
-              </button>
-
-              <button
-                type="button"
-                onClick={() => go(1)}
-                aria-label="Next media"
-                className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gold/30 bg-white/90 text-carbon shadow-sm backdrop-blur transition hover:scale-105 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/30 focus-visible:ring-offset-2"
-              >
-                →
-              </button>
-
-              <span className="absolute bottom-4 right-4 z-30 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-carbon shadow-sm">
-                {active + 1} / {total}
-              </span>
-            </>
-          )}
+    <div className="min-w-0" aria-label="Product photos and videos">
+      {media.length === 0 ? (
+        <div role="status" className="flex aspect-[4/5] flex-col items-center justify-center gap-4 rounded-2xl border border-gold/20 bg-ivory text-ink-light">
+          {emoji ? <span className="text-6xl">{emoji}</span> : <ImageOff aria-hidden="true" className="h-10 w-10" strokeWidth={1} />}
+          <p className="text-sm">Product photos are currently unavailable.</p>
         </div>
-
-        {renderThumbnails(false)}
-      </div>
+      ) : (
+        <>
+          <div
+            role="group"
+            aria-label="Product media"
+            className={`flex items-start overflow-x-auto overscroll-x-contain snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:block md:overflow-visible md:snap-none md:gap-4 ${media.length > 1 ? "md:columns-2" : "md:columns-1"}`}
+          >
+            {media.map((item, index) => {
+              const src = item.type === "image" ? getImageSrc(item.src) : getVideoSrc(item.src);
+              const label = item.type === "image"
+                ? `Photo ${index + 1} of ${photos.length}`
+                : `Video ${index - photos.length + 1} of ${clips.length}`;
+              return (
+                <div
+                  key={canonicalMediaKey(item.src)}
+                  className="relative w-full shrink-0 basis-full snap-start snap-always break-inside-avoid overflow-hidden border-0 bg-transparent md:mb-4 md:rounded-2xl md:border md:border-gold/20 md:bg-ivory md:shadow-sm"
+                >
+                  {item.type === "image" ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelected({ item, label })}
+                      aria-label={`Enlarge photo ${index + 1} of ${alt}`}
+                      aria-haspopup="dialog"
+                      className="block w-full cursor-zoom-in border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-carbon"
+                    >
+                      <ProductImage
+                        src={src}
+                        alt={`${alt} — photo ${index + 1}`}
+                        width={1200}
+                        height={1200}
+                        sizes={imageSizes}
+                        quality={80}
+                        storageTransform
+                        priority={index === 0}
+                        loading={index === 0 ? "eager" : "lazy"}
+                        fetchPriority={index === 0 ? "high" : "auto"}
+                        decoding="async"
+                        unoptimized={src.startsWith("http://")}
+                        onError={() => removeBrokenMedia(item)}
+                        className="block h-auto w-full"
+                      />
+                    </button>
+                  ) : (
+                    <ProductGalleryVideo
+                      src={src}
+                      kind={isEmbeddableVideo(src) ? "embed" : canRenderNativeVideo(src) ? "native" : "external"}
+                      label={`${alt} — ${label.toLowerCase()}`}
+                      paused={Boolean(selected)}
+                      onError={() => removeBrokenMedia(item)}
+                    />
+                  )}
+                  {badge && index === 0 && (
+                    <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-carbon shadow-sm">
+                      {badge}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {media.length > 1 && (
+            <p className="mt-2 text-center text-xs text-ink-light md:hidden">Swipe to view more {clips.length > 0 ? "photos and videos" : "photos"}</p>
+          )}
+        </>
+      )}
+      {selected && (
+        <PhotoLightbox
+          key={`${selected.item.type}:${canonicalMediaKey(selected.item.src)}`}
+          item={selected.item}
+          alt={alt}
+          label={selected.label}
+          onClose={() => setSelected(null)}
+          onError={() => removeBrokenMedia(selected.item)}
+        />
+      )}
     </div>
   );
 }

@@ -20,7 +20,6 @@ export default function WishlistToolbar({ products, slugs, sortKey, onSort, disa
     mounted.current = true;
     return () => { mounted.current = false; if (timeout.current) clearTimeout(timeout.current); };
   }, []);
-  const priced = products.filter((product) => Number.isFinite(product.price) && product.price > 0).length;
 
   async function share() {
     if (sharing) return;

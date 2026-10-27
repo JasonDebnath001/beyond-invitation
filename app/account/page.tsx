@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LifeBuoy, ArrowUpRight } from "lucide-react";
 import { getSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { displayName, initials, hasEmailIdentity, fetchRecentWebsiteOrders, fetchSavedProducts, fetchAccountCounts } from "@/lib/account";
 import AccountMotion from "@/components/account/AccountMotion";
@@ -13,7 +11,7 @@ import AccountSaved from "@/components/account/AccountSaved";
 import ProfileForm from "@/components/account/ProfileForm";
 import PasswordForm from "@/components/account/PasswordForm";
 import SignOutButtons from "@/components/account/SignOutButtons";
-import { cardClass, linkClass, secondaryClass, SectionHeading } from "@/components/account/AccountUI";
+import { cardClass, SectionHeading } from "@/components/account/AccountUI";
 
 export const dynamic = "force-dynamic";
 

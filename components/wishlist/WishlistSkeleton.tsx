@@ -20,7 +20,7 @@ export default function WishlistSkeleton({ page = false }: { page?: boolean }) {
   );
   return page ? (
     <main data-no-text-motion className="min-h-screen bg-white">
-      <div className={contentClass}><WishlistHeader count={0} ready={false} />{cards}</div>
+      <div className={contentClass}><WishlistHeader />{cards}</div>
     </main>
   ) : cards;
 }

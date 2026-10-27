@@ -107,13 +107,6 @@ function normalizeCategory(subject?: string | null): ProductCategory {
   return "wedding";
 }
 
-export const WEDDING_CARD_SUBJECTS = [
-  "Wedding Card",
-  "Hindu Wedding Card",
-  "Muslim Wedding Card",
-  "Christian Wedding Card",
-];
-
 export const NON_WEDDING_SUBJECTS = [
   "Shagun Envelopes",
   "Wedding Box",
@@ -358,10 +351,6 @@ export function compareWeddingCardProducts(
   );
 }
 
-export async function fetchWeddingCardProducts(): Promise<CatalogProduct[]> {
-  return applyResellerPricingToProducts(await fetchWeddingCardProductsBase());
-}
-
 // Metadata and the page share one lookup and one visitor-pricing operation per
 // render. Only the base product enters the persistent cache above.
 export const fetchErpProductBySlug = cache(
@@ -414,32 +403,4 @@ const readRelatedStorefrontProducts = unstable_cache(
   { revalidate: 60, tags: ["catalogue"] },
 );
 
-export async function fetchErpProductsByCategory(
-  category: ProductCategory,
-): Promise<CatalogProduct[]> {
-  if (category === "wedding") return fetchWeddingCardProducts();
-  const products = await fetchErpProducts();
-  return products.filter((product) => product.category === category);
-}
-
-export async function fetchErpProductsBySubject(
-  subject: string | string[],
-): Promise<CatalogProduct[]> {
-  const subjects = new Set(
-    (Array.isArray(subject) ? subject : [subject])
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
-  );
-  if (subjects.size === 0) return [];
-
-  const products = await buildErpProductList();
-  return applyResellerPricingToProducts(
-    products.filter((product) =>
-      subjects.has(product.subject.trim().toLowerCase()),
-    ),
-  );
-}
-
 export const getCatalogProducts = fetchErpProducts;
-export const getProductBySlug = fetchErpProductBySlug;
-export const getProductsBySubject = fetchErpProductsBySubject;

@@ -1,3 +1,5 @@
+const { PHASE_DEVELOPMENT_SERVER } = require("next/constants");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -34,4 +36,8 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = (phase) => ({
+  ...nextConfig,
+  // Keep production builds from replacing a running dev server's manifests.
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+});

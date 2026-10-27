@@ -161,11 +161,6 @@ export async function getResellerByCode(
     return reseller;
 }
 
-export function invalidateResellerCache(code?: string) {
-    if (code) codeCache.delete(code.trim().toUpperCase());
-    else codeCache.clear();
-}
-
 export function clampMargin(value: number): number {
     if (!Number.isFinite(value)) return 0;
     return Math.min(Math.max(Math.round(value * 100) / 100, 0), RESELLER_MAX_MARGIN);

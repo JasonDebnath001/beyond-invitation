@@ -127,15 +127,6 @@ const readProductsByItemCategory = unstable_cache(
   { revalidate: 60, tags: ["catalogue"] },
 );
 
-export async function fetchProductsByItemCategory(
-  itemCategory: string,
-): Promise<CategorizedCatalogProduct[]> {
-  const name = itemCategory.trim();
-  if (!name) return [];
-  // Visitor-specific prices are never included in the shared category cache.
-  return applyResellerPricingToProducts(await readProductsByItemCategory(name));
-}
-
 /** Base data for the migration-compatible server pagination path. */
 export async function fetchProductsByItemCategoryBase(
   itemCategory: string,
@@ -217,12 +208,6 @@ const readWeddingCardsWithCategories = unstable_cache(
   ["wedding-cards-with-item-categories-v6-web-titles"],
   { revalidate: 60, tags: ["catalogue"] },
 );
-
-export async function fetchWeddingCardsWithCategories(): Promise<
-  CategorizedCatalogProduct[]
-> {
-  return applyResellerPricingToProducts(await readWeddingCardsWithCategories());
-}
 
 export async function fetchWeddingCardsWithCategoriesBase(): Promise<
   CategorizedCatalogProduct[]

@@ -43,9 +43,6 @@ interface ProductSectionProps {
   collection?: "wedding-boxes";
   viewAllHref?: string;
   viewAllText?: string;
-
-  /** Retained for callers; product listings use a consistent white background. */
-  shaded?: boolean;
 }
 
 /** A full homepage section: heading + grid + optional load more + view all link. */
@@ -59,7 +56,6 @@ export function ProductSection({
   collection,
   viewAllHref,
   viewAllText = "View All",
-  shaded = false,
 }: ProductSectionProps) {
   const [loadedProducts, setLoadedProducts] = useState(products);
   const [offset, setOffset] = useState(nextOffset);

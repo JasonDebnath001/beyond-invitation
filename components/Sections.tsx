@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 
 import { ProductSection } from "@/components/ProductGrid";
 import type { Category, Product } from "@/types";
-import CatalogueAnimatedCard from "@/components/CatalogueAnimatedCard";
 
 /* ------------------------------------------------------------------ */
 /* Shared building blocks */
@@ -235,7 +234,6 @@ export function SaleCollection({
       pricedOnly
       viewAllHref="/collections/wedding"
       viewAllText="View All Sale Products"
-      shaded
     />
   );
 }
@@ -455,76 +453,6 @@ export function OurShowroom() {
             height={500}
             className="h-[320px] w-full object-cover sm:h-[420px] lg:h-[460px]"
           />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function Catalogue() {
-  const catalogueItems = [
-    {
-      title: "Affordable",
-      price: "MRP below Rs. 50",
-      image: "/collections/cat1.png",
-      href: "/collections/affordable",
-      className: "lg:col-span-1",
-    },
-    {
-      title: "Mid - Range",
-      price: "MRP Rs. 50 to Rs. 150",
-      image: "/collections/cat2.png",
-      href: "/collections/mid-range",
-      className: "lg:col-span-1",
-    },
-    {
-      title: "Premium",
-      price: "MRP Rs. 150 to Rs. 300",
-      image: "/collections/cat3.png",
-      href: "/collections/premium",
-      className: "lg:col-span-1",
-    },
-    {
-      title: "Stock Clearance",
-      price: "MRP Rs. 5 to Rs. 100",
-      image: "/collections/cat4.png",
-      href: "/collections/stock-clearance",
-      className: "lg:col-span-2",
-    },
-    {
-      title: "Fast Selling Cards",
-      price: "MRP Rs. 50 to Rs. 300",
-      image: "/collections/cat5.png",
-      href: "/collections/fast-selling-cards",
-      className: "lg:col-span-1",
-    },
-  ];
-
-  return (
-    <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-gold">
-            Explore
-          </p>
-
-          <h2 className="font-serif text-3xl font-semibold uppercase tracking-[0.06em] text-carbon min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.08em]">
-            Catalogue
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-[2px] overflow-hidden bg-white md:grid-cols-2 lg:grid-cols-3">
-          {catalogueItems.map((item, index) => (
-            <CatalogueAnimatedCard
-              key={item.title}
-              title={item.title}
-              price={item.price}
-              image={item.image}
-              href={item.href}
-              className={item.className}
-              index={index}
-            />
-          ))}
         </div>
       </div>
     </section>

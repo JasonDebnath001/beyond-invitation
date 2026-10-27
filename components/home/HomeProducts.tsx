@@ -15,11 +15,9 @@ function getAbsoluteImageUrl(image: string | undefined, siteUrl: string) {
 function ProductSectionSkeleton({
   label,
   title,
-  shaded = false,
 }: {
   label: string;
   title: string;
-  shaded?: boolean;
 }) {
   return (
     <section className="bg-white py-14 md:py-20">
@@ -54,10 +52,10 @@ export function HomeProductsSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading products">
       <p role="status" className="sr-only">Loading products</p>
-      <ProductSectionSkeleton label="Limited time offer" title="Sale Collection" shaded />
+      <ProductSectionSkeleton label="Limited time offer" title="Sale Collection" />
       <ProductSectionSkeleton label="Fresh from our catalogue" title="Trendy Collection" />
       <FeatureStrip />
-      <ProductSectionSkeleton label="Exclusive & elegant" title="Premium Invitations" shaded />
+      <ProductSectionSkeleton label="Exclusive & elegant" title="Premium Invitations" />
     </div>
   );
 }
@@ -139,7 +137,6 @@ export default async function HomeProducts({ description }: { description: strin
         collection="wedding-boxes"
         viewAllHref="/wedding-boxes"
         viewAllText="View All Wedding Boxes"
-        shaded
       />
     </>
   );

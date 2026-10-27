@@ -80,19 +80,6 @@ export function selectSellingPrice(
   )[0];
 }
 
-/**
- * Only price products admitted by the public view and still published.
- * Both values come from one eligible Active or Draft Selling row: website_price -> price,
- * rate -> mrp. Missing website_price stays unpriced; item overrides and the
- * view's legacy discount/MRP fallbacks are deliberately not used.
- */
-export async function applySellingPrices<T extends PriceRow>(
-  rows: T[],
-  db = getSupabaseAdminClient(),
-): Promise<T[]> {
-  return (await resolveSellingPrices(rows, db)).rows;
-}
-
 /** Resolve prices, Web Titles and Print Names in the same published-item read. */
 export async function applyCatalogDetails<T extends PriceRow & { name: string }>(
   rows: T[],
@@ -106,6 +93,12 @@ export async function applyCatalogDetails<T extends PriceRow & { name: string }>
   }));
 }
 
+/**
+ * Only price products admitted by the public view and still published.
+ * Both values come from one eligible Active or Draft Selling row: website_price -> price,
+ * rate -> mrp. Missing website_price stays unpriced; item overrides and the
+ * view's legacy discount/MRP fallbacks are deliberately not used.
+ */
 async function resolveSellingPrices<T extends PriceRow>(
   rows: T[],
   db: ReturnType<typeof getSupabaseAdminClient>,

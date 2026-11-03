@@ -40,8 +40,8 @@ export default function PasswordForm() {
             value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={inputClass} />
         </label>
       </div>
-      {error && <p role="alert" className="flex items-start gap-2 rounded-2xl bg-maroon/5 px-4 py-2 text-sm text-maroon motion-safe:animate-fadeUp"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />{error}</p>}
-      {message && <p role="status" className="flex items-start gap-2 rounded-2xl bg-emerald-50 px-4 py-2 text-sm text-emerald-800 motion-safe:animate-fadeUp"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />{message}</p>}
+      {error && <p role="alert" className="flex items-start gap-2 rounded-2xl bg-maroon/5 px-4 py-2 text-base text-maroon motion-safe:animate-fadeUp"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />{error}</p>}
+      {message && <p role="status" className="flex items-start gap-2 rounded-2xl bg-emerald-50 px-4 py-2 text-base text-emerald-800 motion-safe:animate-fadeUp"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />{message}</p>}
       <button disabled={busy} className={primaryClass}>{busy ? "Saving…" : "Save password"}</button>
     </form>
   );

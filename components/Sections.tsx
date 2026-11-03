@@ -12,7 +12,7 @@ import type { Category, Product } from "@/types";
 /** Tracked-out uppercase eyebrow label used above section titles. */
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-700">
+    <p className="text-sm font-semibold uppercase tracking-[0.1em] text-amber-700">
       {children}
     </p>
   );
@@ -78,14 +78,14 @@ export function Hero() {
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
               href="/collections/wedding"
-              className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-stone-950 transition hover:bg-amber-100"
+              className="rounded-full bg-white px-6 py-3 text-base font-semibold text-stone-950 transition hover:bg-amber-100"
             >
               Explore Collection →
             </Link>
 
             <Link
               href="/collections/luxe"
-              className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-stone-950"
+              className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white hover:text-stone-950"
             >
               View Luxe Range
             </Link>
@@ -101,7 +101,7 @@ export function Hero() {
               <p className="font-serif text-2xl text-white sm:text-3xl">
                 {s.num}
               </p>
-              <p className="mt-2 text-sm text-stone-300">{s.label}</p>
+              <p className="mt-2 text-base text-stone-300">{s.label}</p>
             </div>
           ))}
         </div>
@@ -167,7 +167,7 @@ export function CelebrationGrid({
       <div className="mx-auto max-w-[1728px]">
         <h2
           id="browse-by-event-heading"
-          className="text-center [font-family:'Times_New_Roman',Times,serif] text-[42px] font-normal leading-[1.1] tracking-[-0.035em] text-[#70070b] sm:text-[60px] xl:text-[clamp(64px,5vw,90px)]"
+          className="text-center [font-family:'Times_New_Roman',Times,serif] text-[2.625rem] font-normal leading-[1.1] tracking-[-0.035em] text-[#70070b] sm:text-[3.75rem] xl:text-[clamp(4rem,5vw,5.625rem)]"
         >
           Browse By Event
         </h2>
@@ -203,7 +203,7 @@ export function CelebrationGrid({
                 </div>
               </div>
 
-              <h3 className="flex-1 whitespace-nowrap rounded-b-[24px] border border-t-0 border-[#e9b17c] px-px pb-6 pt-[18px] [font-family:'Times_New_Roman',Times,serif] text-[clamp(12px,3.8vw,18px)] font-normal uppercase leading-[1.3] text-[#7b0d12] sm:text-[clamp(12px,1.7vw,18px)] xl:min-h-[90px] xl:text-[clamp(12px,1.05vw,19px)]">
+              <h3 className="flex-1 break-words rounded-b-[24px] border border-t-0 border-[#e9b17c] px-2 pb-6 pt-[18px] [font-family:'Times_New_Roman',Times,serif] text-base font-normal uppercase leading-normal text-[#7b0d12] xl:min-h-[90px] xl:text-lg">
                 {cat.name.slice(0, cat.name.lastIndexOf(" "))}
                 <br />
                 {cat.name.slice(cat.name.lastIndexOf(" ") + 1)}
@@ -257,7 +257,7 @@ export function FeatureStrip() {
               className="group flex min-h-[130px] flex-col rounded-2xl border border-white/15 bg-white/[0.04] p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#e6c27a]/70 hover:bg-white/[0.07] sm:min-h-[145px] sm:p-5 lg:min-h-[155px]"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e6c27a]/50 text-[11px] font-semibold text-[#f3d99b] sm:h-9 sm:w-9 sm:text-xs">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e6c27a]/50 text-sm font-semibold text-[#f3d99b] sm:h-9 sm:w-9">
                   0{i + 1}
                 </span>
 
@@ -269,7 +269,7 @@ export function FeatureStrip() {
                   {it.title}
                 </h3>
 
-                <p className="mt-2 text-sm leading-6 text-white/65">{it.sub}</p>
+                <p className="mt-2 text-base leading-6 text-white/85">{it.sub}</p>
               </div>
             </div>
           ))}
@@ -310,7 +310,7 @@ export function WhyUs() {
               key={c.no}
               className="rounded-[1.5rem] border border-stone-200 bg-[#fbf7f0] p-6 sm:rounded-[2rem] sm:p-8"
             >
-              <p className="font-serif text-4xl text-amber-700/50">{c.no}</p>
+              <p className="font-serif text-4xl text-amber-700">{c.no}</p>
 
               <h3 className="mt-6 font-serif text-2xl text-stone-950">
                 {c.title}
@@ -356,7 +356,7 @@ export function Testimonials() {
               key={r.author}
               className="rounded-[2rem] bg-white p-8 shadow-sm"
             >
-              <p className="text-sm tracking-[0.2em] text-amber-600">★★★★★</p>
+              <p className="text-base tracking-[0.1em] text-amber-600">★★★★★</p>
 
               <blockquote className="mt-5 leading-8 text-stone-700">
                 “{r.text}”
@@ -364,7 +364,7 @@ export function Testimonials() {
 
               <div className="mt-6">
                 <p className="font-semibold text-stone-950">{r.author}</p>
-                <p className="text-sm text-stone-500">{r.location}</p>
+                <p className="text-base text-stone-500">{r.location}</p>
               </div>
             </div>
           ))}
@@ -389,7 +389,7 @@ export function Milestones() {
         {items.map((it) => (
           <div key={it.label} className="text-center">
             <p className="font-serif text-4xl text-white">{it.num}</p>
-            <p className="mt-2 text-sm text-stone-300">{it.label}</p>
+            <p className="mt-2 text-base text-stone-300">{it.label}</p>
           </div>
         ))}
       </div>
@@ -406,7 +406,7 @@ export function OurShowroom() {
       <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         {/* Left Side: Address */}
         <div>
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-gold">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.1em] text-gold-ink">
             Visit Us
           </p>
 
@@ -425,7 +425,7 @@ export function OurShowroom() {
                   Kolkata, West Bengal
                 </h3>
 
-                <p className="max-w-xl text-base leading-8 text-carbon/70">
+                <p className="max-w-xl text-base leading-8 text-ink-mid">
                   {address}
                 </p>
 
@@ -435,7 +435,7 @@ export function OurShowroom() {
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-6 inline-flex rounded-full bg-carbon px-6 py-3 text-sm font-bold uppercase tracking-[0.22em] text-white transition hover:bg-gold"
+                  className="mt-6 inline-flex rounded-full bg-carbon px-6 py-3 text-base font-bold uppercase tracking-[0.1em] text-white transition hover:bg-carbon-dark"
                 >
                   View on Maps
                 </a>

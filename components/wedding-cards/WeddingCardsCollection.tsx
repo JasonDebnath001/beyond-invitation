@@ -26,21 +26,21 @@ export default function WeddingCardsCollection({
     <WeddingCardsMotion>
       <section id="collection" aria-labelledby="wedding-cards-title" className="mx-auto max-w-[1800px] px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:px-8">
         <header className="mb-3 sm:mb-5">
-          <h1 id="wedding-cards-title" className="text-[28px] font-semibold leading-tight tracking-[-0.025em] text-maroon sm:text-[32px]">{title}</h1>
+          <h1 id="wedding-cards-title" className="text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] text-maroon sm:text-[2rem]">{title}</h1>
         </header>
         {errorMessage || !initialPage.facets.total ? (
           <div className="rounded-3xl border border-gold/20 bg-white/80 p-8 text-center sm:p-12">
-            <h2 className="text-2xl font-light text-maroon">
+            <h2 className="text-2xl font-normal text-maroon">
               {errorMessage ? `Unable to load ${productLabel}.` : emptyTitle}
             </h2>
             <p className="mt-3 text-base leading-8 text-ink-mid">
               {errorMessage ? "Please try again, or contact us for available designs." : "This collection is being updated. Please check back soon or contact us for help finding your invitation."}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <a href="https://wa.me/917044815488" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full bg-carbon px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-carbon-dark">
+              <a href="https://wa.me/917044815488" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full bg-carbon px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-carbon-dark">
                 Chat on WhatsApp
               </a>
-              <Link href="/contact" className="inline-flex items-center justify-center rounded-full border border-carbon/20 bg-white px-6 py-3 text-sm font-semibold text-carbon transition-colors hover:bg-paper">
+              <Link href="/contact" className="inline-flex items-center justify-center rounded-full border border-carbon/20 bg-white px-6 py-3 text-base font-semibold text-carbon transition-colors hover:bg-paper">
                 Contact us
               </Link>
             </div>

@@ -127,21 +127,21 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
             onFocus={() => setOpen(true)}
             placeholder="Search cards"
             aria-label="Search products"
-            className="w-full rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-[13px] text-carbon shadow-sm transition-all placeholder:text-neutral-400 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10"
+            className="min-h-11 w-full rounded-full border border-neutral-300 bg-white py-2.5 pl-9 pr-4 text-base text-carbon shadow-sm transition-all placeholder:text-neutral-600 focus:border-carbon focus:outline-none focus:ring-2 focus:ring-carbon/10"
           />
         </div>
       </form>
 
       {showDropdown && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-0 animate-fadeDown overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)] lg:w-80">
+        <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-0 animate-fadeDown overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_16px_44px_rgba(0,0,0,0.12)] 2xl:w-80">
           {loading && (
-            <p className="px-4 py-3 text-[13px] text-neutral-400">
+            <p className="px-4 py-3 text-base text-neutral-600">
               Searching&hellip;
             </p>
           )}
 
           {!loading && shown.length === 0 && (
-            <p className="px-4 py-3 text-[13px] text-neutral-400">
+            <p className="px-4 py-3 text-base text-neutral-600">
               No products found for &ldquo;{query.trim()}&rdquo;
             </p>
           )}
@@ -158,7 +158,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
                   {product.emoji}
                 </span>
 
-                <span className="min-w-0 flex-1 break-words text-[13px] font-medium text-carbon">
+                <span className="min-w-0 flex-1 break-words text-base font-medium text-carbon">
                   {formatProductName(product.name, product.printName)}
                 </span>
               </button>
@@ -168,7 +168,7 @@ export default function SearchBar({ onNavigate }: SearchBarProps) {
             <button
               type="button"
               onClick={handleSubmit}
-              className="block w-full border-t border-neutral-200 bg-paper px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-carbon transition-colors hover:bg-neutral-100"
+              className="block w-full border-t border-neutral-200 bg-paper px-4 py-3 text-center text-base font-semibold text-carbon transition-colors hover:bg-neutral-100"
             >
               See all {results.length} results &#8594;
             </button>

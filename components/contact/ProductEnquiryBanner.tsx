@@ -36,23 +36,23 @@ export default function ProductEnquiryBanner({
           <ImageOff
             size={18}
             aria-label="Image unavailable"
-            className="text-ink-light"
+            className="text-ink-mid"
           />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-carbon">
+        <p className="text-base font-semibold text-carbon">
           Enquiry for design {product.designNo}
         </p>
-        <p className="mt-1 break-words text-sm text-ink-mid">{formatProductName(product.name, product.printName)}</p>
+        <p className="mt-1 break-words text-base text-ink-mid">{formatProductName(product.name, product.printName)}</p>
         {product.minOrderQty != null && product.minOrderQty > 0 ? (
-          <p className="mt-1 text-xs text-ink-light">
+          <p className="mt-1 text-sm text-ink-mid">
             Min. {product.minOrderQty} pieces
           </p>
         ) : null}
         <Link
           href="/contact"
-          className="mt-2 inline-block text-xs font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon"
+          className="mt-2 inline-block text-base font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon"
         >
           Remove
         </Link>

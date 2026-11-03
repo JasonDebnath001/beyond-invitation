@@ -10,7 +10,7 @@ export function CatalogPaginationControls({ page, loading, error, loadMore, retr
   return (
     <div className="space-y-3 pt-4 text-center">
       {error && (
-        <div role="alert" className="text-sm text-maroon">
+        <div role="alert" className="text-base text-maroon">
           <p>{error}</p>
           <button type="button" onClick={retry} disabled={Boolean(loading)} className="mt-2 font-semibold underline underline-offset-4">
             Try again
@@ -22,7 +22,7 @@ export function CatalogPaginationControls({ page, loading, error, loadMore, retr
           type="button"
           onClick={loadMore}
           disabled={Boolean(loading)}
-          className="rounded-full border border-maroon bg-maroon px-8 py-3 text-sm font-semibold text-gold-light shadow-sm transition hover:bg-maroon-dark focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+          className="rounded-full border border-maroon bg-maroon px-8 py-3 text-base font-semibold text-gold-light shadow-sm transition hover:bg-maroon-dark focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
           {loading ? "Loading…" : "Load More"}
         </button>
@@ -40,7 +40,7 @@ export default function PaginatedProductGrid({ initialPage, scope = {}, category
   const pagination = useCatalogPagination(initialPage, scope);
   return (
     <div aria-busy={Boolean(pagination.loading)}>
-      <p className="mb-5 text-sm text-ink-mid" aria-live="polite">
+      <p className="mb-5 text-base text-ink-mid" aria-live="polite">
         Showing {pagination.page.products.length} of {pagination.page.total} {pagination.page.total === 1 ? "product" : "products"}
       </p>
       <div className={gridClassName}>

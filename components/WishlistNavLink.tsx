@@ -20,8 +20,8 @@ export default function WishlistNavLink({
       href="/wishlist"
       onClick={onNavigate}
       aria-label={`Wishlist${count > 0 ? `, ${count} items` : ""}`}
-      className={`relative inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-carbon/10 bg-white text-[13px] font-bold text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
-        showLabel ? "w-full px-4" : "px-3 sm:px-4"
+      className={`relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-carbon/10 bg-white py-2 text-base font-bold text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
+        showLabel ? "w-full flex-wrap px-4" : "px-3 sm:px-4"
       }`}
     >
       <svg
@@ -42,7 +42,7 @@ export default function WishlistNavLink({
       </span>
 
       {count > 0 && (
-        <span className="ml-0.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-carbon px-1.5 text-[10px] font-extrabold leading-none text-white">
+        <span className="ml-0.5 inline-flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-carbon px-1.5 py-0.5 text-xs font-extrabold leading-none text-white">
           {count > 99 ? "99+" : count}
         </span>
       )}

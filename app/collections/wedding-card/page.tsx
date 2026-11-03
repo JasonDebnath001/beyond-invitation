@@ -39,7 +39,7 @@ export default async function WeddingCardPage() {
     <main className="bg-white">
       <section className="border-b border-gold/20 bg-paper">
         <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
+          <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
             Collection
           </p>
 
@@ -49,14 +49,14 @@ export default async function WeddingCardPage() {
                 Wedding Cards
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-light">
+              <p className="mt-2 max-w-2xl text-base leading-6 text-ink-mid">
                 Browse all Hindu, Muslim, Christian and general wedding card
                 designs.
               </p>
             </div>
 
             {!errorMessage && (
-              <p className="text-sm font-semibold text-carbon">
+              <p className="text-base font-semibold text-carbon">
                 {page.total}{" "}
                 {page.total === 1 ? "Product" : "Products"}
               </p>
@@ -68,7 +68,7 @@ export default async function WeddingCardPage() {
       <section className="mx-auto max-w-[1800px] px-4 py-7 sm:px-6 lg:px-8">
         {errorMessage ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-red-700">
               Catalogue Error
             </p>
 
@@ -76,7 +76,7 @@ export default async function WeddingCardPage() {
               Products could not be loaded
             </h2>
 
-            <p className="mt-3 text-sm leading-6 text-red-700">
+            <p className="mt-3 text-base leading-6 text-red-700">
               Please try again shortly.
             </p>
           </div>
@@ -86,7 +86,7 @@ export default async function WeddingCardPage() {
               No wedding cards found
             </h2>
 
-            <p className="mt-2 text-sm text-ink-light">
+            <p className="mt-2 text-base text-ink-mid">
               This collection is being updated. Please check back soon or contact us for help finding your invitation.
             </p>
           </div>

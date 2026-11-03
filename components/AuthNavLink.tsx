@@ -20,7 +20,7 @@ export default function AuthNavLink({
       href={href}
       onClick={onNavigate}
       aria-label={user ? "My account" : "Sign in"}
-      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-carbon/10 bg-white px-4 text-[13px] font-bold text-carbon shadow-sm transition hover:bg-paper"
+      className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-carbon/10 bg-white px-4 py-2 text-base font-bold text-carbon shadow-sm transition hover:bg-paper"
     >
       {ready && user ? "My account" : "Sign in"}
     </Link>

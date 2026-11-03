@@ -24,24 +24,24 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
       <h1 className="mt-5 font-display text-3xl font-semibold text-maroon-dark md:text-4xl">
         {paymentPending ? "Payment confirmation pending" : "Payment successful"}
       </h1>
-      <p className="mx-auto mt-3 max-w-md text-[14.5px] leading-relaxed text-ink-mid">
+      <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-ink-mid">
         {paymentPending
           ? "We are confirming your payment. Please do not pay again. Keep your payment reference and contact us if you need an update."
           : "Thank you for your order. Our team will reach out shortly to confirm personalisation details and proof approval."}
       </p>
 
       {order_id && (
-        <p className="mt-5 break-words text-sm text-ink-mid">
+        <p className="mt-5 break-words text-base text-ink-mid">
           Order reference: <span className="font-medium text-ink">{order_id}</span>
         </p>
       )}
 
       {paymentPending && (
-        <Link href="/contact" className="mt-4 inline-block text-sm underline">Contact us about your payment</Link>
+        <Link href="/contact" className="mt-4 inline-block text-base underline">Contact us about your payment</Link>
       )}
 
       {payment_id && (
-        <p className="mt-5 max-w-full break-words rounded-lg border border-gold/30 bg-paper px-4 py-2 text-[12.5px] text-ink-mid [overflow-wrap:anywhere] sm:inline-block">
+        <p className="mt-5 max-w-full break-words rounded-lg border border-gold/30 bg-paper px-4 py-2 text-sm text-ink-mid [overflow-wrap:anywhere] sm:inline-block">
           Payment ID: <span className="font-medium text-ink">{payment_id}</span>
         </p>
       )}
@@ -49,7 +49,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
       <div className="mt-8">
         <Link
           href="/"
-          className="inline-flex max-w-full items-center justify-center gap-2 bg-carbon px-5 py-3 text-center text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-carbon-dark sm:px-7"
+          className="inline-flex max-w-full items-center justify-center gap-2 bg-carbon px-5 py-3 text-center text-base font-semibold tracking-normal text-white transition hover:bg-carbon-dark sm:px-7"
         >
           Back to Home →
         </Link>

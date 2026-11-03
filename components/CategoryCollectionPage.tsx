@@ -78,7 +78,7 @@ export default function CategoryCollectionPageClient({
           <nav
             data-page-intro
             aria-label="Breadcrumb"
-            className="mb-5 flex min-w-0 items-center gap-2 overflow-hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8b1e2d] sm:tracking-[0.22em]"
+            className="mb-5 flex min-w-0 items-center gap-2 overflow-hidden text-sm font-semibold uppercase tracking-[0.1em] text-[#8b1e2d]"
           >
             <Link href="/" className="transition hover:text-[#2a1810]">
               Home
@@ -91,7 +91,7 @@ export default function CategoryCollectionPageClient({
             <div>
               <p
                 data-page-intro
-                className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#7b1c2e]"
+                className="mb-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#7b1c2e]"
               >
                 Premium collection
               </p>
@@ -106,7 +106,7 @@ export default function CategoryCollectionPageClient({
               {categoryDescription ? (
                 <p
                   data-page-intro
-                  className="mt-4 max-w-xl text-sm leading-7 text-[#715746] sm:text-base"
+                  className="mt-4 max-w-xl text-base leading-7 text-[#715746]"
                 >
                   {categoryDescription}
                 </p>
@@ -116,7 +116,7 @@ export default function CategoryCollectionPageClient({
             <Link
               data-page-intro
               href="/contact"
-              className="inline-flex w-fit items-center justify-center rounded-full bg-[#2a1810] px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#f6d889] transition duration-300 hover:-translate-y-0.5 hover:bg-[#7b1c2e]"
+              className="inline-flex w-fit items-center justify-center rounded-full bg-[#2a1810] px-6 py-3.5 text-base font-semibold tracking-normal text-[#f6d889] transition duration-300 hover:-translate-y-0.5 hover:bg-[#7b1c2e]"
             >
               Custom enquiry
             </Link>
@@ -124,13 +124,13 @@ export default function CategoryCollectionPageClient({
 
           {errorMessage ? (
             <div className="rounded-[1.75rem] border border-[#e4d2a5] bg-white/70 p-6 text-center shadow-sm sm:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#8b1e2d]">
+              <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[#8b1e2d]">
                 Something went wrong
               </p>
               <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[#2a1810] sm:text-3xl">
                 We couldn&apos;t load this collection
               </h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#806553]">
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#806553]">
                 Please refresh the page or contact us for available designs.
               </p>
             </div>
@@ -140,7 +140,7 @@ export default function CategoryCollectionPageClient({
               <h2 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[#2a1810] sm:text-3xl">
                 This collection is being refreshed
               </h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#806553]">
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#806553]">
                 Please check back soon, or send us a custom enquiry.
               </p>
             </div>

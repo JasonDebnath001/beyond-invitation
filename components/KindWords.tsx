@@ -53,7 +53,7 @@ export default function KindWords() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-10 text-center">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-gold">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.1em] text-gold-ink">
             Testimonials
           </p>
 
@@ -86,7 +86,7 @@ export default function KindWords() {
                 </h3>
 
                 <div
-                  className="mb-6 flex gap-1 text-2xl text-gold"
+                  className="mb-6 flex gap-1 text-2xl text-gold-ink"
                   aria-label="5 star rating"
                 >
                   <span>★</span>
@@ -96,7 +96,7 @@ export default function KindWords() {
                   <span>★</span>
                 </div>
 
-                <p className="text-base leading-8 text-carbon/70 sm:text-lg">
+                <p className="text-base leading-8 text-ink-mid sm:text-lg">
                   {review.text}
                 </p>
 

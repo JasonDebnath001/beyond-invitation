@@ -24,7 +24,7 @@ export default function VisitUsPage() {
         <div className="mx-auto grid min-w-0 max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:px-8 lg:py-20 xl:grid-cols-[minmax(0,1fr)_430px]">
           {/* Text */}
           <div className="min-w-0">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
+            <p className="mb-3 text-base font-semibold uppercase tracking-[0.1em] text-amber-700">
               Visit Us
             </p>
 
@@ -41,7 +41,7 @@ export default function VisitUsPage() {
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               <div className="min-w-0 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                <p className="text-base font-semibold uppercase tracking-[0.1em] text-amber-700">
                   Address
                 </p>
                 <p className="mt-3 break-words text-base leading-7 text-neutral-800 [overflow-wrap:anywhere]">
@@ -54,7 +54,7 @@ export default function VisitUsPage() {
               </div>
 
               <div className="min-w-0 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                <p className="text-base font-semibold uppercase tracking-[0.1em] text-amber-700">
                   Contact
                 </p>
                 <p className="mt-3 break-words text-base leading-7 text-neutral-800 [overflow-wrap:anywhere]">
@@ -72,7 +72,7 @@ export default function VisitUsPage() {
                 href="https://wa.me/917044815488"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full bg-neutral-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+                className="rounded-full bg-neutral-950 px-6 py-3 text-base font-semibold text-white transition hover:bg-amber-800"
               >
                 Chat on WhatsApp
               </Link>
@@ -81,7 +81,7 @@ export default function VisitUsPage() {
                 href="https://www.google.com/maps/search/?api=1&query=8%20Jackson%20Lane%20Canning%20Street%20Kolkata%20700001"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-amber-100"
+                className="rounded-full border border-amber-300 bg-white px-6 py-3 text-base font-semibold text-neutral-900 transition hover:bg-amber-100"
               >
                 Open in Google Maps
               </Link>
@@ -106,10 +106,10 @@ export default function VisitUsPage() {
             </div>
 
             <div className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/60 bg-white/90 p-4 shadow-lg backdrop-blur">
-              <p className="text-sm font-semibold text-neutral-950">
+              <p className="text-base font-semibold text-neutral-950">
                 Bharat Agency Wedding Cards Pvt. Ltd.
               </p>
-              <p className="mt-1 text-xs leading-5 text-neutral-600">
+              <p className="mt-1 text-sm leading-5 text-neutral-600">
                 Distributor of Khushi Wedding Cards, Rakhi Cards, Tags, Boxes &
                 Fancy Money Envelopes.
               </p>
@@ -123,7 +123,7 @@ export default function VisitUsPage() {
         <div className="min-w-0 rounded-3xl border border-amber-100 bg-white p-5 shadow-sm sm:p-8">
           <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
             <div className="min-w-0">
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
+              <p className="text-base font-semibold uppercase tracking-[0.1em] text-amber-700">
                 Find Us
               </p>
 
@@ -138,11 +138,11 @@ export default function VisitUsPage() {
             </div>
 
             <div className="rounded-2xl bg-amber-50 p-5">
-              <p className="text-sm font-semibold text-neutral-950">
+              <p className="text-base font-semibold text-neutral-950">
                 Showroom Details
               </p>
 
-              <div className="mt-4 space-y-3 text-sm leading-6 text-neutral-700">
+              <div className="mt-4 space-y-3 text-base leading-6 text-neutral-700">
                 <p>
                   <span className="font-semibold text-neutral-950">
                     Business:
@@ -165,7 +165,7 @@ export default function VisitUsPage() {
 
               <Link
                 href="/contact"
-                className="mt-6 inline-flex rounded-full bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+                className="mt-6 inline-flex rounded-full bg-neutral-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-amber-800"
               >
                 Send Enquiry
               </Link>

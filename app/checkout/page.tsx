@@ -243,13 +243,13 @@ export default function CheckoutPage() {
             Checkout
           </h1>
 
-          <p className="mt-3 text-ink-light">
+          <p className="mt-3 text-ink-mid">
             Your cart is empty. Please add products before checkout.
           </p>
 
           <Link
             href="/cart"
-            className="mt-6 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+            className="mt-6 inline-flex rounded-full bg-maroon px-6 py-3 text-base font-semibold text-white transition hover:bg-maroon-dark"
           >
             Back to Cart
           </Link>
@@ -262,7 +262,7 @@ export default function CheckoutPage() {
     <main className="mx-auto min-w-0 max-w-7xl px-4 py-8 sm:py-10">
       <Link
         href="/cart"
-        className="text-sm font-medium text-maroon transition hover:text-maroon-dark"
+        className="text-base font-medium text-maroon transition hover:text-maroon-dark"
       >
         ← Back to Cart
       </Link>
@@ -272,7 +272,7 @@ export default function CheckoutPage() {
           Checkout Details
         </h1>
 
-        <p className="mt-2 text-ink-light">
+        <p className="mt-2 text-ink-mid">
           Fill customer contact and address details before payment.
         </p>
       </div>
@@ -283,74 +283,74 @@ export default function CheckoutPage() {
             Customer Contact & Address
           </h2>
 
-          <p className="mt-2 text-sm text-ink-light">
+          <p className="mt-2 text-base text-ink-mid">
             We use these details to confirm your order and arrange delivery.
           </p>
 
           {locationError && (
-            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-base text-amber-800">
               {locationError}
             </p>
           )}
 
           <div className="mt-6 grid min-w-0 gap-5 md:grid-cols-2">
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-base font-medium text-ink">
               Customer Name *
               <input
                 value={form.name}
                 onChange={(e) => updateField("name", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Full name"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-base font-medium text-ink">
               Mobile Number *
               <input
                 value={form.contact}
                 onChange={(e) => updateField("contact", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Mobile number"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink md:col-span-2">
+            <label className="block text-base font-medium text-ink md:col-span-2">
               Email Address *
               <input
                 value={form.email}
                 onChange={(e) => updateField("email", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Email address"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink md:col-span-2">
+            <label className="block text-base font-medium text-ink md:col-span-2">
               Address Line 1 *
               <input
                 value={form.addressLine1}
                 onChange={(e) => updateField("addressLine1", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="House / Flat / Building / Street"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink md:col-span-2">
+            <label className="block text-base font-medium text-ink md:col-span-2">
               Address Line 2
               <input
                 value={form.addressLine2}
                 onChange={(e) => updateField("addressLine2", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Area / Landmark"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-base font-medium text-ink">
               State *
               <select
                 value={form.state}
                 onChange={(e) => handleStateChange(e.target.value)}
                 disabled={statesLoading}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-ink-light"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-ink-mid"
               >
                 <option value="">
                   {statesLoading ? "Loading states..." : "Select state"}
@@ -365,14 +365,14 @@ export default function CheckoutPage() {
             </label>
 
             <div>
-              <label className="block text-sm font-medium text-ink">
+              <label className="block text-base font-medium text-ink">
                 City *
                 {!manualCityMode ? (
                   <select
                     value={form.city}
                     onChange={(e) => updateField("city", e.target.value)}
                     disabled={!form.state || citiesLoading}
-                    className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-ink-light"
+                    className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon disabled:cursor-not-allowed disabled:bg-cream/50 disabled:text-ink-mid"
                   >
                     <option value="">
                       {!form.state
@@ -394,7 +394,7 @@ export default function CheckoutPage() {
                   <input
                     value={form.city}
                     onChange={(e) => updateField("city", e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                    className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                     placeholder="Enter city manually"
                   />
                 )}
@@ -407,40 +407,40 @@ export default function CheckoutPage() {
                     setManualCityMode((prev) => !prev);
                     updateField("city", "");
                   }}
-                  className="mt-2 text-xs font-medium text-maroon hover:text-maroon-dark"
+                  className="mt-2 text-base font-medium text-maroon hover:text-maroon-dark"
                 >
                   {manualCityMode ? "Choose city from dropdown" : ""}
                 </button>
               )}
             </div>
 
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-base font-medium text-ink">
               PIN Code *
               <input
                 value={form.pincode}
                 onChange={(e) => updateField("pincode", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="PIN code"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-base font-medium text-ink">
               Country *
               <input
                 value={form.country}
                 onChange={(e) => updateField("country", e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Country"
               />
             </label>
 
-            <label className="block text-sm font-medium text-ink md:col-span-2">
+            <label className="block text-base font-medium text-ink md:col-span-2">
               Order Notes
               <textarea
                 value={form.notes}
                 onChange={(e) => updateField("notes", e.target.value)}
                 rows={4}
-                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-sm outline-none transition focus:border-maroon"
+                className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Personalization, delivery instruction, or any special note"
               />
             </label>
@@ -457,13 +457,13 @@ export default function CheckoutPage() {
               {items.map((item) => (
                 <div
                   key={item.slug}
-                  className="flex min-w-0 justify-between gap-4 text-sm"
+                  className="flex min-w-0 justify-between gap-4 text-base"
                 >
                   <div className="min-w-0">
                     <p className="break-words font-medium text-ink">
                       {formatProductName(item.name, item.printName)}
                     </p>
-                    <p className="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-ink-light">
+                    <p className="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-ink-mid">
                       <span>Qty: {item.quantity} ×</span>
                       <ProductPrice price={item.price} mrp={item.mrp} />
                     </p>
@@ -476,9 +476,9 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            <div className="border-t border-gold/20 pt-4 text-sm">
+            <div className="border-t border-gold/20 pt-4 text-base">
               <div className="flex min-w-0 justify-between gap-4">
-                <span className="min-w-0 text-ink-light">
+                <span className="min-w-0 text-ink-mid">
                   Subtotal ({totalItems} items)
                 </span>
                 <span className="shrink-0 font-medium">
@@ -487,7 +487,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="mt-3 flex justify-between gap-4">
-                <span className="text-ink-light">Shipping</span>
+                <span className="text-ink-mid">Shipping</span>
                 <span className="shrink-0 font-medium">Free</span>
               </div>
 
@@ -502,18 +502,18 @@ export default function CheckoutPage() {
             type="button"
             onClick={handlePayment}
             disabled={loading || statesLoading || citiesLoading}
-            className="mt-6 w-full rounded-full bg-maroon px-5 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 w-full rounded-full bg-maroon px-5 py-3 text-base font-semibold text-white transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Processing…" : "Pay Now"}
           </button>
 
           {error && (
-            <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-base text-red-700">
               {error}
             </p>
           )}
 
-          <p className="mt-4 text-center text-xs text-ink-light">
+          <p className="mt-4 text-center text-sm text-ink-mid">
             Your order details are saved securely before payment.
           </p>
         </aside>

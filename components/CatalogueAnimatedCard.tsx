@@ -188,7 +188,7 @@ export default function CatalogueAnimatedCard({
           });
 
           gsap.to(overlayEl, {
-            opacity: 0.34,
+            opacity: 0.6,
             duration: 0.35,
             ease: "power2.out"
           });
@@ -245,7 +245,7 @@ export default function CatalogueAnimatedCard({
           });
 
           gsap.to(overlayEl, {
-            opacity: 0.45,
+            opacity: 0.65,
             duration: 0.35,
             ease: "power2.out"
           });
@@ -317,22 +317,22 @@ export default function CatalogueAnimatedCard({
       onClick={onClick}
       aria-haspopup="dialog"
       aria-label={`Explore ${title} wedding cards, ${price}`}
-      className={`catalogue-gsap-card group relative block h-[280px] w-full overflow-hidden bg-stone-950 text-left outline-none [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold md:h-[300px] ${className}`}
+      className={`catalogue-gsap-card group relative flex min-h-[17.5rem] w-full items-end overflow-hidden bg-stone-950 text-left outline-none [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold md:min-h-[18.75rem] ${className}`}
     >
       <Image
         src={image}
         alt={title}
         width={900}
         height={600}
-        className="catalogue-card-image h-full w-full object-cover will-change-transform"
+        className="catalogue-card-image absolute inset-0 h-full w-full object-cover will-change-transform"
       />
 
-      <div className="catalogue-card-overlay absolute inset-0 bg-black opacity-45 will-change-opacity" />
+      <div className="catalogue-card-overlay absolute inset-0 bg-black opacity-[0.65] will-change-opacity" />
 
       <div className="catalogue-card-shine pointer-events-none absolute inset-y-0 -left-1/3 z-10 hidden w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/30 to-transparent blur-sm md:block" />
 
-      <div className="catalogue-card-content absolute bottom-7 left-7 z-20 pr-6 text-white [transform:translateZ(34px)]">
-        <p className="catalogue-card-price mb-3 text-sm font-bold uppercase tracking-wide text-white/90">
+      <div className="catalogue-card-content relative z-20 min-w-0 break-words px-7 pb-7 pt-24 text-white [transform:translateZ(34px)]">
+        <p className="catalogue-card-price mb-3 text-base font-bold uppercase tracking-wide text-white">
           {price}
         </p>
 
@@ -342,7 +342,7 @@ export default function CatalogueAnimatedCard({
 
         <div className="catalogue-card-line mt-4 h-px w-20 bg-gradient-to-r from-gold via-white/70 to-transparent" />
 
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
+        <p className="mt-4 text-base font-semibold uppercase tracking-[0.1em] text-white/90 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
           Explore Range
         </p>
       </div>

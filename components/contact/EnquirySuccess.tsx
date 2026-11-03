@@ -55,7 +55,7 @@ export default function EnquirySuccess({
       </svg>
       <div data-success-content>
       <h2
-        className="mt-6 text-3xl font-light tracking-tight text-maroon outline-none"
+        className="mt-6 text-3xl font-normal tracking-tight text-maroon outline-none"
       >
         Thank you, {name.trim().split(/\s+/)[0] || "there"}.
       </h2>
@@ -69,14 +69,14 @@ export default function EnquirySuccess({
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full bg-carbon px-6 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark"
+          className="rounded-full bg-carbon px-6 py-3 text-base font-semibold text-white transition hover:bg-carbon-dark"
         >
           Chat on WhatsApp
         </a>
         <button
           type="button"
           onClick={onReset}
-          className="rounded-full border border-carbon/20 bg-white px-6 py-3 text-sm font-semibold text-carbon transition hover:bg-paper"
+          className="rounded-full border border-carbon/20 bg-white px-6 py-3 text-base font-semibold text-carbon transition hover:bg-paper"
         >
           Send another enquiry
         </button>

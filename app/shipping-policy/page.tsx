@@ -60,7 +60,7 @@ export default function ShippingPolicyPage() {
             {/* Hero */}
             <section className="border-b border-amber-100 bg-gradient-to-br from-[#fff7ed] via-white to-[#fef3c7]">
                 <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-                    <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
+                    <p className="mb-3 text-base font-semibold uppercase tracking-[0.1em] text-amber-700">
                         Shipping Policy
                     </p>
 
@@ -74,13 +74,13 @@ export default function ShippingPolicyPage() {
                     </p>
 
                     <div className="mt-8 rounded-2xl border border-amber-200 bg-white/80 p-5 shadow-sm">
-                        <p className="text-sm text-neutral-600">
+                        <p className="text-base text-neutral-600">
                             <span className="font-semibold text-neutral-900">
                                 Last Updated:
                             </span>{" "}
                             {lastUpdated}
                         </p>
-                        <p className="mt-2 text-sm leading-6 text-neutral-600">
+                        <p className="mt-2 text-base leading-6 text-neutral-600">
                             Please read this Shipping Policy carefully before placing an order or requesting delivery-related assistance through our website or customer support channels.
                         </p>
                     </div>
@@ -93,7 +93,7 @@ export default function ShippingPolicyPage() {
                     {/* Sidebar */}
                     <aside className="hidden lg:block">
                         <div className="sticky top-24 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
-                            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                            <p className="mb-4 text-base font-semibold uppercase tracking-[0.1em] text-amber-700">
                                 Contents
                             </p>
 
@@ -105,7 +105,7 @@ export default function ShippingPolicyPage() {
                                             .toLowerCase()
                                             .replace(/[^a-z0-9]+/g, "-")
                                             .replace(/(^-|-$)/g, "")}`}
-                                        className="block rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-amber-50 hover:text-amber-800"
+                                        className="block rounded-lg px-3 py-2 text-base text-neutral-700 transition hover:bg-amber-50 hover:text-amber-800"
                                     >
                                         {section.title}
                                     </Link>
@@ -142,7 +142,7 @@ export default function ShippingPolicyPage() {
                                             {section.body.map((paragraph, index) => (
                                                 <div
                                                     key={index}
-                                                    className="text-sm leading-7 text-neutral-700 sm:text-base sm:leading-8"
+                                                    className="text-base leading-7 text-neutral-700 sm:leading-8"
                                                 >
                                                     {paragraph}
                                                 </div>
@@ -159,11 +159,11 @@ export default function ShippingPolicyPage() {
                 Contact Us
               </h2>
 
-              <p className="mt-4 text-sm leading-7 text-neutral-700 sm:text-base">
+              <p className="mt-4 text-base leading-7 text-neutral-700">
                 For any questions regarding shipping, delivery timelines, order tracking, or shipment status, you may contact us:
               </p>
 
-              <div className="mt-5 space-y-2 text-sm text-neutral-700 sm:text-base">
+              <div className="mt-5 space-y-2 text-base text-neutral-700">
                 <p>
                   <span className="font-semibold text-neutral-950">
                     Business:
@@ -193,7 +193,7 @@ export default function ShippingPolicyPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/contact"
-                  className="rounded-full bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+                  className="rounded-full bg-neutral-950 px-5 py-3 text-base font-semibold text-white transition hover:bg-amber-800"
                 >
                   Contact Us
                 </Link>

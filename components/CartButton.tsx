@@ -21,8 +21,8 @@ export default function CartButton({
       href="/cart"
       onClick={onNavigate}
       aria-label={`Cart${totalItems > 0 ? `, ${totalItems} items` : ""}`}
-      className={`relative inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
-        showLabel ? "w-full gap-2 px-4 text-[13px] font-bold" : "w-10"
+      className={`relative inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-carbon/10 bg-white text-carbon shadow-sm transition hover:border-carbon/25 hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
+        showLabel ? "w-full flex-wrap gap-2 px-4 py-2 text-base font-bold" : "w-11"
       }`}
     >
       <svg
@@ -45,7 +45,7 @@ export default function CartButton({
 
       {totalItems > 0 && (
         <span
-          className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-carbon px-1.5 text-[10px] font-extrabold leading-none text-white ${
+          className={`inline-flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-carbon px-1.5 py-0.5 text-xs font-extrabold leading-none text-white ${
             showLabel
               ? "ml-0.5"
               : "absolute -right-1.5 -top-1.5 ring-2 ring-white"

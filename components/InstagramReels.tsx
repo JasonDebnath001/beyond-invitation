@@ -102,7 +102,7 @@ export default function InstagramReels() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-neutral-500">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-neutral-500">
               Instagram Reels
             </p>
 
@@ -110,7 +110,7 @@ export default function InstagramReels() {
               See Our Cards in Real Moments
             </h2>
 
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-600">
+            <p className="mt-3 max-w-2xl text-base leading-6 text-neutral-600">
               Watch our latest wedding card designs, packaging details, and
               behind-the-scenes moments from Beyond Invitation.
             </p>
@@ -120,7 +120,7 @@ export default function InstagramReels() {
             href={INSTAGRAM_PROFILE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-11 items-center justify-center gap-2 border border-carbon px-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-carbon transition-colors hover:bg-carbon hover:text-white"
+            className="inline-flex min-h-11 items-center justify-center gap-2 border border-carbon px-5 py-2 text-base font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:bg-carbon hover:text-white"
           >
             <InstagramIcon className="h-4 w-4" />
             Follow on Instagram
@@ -169,7 +169,7 @@ export default function InstagramReels() {
             })}
           </div>
         ) : (
-          <div className="border border-neutral-200 bg-paper px-5 py-6 text-sm text-neutral-600">
+          <div className="border border-neutral-200 bg-paper px-5 py-6 text-base text-neutral-600">
             <p>
               Instagram reels could not be loaded right now. Please check the
               deployment logs or open{" "}
@@ -178,7 +178,7 @@ export default function InstagramReels() {
             </p>
 
             {error && (
-              <p className="mt-2 text-xs text-neutral-500">
+              <p className="mt-2 text-sm text-neutral-500">
                 Error: {error}
               </p>
             )}

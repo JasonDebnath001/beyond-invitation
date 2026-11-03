@@ -83,10 +83,10 @@ function PersonalContent({
           className="mb-7 rounded-2xl border border-gold/20 bg-white/80 px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5"
         >
           <div>
-            <p className="text-sm font-semibold text-carbon">
+            <p className="text-base font-semibold text-carbon">
               Keep this list on every device.
             </p>
-            <p className="mt-1 text-sm text-ink-mid">
+            <p className="mt-1 text-base text-ink-mid">
               Sign in and your saved designs come with you.
             </p>
           </div>

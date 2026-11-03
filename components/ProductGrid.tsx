@@ -14,7 +14,7 @@ interface ProductGridProps {
 export function ProductGrid({ products }: ProductGridProps) {
   if (products.length === 0) {
     return (
-      <p className="py-10 text-center text-sm text-ink-mid">
+      <p className="py-10 text-center text-base text-ink-mid">
         No products found.
       </p>
     );
@@ -145,7 +145,7 @@ export function ProductSection({
       <div className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-col gap-4 md:mb-10 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-gold">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
               {label}
             </p>
 
@@ -157,7 +157,7 @@ export function ProductSection({
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="hidden text-sm font-semibold text-maroon underline-offset-4 hover:underline md:inline-flex"
+              className="hidden text-base font-semibold text-maroon underline-offset-4 hover:underline md:inline-flex"
             >
               {viewAllText} →
             </Link>
@@ -167,7 +167,7 @@ export function ProductSection({
         <ProductGrid products={displayedProducts} />
 
         {error && (
-          <p role="alert" className="mt-4 text-center text-sm text-maroon">
+          <p role="alert" className="mt-4 text-center text-base text-maroon">
             {error}
           </p>
         )}
@@ -183,7 +183,7 @@ export function ProductSection({
               type="button"
               onClick={handleLoadMore}
               disabled={loading}
-              className="rounded-full border border-maroon bg-maroon px-8 py-3 text-sm font-semibold text-gold-light shadow-sm transition hover:bg-maroon-dark focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+              className="rounded-full border border-maroon bg-maroon px-8 py-3 text-base font-semibold text-gold-light shadow-sm transition hover:bg-maroon-dark focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
             >
               {loading ? "Loading..." : error ? "Try Again" : "Load More"}
             </button>
@@ -192,7 +192,7 @@ export function ProductSection({
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="text-sm font-semibold text-maroon underline-offset-4 hover:underline md:hidden"
+              className="text-base font-semibold text-maroon underline-offset-4 hover:underline md:hidden"
             >
               {viewAllText} →
             </Link>

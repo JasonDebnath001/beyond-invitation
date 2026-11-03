@@ -151,20 +151,20 @@ export default function CookieConsent() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-carbon/45">
+              <p className="mb-1 text-sm font-semibold uppercase tracking-[0.08em] text-ink-mid">
                 A small note
               </p>
 
               <h2
                 id="cookie-consent-title"
-                className="text-[15px] font-bold leading-tight text-carbon sm:text-base"
+                className="text-lg font-bold leading-snug text-carbon"
               >
                 Before you continue browsing
               </h2>
 
               <p
                 id="cookie-consent-description"
-                className="mt-1.5 text-[12px] leading-relaxed text-carbon/65 sm:text-[13px]"
+                className="mt-1.5 text-base leading-relaxed text-ink-mid"
               >
                 We use cookies and similar storage to keep sign-in, your cart,
                 wishlist and checkout reliable, and to remember your
@@ -173,10 +173,10 @@ export default function CookieConsent() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3 border-t border-carbon/[0.07] pt-3">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-carbon/[0.07] pt-3">
             <Link
               href="/privacy-policy"
-              className="text-[11px] font-semibold text-carbon/55 underline decoration-carbon/20 underline-offset-4 transition hover:text-carbon"
+              className="text-base font-semibold text-carbon underline decoration-carbon/40 underline-offset-4 transition hover:text-carbon-dark"
             >
               Privacy details
             </Link>
@@ -184,7 +184,7 @@ export default function CookieConsent() {
             <button
               type="button"
               onClick={handleAccept}
-              className="group inline-flex h-9 items-center gap-2 rounded-full bg-carbon px-4 text-[12px] font-bold text-white shadow-[0_6px_18px_rgba(123,28,46,0.18)] transition hover:-translate-y-0.5 hover:bg-carbon-dark hover:shadow-[0_9px_24px_rgba(123,28,46,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2 active:translate-y-0"
+              className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-carbon px-4 py-2 text-base font-bold text-white shadow-[0_6px_18px_rgba(123,28,46,0.18)] transition hover:-translate-y-0.5 hover:bg-carbon-dark hover:shadow-[0_9px_24px_rgba(123,28,46,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon focus-visible:ring-offset-2 active:translate-y-0"
             >
               <span>Accept & continue</span>
 

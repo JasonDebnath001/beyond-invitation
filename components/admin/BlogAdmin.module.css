@@ -1,5 +1,7 @@
 .app {
   color: #2a1810;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 .content {
   max-width: 1540px;
@@ -9,7 +11,7 @@
   display: inline-flex;
   gap: 7px;
   align-items: center;
-  font-size: 12px;
+  font-size: 1rem;
   font-weight: 600;
   color: #7b1c2e;
 }
@@ -22,21 +24,21 @@
 }
 .eyebrow {
   display: block;
-  color: #96794b;
-  font-size: 9px;
+  color: #6b4c3b;
+  font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 0.08em;
 }
 .heading h1 {
-  font-size: 35px;
+  font-size: 2.1875rem;
   line-height: 1.2;
   font-weight: 600;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.05rem;
   margin: 9px 0;
 }
 .heading p {
-  font-size: 14px;
-  color: #806b58;
+  font-size: 1rem;
+  color: #6b4c3b;
 }
 .primary,
 .secondary {
@@ -46,7 +48,7 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  font-size: 12px !important;
+  font-size: 1rem !important;
   font-weight: 600 !important;
   border-radius: 999px;
   cursor: pointer;
@@ -86,15 +88,15 @@
   padding: 23px 25px;
 }
 .stats svg {
-  color: #96794b;
+  color: #6b4c3b;
 }
 .stats span {
-  font-size: 12px;
-  color: #806b58;
+  font-size: 0.875rem;
+  color: #6b4c3b;
 }
 .stats strong {
   display: block;
-  font-size: 27px;
+  font-size: 1.6875rem;
   font-weight: 600;
   color: #2a1810;
   line-height: 1.3;
@@ -116,13 +118,14 @@
 }
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 5px;
 }
 .tabs button {
-  color: #806b58;
+  color: #6b4c3b;
   border-radius: 999px;
   padding: 10px 15px;
-  font-size: 12px !important;
+  font-size: 1rem !important;
   font-weight: 600 !important;
   min-height: 42px;
   white-space: nowrap;
@@ -135,13 +138,13 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  color: #967e63;
+  color: #6b4c3b;
 }
 .librarySearch input {
   background: transparent;
   min-width: 0;
   max-width: 200px;
-  font-size: 12px !important;
+  font-size: 1rem !important;
 }
 .librarySearch button {
   width: 38px;
@@ -161,10 +164,10 @@
 }
 .table th {
   padding: 16px 22px;
-  color: #8c765c;
-  font-size: 10px;
+  color: #6b4c3b;
+  font-size: 0.875rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.0625rem;
   font-weight: 600;
   background: #fcf6ec;
   white-space: nowrap;
@@ -172,8 +175,8 @@
 .table td {
   border-top: 1px solid #ebdfcf;
   padding: 18px 22px;
-  font-size: 12px;
-  color: #806b58;
+  font-size: 0.875rem;
+  color: #6b4c3b;
 }
 .table tr:hover td {
   background: #f9f1e5;
@@ -188,7 +191,7 @@
 .articleCell strong {
   display: block;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #2a1810;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -196,8 +199,8 @@
 .articleCell small {
   display: block;
   margin-top: 5px;
-  font-size: 11px;
-  color: #8c765c;
+  font-size: 0.875rem;
+  color: #6b4c3b;
 }
 .thumb {
   width: 66px;
@@ -224,7 +227,7 @@
   gap: 6px;
   border-radius: 999px;
   padding: 5px 10px;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -255,12 +258,14 @@
 }
 .libraryFooter {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid #e6dac8;
   padding: 17px 24px;
-  color: #927b60;
-  font-size: 12px;
+  color: #6b4c3b;
+  font-size: 0.875rem;
 }
 .empty {
   display: flex;
@@ -269,7 +274,7 @@
   gap: 16px;
   text-align: center;
   padding: 70px 24px;
-  color: #90724e;
+  color: #6b4c3b;
 }
 .emptyIcon {
   padding: 22px;
@@ -280,16 +285,16 @@
   color: #7b1c2e;
 }
 .empty h2 {
-  font-size: 27px;
+  font-size: 1.6875rem;
   font-weight: 600;
   color: #2a1810;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.025rem;
 }
 .empty p {
-  color: #887158;
+  color: #6b4c3b;
   max-width: 440px;
   line-height: 1.8;
-  font-size: 14px;
+  font-size: 1rem;
 }
 .empty .primary {
   margin-top: 7px;
@@ -298,8 +303,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #8b7459;
-  font-size: 12px;
+  color: #6b4c3b;
+  font-size: 1rem;
   margin-bottom: 25px;
   min-height: 24px;
 }
@@ -323,8 +328,8 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #8a755b;
-  font-size: 11px;
+  color: #6b4c3b;
+  font-size: 0.875rem;
 }
 .unsavedDot {
   width: 5px;
@@ -358,11 +363,11 @@
   gap: 9px;
   padding: 18px 23px;
   border-bottom: 1px solid #eadfce;
-  color: #93744c;
+  color: #6b4c3b;
 }
 .panel h2 {
   color: #45301f;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .panelBody {
@@ -371,7 +376,7 @@
 .field {
   display: block;
   color: #6b543e;
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 20px;
 }
@@ -391,37 +396,40 @@
   background: #fffcf7;
   margin-top: 8px;
   font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
   outline-offset: 2px !important;
 }
 .field input::placeholder,
 .field textarea::placeholder {
-  color: #ae9880;
+  color: #6b4c3b;
 }
 .field textarea {
   resize: vertical;
   line-height: 1.7;
 }
 .field .titleInput {
-  font-size: 22px;
+  font-size: 1.375rem;
   line-height: 1.4;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.0125rem;
   padding: 12px 14px;
 }
 .field small {
   display: block;
-  font-size: 10px;
+  font-size: 0.875rem;
   font-weight: 400;
-  color: #998166;
+  color: #6b4c3b;
   line-height: 1.65;
   margin-top: 8px;
 }
 .fieldHint {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   font-weight: 400;
-  font-size: 10px;
-  color: #998166;
+  font-size: 0.875rem;
+  color: #6b4c3b;
   margin-top: 8px;
 }
 .required {
@@ -429,6 +437,7 @@
 }
 .writingHeader {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -439,7 +448,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #93744c;
+  color: #6b4c3b;
 }
 .modeSwitch {
   display: flex;
@@ -451,8 +460,8 @@
 .modeSwitch button {
   min-height: 31px;
   padding: 5px 15px;
-  color: #9b8161;
-  font-size: 11px !important;
+  color: #6b4c3b;
+  font-size: 1rem !important;
   border-radius: 999px;
 }
 .modeSwitch button[aria-pressed="true"] {
@@ -475,7 +484,7 @@
   width: 36px;
   height: 38px;
   border-radius: 7px;
-  color: #796043;
+  color: #6b4c3b;
 }
 .formatting button:hover {
   background: #f0e2cd;
@@ -497,35 +506,36 @@
   resize: vertical;
   color: #45301f;
   line-height: 1.9;
-  font-size: 15px !important;
+  font-size: 1rem !important;
   outline-offset: -3px !important;
 }
 .markdownInput::placeholder {
-  color: #b19a80;
+  color: #6b4c3b;
 }
 .editorFooter {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 15px;
   padding: 12px 20px;
   border-top: 1px solid #eadfce;
-  color: #9b8161;
-  font-size: 10px;
+  color: #6b4c3b;
+  font-size: 0.875rem;
 }
 .editorFooter button {
   display: flex;
   align-items: center;
   gap: 6px;
   color: #7b1c2e;
-  font-size: 10px !important;
+  font-size: 1rem !important;
   min-height: 26px;
 }
 .markdownHelp {
   padding: 15px 24px;
   border-top: 1px solid #eadfce;
-  font-size: 11px;
-  color: #8c7150;
+  font-size: 0.875rem;
+  color: #6b4c3b;
   line-height: 2;
 }
 .markdownHelp code {
@@ -544,7 +554,7 @@
   border: 1px dashed #ceb48c;
   border-radius: 11px;
   cursor: pointer;
-  color: #9b7950;
+  color: #6b4c3b;
   background: #fcf4e7;
   position: relative;
 }
@@ -556,12 +566,12 @@
 .coverUpload strong {
   color: #7b1c2e;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 0.875rem;
 }
 .coverUpload > span,
 .coverUpload > small {
-  font-size: 10px;
-  color: #9b8161;
+  font-size: 0.875rem;
+  color: #6b4c3b;
 }
 .coverUpload > small {
   margin-top: -4px;
@@ -602,8 +612,8 @@
 }
 .urlDetails {
   margin: 16px 0 20px;
-  font-size: 10px;
-  color: #9b8161;
+  font-size: 0.875rem;
+  color: #6b4c3b;
 }
 .urlDetails summary {
   cursor: pointer;
@@ -622,9 +632,9 @@
   padding-left: 10px;
 }
 .slugInput > span {
-  font-size: 11px;
+  font-size: 0.875rem;
   font-weight: 400;
-  color: #aa9171;
+  color: #6b4c3b;
 }
 .slugInput input {
   margin-top: 0;
@@ -633,7 +643,7 @@
   border: 0;
   background: transparent;
   border-radius: 0 9px 9px 0;
-  font-size: 12px !important;
+  font-size: 1rem !important;
 }
 .featureCheck {
   display: flex;
@@ -652,13 +662,13 @@
 }
 .featureCheck strong {
   color: #725638;
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .featureCheck small {
   display: block;
-  font-size: 10px;
-  color: #9b8161;
+  font-size: 0.875rem;
+  color: #6b4c3b;
   line-height: 1.7;
   margin-top: 4px;
 }
@@ -668,14 +678,14 @@
   margin: 28px 6px;
 }
 .writingNote > span {
-  font-size: 8px;
-  color: #9b7950;
+  font-size: 0.875rem;
+  color: #6b4c3b;
   font-weight: 700;
-  letter-spacing: 1.7px;
+  letter-spacing: 0.08em;
 }
 .writingNote p {
-  color: #987b59;
-  font-size: 12px;
+  color: #6b4c3b;
+  font-size: 0.875rem;
   line-height: 1.8;
   margin-top: 8px;
 }
@@ -684,7 +694,7 @@
   padding: 14px 18px;
   margin-bottom: 22px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 1rem;
   line-height: 1.7;
 }
 .error {
@@ -723,11 +733,11 @@
 }
 .publishConfirm strong {
   color: #7b1c2e;
-  font-size: 15px;
+  font-size: 0.875rem;
 }
 .publishConfirm p {
-  font-size: 12px;
-  color: #8c7150;
+  font-size: 1rem;
+  color: #6b4c3b;
   margin-top: 5px;
 }
 .mediaPanel {
@@ -741,7 +751,7 @@
   justify-content: space-between;
   margin-bottom: 16px;
   color: #7b1c2e;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .mediaHeading button {
   display: grid;
@@ -763,18 +773,18 @@
   border-radius: 9px;
   padding: 12px 18px;
   margin-bottom: 17px;
-  font-size: 12px;
+  font-size: 1rem;
   cursor: pointer;
 }
 .mediaPanel > small {
   display: block;
-  font-size: 10px;
+  font-size: 0.875rem;
   line-height: 1.7;
-  color: #9b8161;
+  color: #6b4c3b;
   margin-top: 12px;
 }
 .errorText {
-  font-size: 12px;
+  font-size: 0.875rem;
   color: #8b1e2d;
   margin: 10px 0;
 }
@@ -784,22 +794,22 @@
   min-height: 460px;
 }
 .preview > h2 {
-  font-size: 33px;
+  font-size: 2.0625rem;
   font-weight: 600;
   line-height: 1.2;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.03125rem;
   margin: 15px 0;
   overflow-wrap: anywhere;
 }
 .previewExcerpt {
-  color: #8a7053;
+  color: #6b4c3b;
   line-height: 1.8;
-  font-size: 16px;
+  font-size: 1rem;
   margin-bottom: 25px;
 }
 .previewByline {
   color: #7b1c2e;
-  font-size: 13px;
+  font-size: 0.875rem;
   margin: 0 0 18px;
   overflow-wrap: anywhere;
 }
@@ -810,7 +820,7 @@
   overflow: hidden;
 }
 .previewEmpty {
-  color: #a58c70;
+  color: #6b4c3b;
   line-height: 1.8;
   margin-top: 28px;
 }
@@ -826,11 +836,11 @@
   align-items: center;
   gap: 8px;
   color: #7b1c2e;
-  font-size: 12px;
+  font-size: 0.875rem;
 }
 .publishedActions button {
-  font-size: 11px !important;
-  color: #8c7150;
+  font-size: 1rem !important;
+  color: #6b4c3b;
   text-decoration: underline;
   text-underline-offset: 3px;
   min-height: 30px;
@@ -879,7 +889,7 @@
     padding: 19px;
   }
   .heading h1 {
-    font-size: 30px;
+    font-size: 1.875rem;
   }
 }
 @media (max-width: 650px) {
@@ -888,7 +898,7 @@
     gap: 18px;
   }
   .heading h1 {
-    font-size: 29px;
+    font-size: 1.8125rem;
   }
   .stats {
     gap: 8px;
@@ -904,17 +914,17 @@
     height: 16px;
   }
   .stats span {
-    font-size: 10px;
+    font-size: 0.875rem;
   }
   .stats strong {
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   .libraryToolbar {
     padding: 12px 16px;
   }
   .tabs button {
     padding: 8px 13px;
-    font-size: 11px !important;
+    font-size: 1rem !important;
   }
   .librarySearch {
     width: 100%;
@@ -922,7 +932,7 @@
   .librarySearch input {
     flex: 1;
     max-width: none;
-    font-size: 16px !important;
+    font-size: 1rem !important;
   }
   .table th,
   .table td {
@@ -943,14 +953,14 @@
   .actions .primary,
   .actions .secondary {
     padding: 10px 13px;
-    font-size: 11px !important;
+    font-size: 1rem !important;
     gap: 6px;
   }
   .writingHeader {
     padding: 13px 16px;
   }
   .writingHeader h2 {
-    font-size: 13px;
+    font-size: 0.875rem;
   }
   .modeSwitch button {
     padding: 5px 11px;
@@ -971,7 +981,7 @@
     padding: 22px;
   }
   .preview > h2 {
-    font-size: 29px;
+    font-size: 1.8125rem;
   }
   .back {
     margin-bottom: 18px;
@@ -980,7 +990,7 @@
     padding-top: 22px;
   }
   .field .titleInput {
-    font-size: 19px !important;
+    font-size: 1.1875rem !important;
   }
   .actionbar {
     margin-bottom: 20px;

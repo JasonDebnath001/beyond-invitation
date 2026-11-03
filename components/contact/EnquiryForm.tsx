@@ -11,9 +11,9 @@ import {
 } from "@/lib/contact";
 import { CONTACT } from "@/lib/site-config";
 
-const inputClass = "mt-2 w-full min-w-0 rounded-xl border border-carbon/15 bg-white px-4 py-3 text-[15px] text-ink placeholder:text-ink-light/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30";
-const labelClass = "text-[11px] font-bold uppercase tracking-[0.18em] text-ink-mid";
-const hintClass = "mt-1.5 text-xs text-ink-light";
+const inputClass = "mt-2 w-full min-w-0 rounded-xl border border-carbon/15 bg-white px-4 py-3 text-base text-ink placeholder:text-ink-mid focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30";
+const labelClass = "text-base font-semibold text-ink";
+const hintClass = "mt-1.5 text-sm leading-relaxed text-ink-mid";
 type FieldName = "requirement" | "subRequirement" | "quantity" | "eventDate" | "name" | "mobile" | "email" | "budgetPerUnit" | "message";
 type Errors = Partial<Record<FieldName, string>>;
 
@@ -33,7 +33,7 @@ function Reveal({ open, id, children }: { open: boolean; id: string; children: R
 }
 
 function FieldError({ field, errors }: { field: FieldName; errors: Errors }) {
-  return errors[field] ? <p id={`enquiry-${field}-error`} className="mt-1.5 text-xs text-maroon">{errors[field]}</p> : null;
+  return errors[field] ? <p id={`enquiry-${field}-error`} className="mt-1.5 text-sm text-maroon">{errors[field]}</p> : null;
 }
 
 function localToday() {
@@ -175,8 +175,8 @@ export default function EnquiryForm({ enquiryProduct }: { enquiryProduct: Enquir
   return (
     <form key={formVersion} ref={formRef} onSubmit={submit} noValidate aria-label="Send an enquiry" aria-busy={busy} className="relative space-y-6">
       <header>
-        <h2 className="text-3xl font-light tracking-tight text-maroon">Send an enquiry</h2>
-        <p className="mt-2 text-sm text-ink-light">Takes about a minute.</p>
+        <h2 className="text-3xl font-normal tracking-tight text-maroon">Send an enquiry</h2>
+        <p className="mt-2 text-base text-ink-mid">Takes about a minute.</p>
       </header>
       {enquiryProduct ? <ProductEnquiryBanner product={enquiryProduct} /> : null}
 
@@ -191,7 +191,7 @@ export default function EnquiryForm({ enquiryProduct }: { enquiryProduct: Enquir
                   setRequirement(item.value); setSubRequirement("");
                   if (item.value === "Wedding Cards") setCardTypeMounted(true);
                 }} />
-                <span className="block rounded-full border border-carbon/20 px-4 py-2 text-sm font-semibold text-carbon transition hover:border-carbon/60 peer-checked:border-carbon peer-checked:bg-carbon peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold">{item.label}</span>
+                <span className="block rounded-full border border-carbon/20 px-4 py-2 text-base font-semibold text-carbon transition hover:border-carbon/60 peer-checked:border-carbon peer-checked:bg-carbon peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold">{item.label}</span>
               </label>
             ))}
           </div>
@@ -231,7 +231,7 @@ export default function EnquiryForm({ enquiryProduct }: { enquiryProduct: Enquir
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <div className="min-w-0">
             <label htmlFor="enquiry-mobile" className={labelClass}>Mobile</label>
-            <div className="relative"><span aria-hidden="true" className="pointer-events-none absolute bottom-3 left-4 text-[15px] text-ink-light">+91</span>
+            <div className="relative"><span aria-hidden="true" className="pointer-events-none absolute bottom-3 left-4 text-base text-ink-mid">+91</span>
               <input id="enquiry-mobile" name="mobile" aria-label="Mobile, +91 India" type="tel" inputMode="numeric" required autoComplete="tel-national" maxLength={10} value={mobile} onChange={event => setMobile(normaliseMobile(event.target.value))} onPaste={event => {
                 const pasted = normaliseMobile(event.clipboardData.getData("text"));
                 if (isValidIndianMobile(pasted)) { event.preventDefault(); setMobile(pasted); }
@@ -247,7 +247,7 @@ export default function EnquiryForm({ enquiryProduct }: { enquiryProduct: Enquir
       </fieldset>
 
       <div className="border-y border-gold/20 py-4">
-        <button type="button" disabled={busy} aria-expanded={budgetOpen} aria-controls="enquiry-budget" onClick={() => setBudgetOpen(value => !value)} className="flex w-full items-center justify-between gap-3 text-left text-sm font-semibold text-carbon">
+        <button type="button" disabled={busy} aria-expanded={budgetOpen} aria-controls="enquiry-budget" onClick={() => setBudgetOpen(value => !value)} className="flex w-full items-center justify-between gap-3 text-left text-base font-semibold text-carbon">
           Add a budget (optional)<ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform motion-reduce:transition-none ${budgetOpen ? "rotate-180" : ""}`} />
         </button>
         <Reveal id="enquiry-budget" open={budgetOpen}>
@@ -255,7 +255,7 @@ export default function EnquiryForm({ enquiryProduct }: { enquiryProduct: Enquir
             <label htmlFor="enquiry-budgetPerUnit" className={labelClass}>Budget per piece</label>
             <input id="enquiry-budgetPerUnit" name="budgetPerUnit" type="number" inputMode="decimal" min={0} step="0.01" disabled={!budgetOpen || busy} value={budget} onChange={event => setBudget(event.target.value)} className={inputClass} {...accessibility("budgetPerUnit")} />
             <FieldError field="budgetPerUnit" errors={errors} />
-            {total != null ? <p className="mt-3 text-sm text-ink-mid"><span aria-hidden="true">Estimated total ₹<span ref={totalRef}>{formatInr(total)}</span></span><span className="sr-only" role="status">Estimated total ₹{formatInr(total)}</span></p> : <p className={hintClass}>Add a quantity and budget to see an estimated total.</p>}
+            {total != null ? <p className="mt-3 text-base text-ink-mid"><span aria-hidden="true">Estimated total ₹<span ref={totalRef}>{formatInr(total)}</span></span><span className="sr-only" role="status">Estimated total ₹{formatInr(total)}</span></p> : <p className={hintClass}>Add a quantity and budget to see an estimated total.</p>}
           </div>
         </Reveal>
       </div>
@@ -266,11 +266,11 @@ export default function EnquiryForm({ enquiryProduct }: { enquiryProduct: Enquir
       </div>
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px]" />
       <div className="space-y-3">
-        {submitError !== null ? <div role="alert" className="rounded-xl border border-maroon/20 bg-white px-4 py-3 text-sm text-maroon">
+        {submitError !== null ? <div role="alert" className="rounded-xl border border-maroon/20 bg-white px-4 py-3 text-base text-maroon">
           {submitError || <>We could not send your enquiry. Please try again or <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">message us on WhatsApp</a>.</>}
         </div> : null}
-        <button type="submit" disabled={busy} className="w-full rounded-full bg-carbon px-6 py-3 text-sm font-semibold text-white transition hover:bg-carbon-dark disabled:cursor-wait disabled:opacity-60">{busy ? "Sending…" : "Send enquiry"}</button>
-        <p className="text-center text-xs text-ink-light">Our team will call or message you back.</p>
+        <button type="submit" disabled={busy} className="w-full rounded-full bg-carbon px-6 py-3 text-base font-semibold text-white transition hover:bg-carbon-dark disabled:cursor-wait disabled:opacity-60">{busy ? "Sending…" : "Send enquiry"}</button>
+        <p className="text-center text-sm text-ink-mid">Our team will call or message you back.</p>
       </div>
     </form>
   );

@@ -26,7 +26,7 @@ import {
 const gridClass =
   "grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4";
 const secondary =
-  "rounded-md border border-carbon/20 bg-white px-6 py-3 text-sm font-semibold text-carbon transition-colors hover:bg-paper focus-visible:outline-gold";
+  "rounded-md border border-carbon/20 bg-white px-6 py-3 text-base font-semibold text-carbon transition-colors hover:bg-paper focus-visible:outline-gold";
 type FacetOption = { value: string; label: string; count: number };
 
 function Facet({
@@ -48,14 +48,14 @@ function Facet({
 }) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-2 text-sm font-semibold text-carbon">
+      <legend className="mb-2 text-base font-semibold text-carbon">
         {label}
       </legend>
       <div className="space-y-0.5">
         {[{ value: anyValue, label: anyLabel, count: total }, ...options].map(
           (option) => {
             const selected = value.toLowerCase() === option.value.toLowerCase();
-            const className = `flex w-full items-center gap-2.5 rounded-sm py-2 text-left text-sm transition-colors focus-visible:outline-gold ${selected ? "font-semibold text-maroon" : "text-ink-mid hover:text-maroon"}`;
+            const className = `flex w-full items-center gap-2.5 rounded-sm py-2 text-left text-base transition-colors focus-visible:outline-gold ${selected ? "font-semibold text-maroon" : "text-ink-mid hover:text-maroon"}`;
             const content = (
               <>
                 <span
@@ -67,7 +67,7 @@ function Facet({
                   />
                 </span>
                 <span>{option.label}</span>
-                <span className="ml-auto pl-2 text-xs font-normal tabular-nums text-ink-mid/70">
+                <span className="ml-auto pl-2 text-sm font-normal tabular-nums text-ink-mid">
                   {option.count}
                 </span>
               </>
@@ -368,7 +368,7 @@ export default function WeddingCardsBrowser({
               onClick={() =>
                 update({ ...DEFAULT_WEDDING_FILTERS, sort: filters.sort })
               }
-              className="py-2 text-xs text-ink-mid underline underline-offset-4 hover:text-maroon"
+              className="py-2 text-base text-ink-mid underline underline-offset-4 hover:text-maroon"
             >
               Clear filters
             </button>
@@ -384,18 +384,18 @@ export default function WeddingCardsBrowser({
           <p
             role="status"
             aria-live="polite"
-            className="text-sm tabular-nums text-ink-mid"
+            className="text-base tabular-nums text-ink-mid"
           >
             {loading === "replace" ? "Loading designs…" : error && !visible.length ? "Unable to load designs" : `${page.total} designs`}
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2">
             <button
               ref={filterButtonRef}
               type="button"
               aria-haspopup="dialog"
               aria-expanded={sheetOpen}
               onClick={() => setSheetOpen(true)}
-              className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-carbon focus-visible:outline-gold lg:hidden"
+              className="inline-flex min-h-11 items-center gap-1.5 text-base font-semibold text-carbon focus-visible:outline-gold lg:hidden"
             >
               <SlidersHorizontal size={14} aria-hidden="true" />
               Filters
@@ -409,7 +409,7 @@ export default function WeddingCardsBrowser({
             <div className="flex items-center gap-2">
               <label
                 htmlFor={sortId}
-                className="hidden text-sm text-ink-mid sm:block"
+                className="hidden text-base text-ink-mid sm:block"
               >
                 Sort by
               </label>
@@ -423,7 +423,7 @@ export default function WeddingCardsBrowser({
                       sort: event.target.value as WeddingFilters["sort"],
                     })
                   }
-                  className="min-h-11 max-w-[155px] cursor-pointer appearance-none rounded-none border-0 bg-transparent py-2 pl-0 pr-5 text-sm font-semibold text-carbon focus-visible:outline-gold"
+                  className="min-h-11 max-w-full cursor-pointer appearance-none rounded-none border-0 bg-transparent py-2 pl-0 pr-5 text-base font-semibold text-carbon focus-visible:outline-gold"
                 >
                   {WEDDING_SORTS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -441,7 +441,7 @@ export default function WeddingCardsBrowser({
           </div>
         </div>
         {error ? (
-          <div role="alert" className="mb-5 rounded-md border border-carbon/15 bg-white p-4 text-sm text-ink-mid">
+          <div role="alert" className="mb-5 rounded-md border border-carbon/15 bg-white p-4 text-base text-ink-mid">
             <p>{error}</p>
             <button
               type="button"
@@ -463,7 +463,7 @@ export default function WeddingCardsBrowser({
               ))}
             </div>
             <div className="mt-10 text-center">
-              <p className="mb-4 text-sm text-ink-mid">
+              <p className="mb-4 text-base text-ink-mid">
                 Showing {visible.length} of {page.total} designs
               </p>
               {page.nextOffset !== null ? (
@@ -482,7 +482,7 @@ export default function WeddingCardsBrowser({
           </>
         ) : !error ? (
           <div className="border border-carbon/10 bg-white px-6 py-12 text-center">
-            <p className="text-xl font-light text-maroon">
+            <p className="text-xl font-normal text-maroon">
               No designs match these filters.
             </p>
             <button
@@ -531,7 +531,7 @@ export default function WeddingCardsBrowser({
             <button
               type="button"
               onClick={() => setSheetOpen(false)}
-              className="flex-1 rounded-md bg-carbon px-6 py-3 text-sm font-semibold text-white hover:bg-carbon-dark"
+              className="flex-1 rounded-md bg-carbon px-6 py-3 text-base font-semibold text-white hover:bg-carbon-dark"
             >
               {loading === "replace" ? "Loading designs…" : `Show ${page.total} designs`}
             </button>

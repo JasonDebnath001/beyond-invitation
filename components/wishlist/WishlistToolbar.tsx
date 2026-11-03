@@ -49,15 +49,15 @@ export default function WishlistToolbar({ products, slugs, sortKey, onSort, disa
         {products.length > 0 && <>
           <label htmlFor={id} className="sr-only">Sort saved designs</label>
           <select id={id} value={sortKey} disabled={disabled} onChange={(event) => onSort(event.target.value as WishlistSortKey)}
-            className={`max-w-full rounded-full border border-carbon/15 bg-white px-4 py-2 text-sm font-semibold text-carbon disabled:opacity-50 ${focusClass}`}>
+            className={`max-w-full rounded-full border border-carbon/15 bg-white px-4 py-2 text-base font-semibold text-carbon disabled:opacity-50 ${focusClass}`}>
             <option value="recent">Recently added</option><option value="price-asc">Price: low to high</option>
             <option value="price-desc">Price: high to low</option><option value="name">Name: A to Z</option>
           </select>
         </>}
         {!shared && slugs.length > 0 && <button type="button" onClick={share} disabled={sharing} className={secondaryClass}><Share2 aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />Share list</button>}
       </div>
-      {message && <p role="status" className="w-full text-sm text-emerald-800">{message}</p>}
-      {error && <p role="alert" className="w-full text-sm text-maroon">{error}</p>}
+      {message && <p role="status" className="w-full text-base text-emerald-800">{message}</p>}
+      {error && <p role="alert" className="w-full text-base text-maroon">{error}</p>}
     </div>
   );
 }

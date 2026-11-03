@@ -23,7 +23,7 @@ function ProductSectionSkeleton({
     <section className="bg-white py-14 md:py-20">
       <div className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8 md:mb-10">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-gold">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
             {label}
           </p>
           <h2 className="font-serif text-3xl font-semibold text-ink md:text-4xl">
@@ -76,7 +76,7 @@ export default async function HomeProducts({ description }: { description: strin
         <section className="mx-auto max-w-[1800px] px-4 py-16 sm:px-6 lg:px-8">
           <div role="status" className="rounded-3xl border border-gold/20 bg-white p-6 text-ink">
             <h2 className="font-serif text-3xl">Products could not be loaded</h2>
-            <p className="mt-3 text-sm text-ink-mid">Please refresh the page or try again shortly.</p>
+            <p className="mt-3 text-base text-ink-mid">Please refresh the page or try again shortly.</p>
           </div>
         </section>
         <FeatureStrip />

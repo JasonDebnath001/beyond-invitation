@@ -25,14 +25,20 @@
   min-height:100vh;
   background:var(--paper);
   color:var(--ink);
-  font-size:14px;
+  font-size:1rem;
   line-height:1.5
 }
 .app button,.app input,.app select,.app textarea {
-  font:inherit
+  font:inherit;
+  font-size:1rem;
+  line-height:1.5
 }
 .app button {
   transition:background 240ms ease,color 240ms ease,box-shadow 240ms ease
+}
+.app input::placeholder,.app textarea::placeholder {
+  color:var(--muted);
+  opacity:1
 }
 .app button:disabled {
   opacity:.45;
@@ -51,24 +57,25 @@
   padding:30px 20px;
   display:flex;
   flex-direction:column;
+  overflow-y:auto;
   z-index:20
 }
 .brand {
   display:flex;
   align-items:center;
   gap:11px;
-  font-size:16px;
+  font-size:1rem;
   font-weight:700;
-  letter-spacing:-.3px;
+  letter-spacing:-0.01875rem;
   padding:0 7px;
   text-decoration:none;
   color:var(--primary)
 }
 .brand small {
   display:block;
-  font-size:9px;
+  font-size:0.875rem;
   font-weight:600;
-  letter-spacing:1.7px;
+  letter-spacing:0.08em;
   color:var(--muted);
   margin-top:4px
 }
@@ -79,8 +86,8 @@
   flex-shrink:0
 }
 .sidebarLabel {
-  font-size:10px;
-  letter-spacing:1.8px;
+  font-size:0.875rem;
+  letter-spacing:0.08em;
   font-weight:700;
   color:var(--muted);
   margin:48px 14px 13px
@@ -107,18 +114,18 @@
 }
 .navActive span,.navButton span {
   margin-left:auto;
-  font-size:11px;
+  font-size:1rem;
   background:var(--surface);
   padding:1px 7px;
   border-radius:4px
 }
 .sidebarNote {
   margin:auto 9px 30px;
-  font-size:12px;
+  font-size:0.875rem;
   font-weight:600
 }
 .sidebarNote p {
-  font-size:12px;
+  font-size:0.875rem;
   font-weight:400;
   color:var(--muted);
   line-height:1.8;
@@ -135,14 +142,14 @@
 .adminLabel {
   border-top:1px solid var(--line);
   padding:20px 7px 0;
-  font-size:9px;
-  letter-spacing:1px;
+  font-size:0.875rem;
+  letter-spacing:0.0625rem;
   color:var(--muted)
 }
 .adminLabel span {
   float:right;
   letter-spacing:0;
-  font-size:11px
+  font-size:0.875rem
 }
 .workspace {
   margin-left:244px;
@@ -157,7 +164,7 @@
   align-items:center;
   justify-content:space-between;
   padding:0 42px;
-  font-size:12px;
+  font-size:0.875rem;
   color:var(--muted);
   gap:20px
 }
@@ -183,16 +190,18 @@
 }
 .companyLabel {
   display:flex;
+  min-width:0;
   align-items:center;
   gap:12px;
-  font-size:11px
+  font-size:0.875rem
 }
 .companyLabel select {
+  min-width:0;
   max-width:235px;
   border:0;
   background:transparent;
   color:var(--ink);
-  font-size:12px;
+  font-size:1rem;
   padding:7px;
   font-weight:600
 }
@@ -209,22 +218,22 @@
   margin-bottom:30px
 }
 .eyebrow {
-  font-size:10px;
+  font-size:0.875rem;
   font-weight:700;
-  color:var(--outline);
-  letter-spacing:1.8px;
+  color:var(--muted);
+  letter-spacing:0.08em;
   margin-bottom:10px
 }
 .heading h1 {
-  font-size:32px;
+  font-size:2rem;
   font-weight:600;
-  letter-spacing:-1.2px;
+  letter-spacing:-0.075rem;
   line-height:1.2;
   margin:0 0 11px
 }
 .heading p {
   color:var(--muted);
-  font-size:13px;
+  font-size:1rem;
   margin:0
 }
 .primary {
@@ -257,19 +266,19 @@
   box-shadow:0 2px 3px var(--shadow)
 }
 .stat>span {
-  font-size:12px;
+  font-size:0.875rem;
   font-weight:600;
   color:var(--muted)
 }
 .stat strong {
-  font-size:33px;
+  font-size:2.0625rem;
   display:block;
-  letter-spacing:-1px;
+  letter-spacing:-0.0625rem;
   margin:7px 0 0;
   font-weight:600
 }
 .stat small {
-  font-size:11px;
+  font-size:0.875rem;
   color:var(--muted)
 }
 .stat .amber {
@@ -290,18 +299,18 @@
   gap:20px
 }
 .panelHeading h2 {
-  font-size:17px;
+  font-size:1.0625rem;
   font-weight:600;
-  letter-spacing:-.3px;
+  letter-spacing:-0.01875rem;
   margin:0
 }
 .panelHeading p {
   margin:5px 0 0;
-  font-size:12px;
+  font-size:0.875rem;
   color:var(--muted)
 }
 .count {
-  font-size:11px;
+  font-size:0.75rem;
   color:var(--muted);
   background:var(--container);
   padding:2px 7px;
@@ -312,6 +321,7 @@
 }
 .actions {
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   gap:15px
 }
@@ -321,7 +331,7 @@
   gap:8px;
   background:transparent;
   border:0;
-  font-size:12px!important;
+  font-size:1rem!important;
   font-weight:600!important;
   color:var(--primary);
   padding:5px;
@@ -364,7 +374,7 @@
   gap: 7px;
   min-width: 200px;
   max-width: 400px;
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .pdfCategory select {
@@ -379,7 +389,7 @@
   padding: 0 24px 20px;
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.875rem;
   line-height: 1.6;
 }
 .pdfPhotoToggle {
@@ -387,7 +397,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 0;
-  font-size: 12px;
+  font-size: 0.875rem;
   color: var(--ink);
   cursor: pointer;
 }
@@ -407,7 +417,7 @@
   flex: 1 1 320px;
   gap: 7px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 .photoNumbers textarea {
@@ -431,7 +441,7 @@
   border-radius: 6px;
   background: var(--error-soft);
   color: var(--error);
-  font-size: 12px;
+  font-size: 0.875rem;
   line-height: 1.6;
 }
 .photoIssues ul {
@@ -460,7 +470,7 @@
   width:100%;
   background:transparent;
   border:0;
-  font-size:12px!important;
+  font-size:1rem!important;
   color:var(--ink)
 }
 .search input::placeholder {
@@ -473,7 +483,7 @@
   padding:8px 13px;
   color:var(--muted);
   background:var(--surface);
-  font-size:12px!important
+  font-size:1rem!important
 }
 .tableWrap {
   position:relative;
@@ -484,14 +494,14 @@
   width:100%;
   border-collapse:collapse;
   text-align:left;
-  font-size:12px
+  font-size:0.875rem
 }
 .table th {
   padding:12px 24px;
   background:var(--paper);
   color:var(--muted);
-  letter-spacing:1px;
-  font-size:9px;
+  letter-spacing:0.0625rem;
+  font-size:0.875rem;
   font-weight:600;
   white-space:nowrap;
   border-top:1px solid var(--line-soft);
@@ -512,7 +522,7 @@
   background:transparent;
   border:0;
   font-weight:700!important;
-  letter-spacing:.2px;
+  letter-spacing:0.0125rem;
   text-align:left;
   white-space:nowrap;
   color:var(--primary);
@@ -524,7 +534,7 @@
 .code {
   display:block;
   color:var(--muted);
-  font-size:10px;
+  font-size:0.875rem;
   margin-top:3px
 }
 .nameCell {
@@ -544,7 +554,7 @@
   display:inline-flex;
   align-items:center;
   gap:5px;
-  font-size:10px;
+  font-size:0.75rem;
   padding:3px 8px;
   border-radius:5px;
   white-space:nowrap;
@@ -571,9 +581,10 @@
   border-top:1px solid var(--line);
   padding:16px 24px;
   display:flex;
+  flex-wrap:wrap;
   justify-content:space-between;
   align-items:center;
-  font-size:11px;
+  font-size:0.875rem;
   color:var(--muted);
   gap:12px
 }
@@ -588,13 +599,13 @@
   background:var(--surface);
   color:var(--muted);
   padding:5px 10px;
-  font-size:11px
+  font-size:1rem
 }
 .footer {
   display:flex;
   justify-content:space-between;
   color:var(--muted);
-  font-size:10px;
+  font-size:0.875rem;
   margin-top:35px
 }
 .error {
@@ -630,12 +641,12 @@
   gap:8px
 }
 .empty h3 {
-  font-size:16px;
+  font-size:1rem;
   color:var(--primary);
   margin:6px 0 0
 }
 .empty p {
-  font-size:12px;
+  font-size:1rem;
   margin:0
 }
 .spin {
@@ -648,11 +659,12 @@
 }
 .steps {
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   gap:30px;
   margin:0 0 26px;
   color:var(--muted);
-  font-size:12px
+  font-size:0.875rem
 }
 .steps>span {
   display:flex;
@@ -666,7 +678,7 @@
   height:23px;
   border:1px solid var(--line);
   border-radius:50%;
-  font-size:10px;
+  font-size:0.75rem;
   font-weight:500
 }
 .steps .stepActive {
@@ -714,18 +726,18 @@
   color:var(--primary)
 }
 .dropzone strong {
-  font-size:15px;
+  font-size:0.875rem;
   font-weight:600;
   color:var(--primary);
   overflow-wrap:anywhere;
   max-width:100%
 }
 .dropzone>span:not(.uploadIcon) {
-  font-size:12px;
+  font-size:0.875rem;
   margin-top:5px
 }
 .dropzone small {
-  font-size:10px;
+  font-size:0.875rem;
   color:var(--muted);
   margin-top:18px
 }
@@ -734,7 +746,7 @@
   align-items:flex-start;
   gap:11px;
   margin-top:22px;
-  font-size:12px;
+  font-size:0.875rem;
   color:var(--ink);
   cursor:pointer
 }
@@ -748,12 +760,13 @@
 .checkbox small {
   display:block;
   margin-top:5px;
-  font-size:11px;
+  font-size:0.875rem;
   color:var(--muted);
   line-height:1.7
 }
 .uploadActions {
   display:flex;
+  flex-wrap:wrap;
   justify-content:space-between;
   align-items:center;
   gap:15px;
@@ -769,9 +782,9 @@
   color:var(--muted)
 }
 .guide h2 {
-  font-size:26px;
+  font-size:1.625rem;
   line-height:1.3;
-  letter-spacing:-.7px;
+  letter-spacing:-0.04375rem;
   font-weight:500;
   margin:12px 0 25px
 }
@@ -786,7 +799,7 @@
   display:flex;
   align-items:flex-start;
   gap:11px;
-  font-size:11px;
+  font-size:0.875rem;
   line-height:1.7;
   color:var(--muted)
 }
@@ -797,11 +810,11 @@
 .guide li strong {
   display:block;
   color:var(--primary);
-  font-size:12px;
+  font-size:0.875rem;
   margin-bottom:3px
 }
 .guide>p {
-  font-size:11px;
+  font-size:0.875rem;
   border-top:1px solid var(--line);
   padding-top:16px;
   margin-top:22px;
@@ -809,7 +822,7 @@
   color:var(--muted)
 }
 .guide code {
-  font-size:10px;
+  font-size:0.875rem;
   background:var(--gold-soft);
   padding:1px 4px;
   border-radius:3px
@@ -831,7 +844,7 @@
   gap:7px
 }
 .previewCounts button strong {
-  font-size:21px;
+  font-size:1.3125rem;
   font-weight:600
 }
 .previewCounts .selectedFilter {
@@ -841,7 +854,7 @@
 .notice,.referenceNotice,.warnings {
   margin:0 24px 18px;
   padding:12px 15px;
-  font-size:12px;
+  font-size:0.875rem;
   border-radius:5px;
   background:var(--container);
   color:var(--ink)
@@ -852,7 +865,7 @@
 }
 .referenceNotice p {
   margin-top:5px;
-  font-size:11px
+  font-size:0.875rem
 }
 .warnings {
   background:var(--paper);
@@ -869,7 +882,7 @@
   color:var(--primary)
 }
 .changes summary span {
-  font-size:10px;
+  font-size:0.875rem;
   margin-left:8px;
   color:var(--muted)
 }
@@ -883,7 +896,7 @@
   margin-top:8px
 }
 .changes dt {
-  font-size:10px;
+  font-size:0.875rem;
   color:var(--muted);
   margin-bottom:5px;
   font-weight:600
@@ -893,7 +906,7 @@
   align-items:flex-start;
   gap:10px;
   overflow-wrap:anywhere;
-  font-size:11px
+  font-size:0.875rem
 }
 .changes dd svg {
   flex-shrink:0;
@@ -910,7 +923,7 @@
 }
 .rowErrors {
   color:var(--error);
-  font-size:11px;
+  font-size:0.875rem;
   list-style:disc;
   margin:0;
   padding-left:15px;
@@ -921,7 +934,7 @@
 }
 .resultIssues {
   padding:0 24px 18px;
-  font-size:12px;
+  font-size:0.875rem;
   color:var(--error)
 }
 .resultIssues p {
@@ -933,7 +946,7 @@
   gap:10px;
   padding:17px 24px;
   border-top:1px solid var(--line);
-  font-size:12px;
+  font-size:0.875rem;
   color:var(--primary);
   background:var(--primary-soft)
 }
@@ -966,11 +979,11 @@
   align-items:flex-start
 }
 .dialog h2 {
-  font-size:25px
+  font-size:1.5625rem
 }
 .dialog .panelHeading p {
   max-width:650px;
-  font-size:13px
+  font-size:0.875rem
 }
 .detailFields {
   display:grid;
@@ -984,12 +997,12 @@
   min-width:0
 }
 .detailFields dt {
-  font-size:10px;
+  font-size:0.875rem;
   color:var(--muted);
   margin-bottom:5px
 }
 .detailFields dd {
-  font-size:12px;
+  font-size:0.875rem;
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   color:var(--ink);
@@ -1000,7 +1013,7 @@
   padding:15px 24px;
   background:var(--paper);
   border-top:1px solid var(--line);
-  font-size:11px;
+  font-size:0.875rem;
   color:var(--muted)
 }
 .srOnly {
@@ -1071,7 +1084,7 @@
   aspect-ratio:1
 }
 .galleryPhoto small,.photoName {
-  font-size:11px;
+  font-size:0.875rem;
   color:var(--muted);
   overflow-wrap:anywhere
 }
@@ -1080,7 +1093,7 @@
 }
 .uploadProgress {
   color:var(--primary);
-  font-size:13px;
+  font-size:0.875rem;
   margin:14px 0
 }
 .formFields+.formFields {
@@ -1116,10 +1129,10 @@
   padding:8px;
   color:var(--muted);
   text-align:center;
-  font-size:11px
+  font-size:0.875rem
 }
 .itemPhoto .noPhoto {
-  font-size:8px;
+  font-size:0.75rem;
   line-height:1.2;
   gap:4px
 }
@@ -1136,13 +1149,13 @@
 }
 .videoHelp {
   color:var(--muted);
-  font-size:12px;
+  font-size:0.875rem;
   line-height:1.7;
   margin:10px 0 16px
 }
 .videoError {
   color:var(--error);
-  font-size:12px;
+  font-size:0.875rem;
   margin:10px 0
 }
 .videoHelp+.formField,.actions+.formField {
@@ -1150,7 +1163,7 @@
 }
 .photoActions p {
   color:var(--muted);
-  font-size:12px;
+  font-size:0.875rem;
   max-width:390px;
   margin:12px 0
 }
@@ -1168,7 +1181,7 @@
   flex-direction:column;
   align-items:flex-start;
   gap:4px;
-  font-size:12px;
+  font-size:0.875rem;
   overflow-wrap:anywhere
 }
 .photoLinks {
@@ -1177,7 +1190,7 @@
 .photoLinks summary {
   cursor:pointer;
   color:var(--primary);
-  font-size:12px
+  font-size:0.875rem
 }
 .photoLinks[open] summary {
   margin-bottom:16px
@@ -1195,7 +1208,7 @@
 }
 .formSection h3 {
   margin:0 0 18px;
-  font-size:15px;
+  font-size:0.875rem;
   font-weight:600;
   color:var(--primary)
 }
@@ -1214,7 +1227,7 @@
   grid-column:1/-1
 }
 .formField label {
-  font-size:12px;
+  font-size:0.875rem;
   font-weight:600
 }
 .formField label span {
@@ -1234,7 +1247,7 @@
 }
 .formField small {
   color:var(--muted);
-  font-size:11px;
+  font-size:0.875rem;
   line-height:1.6
 }
 .formFields:disabled {
@@ -1244,12 +1257,12 @@
   color:var(--primary);
   cursor:pointer;
   font-weight:600;
-  font-size:13px
+  font-size:1rem
 }
 .moreFields summary span {
   display:block;
   margin:6px 0 0 16px;
-  font-size:11px;
+  font-size:1rem;
   color:var(--muted);
   font-weight:400
 }
@@ -1260,6 +1273,7 @@
   position:sticky;
   bottom:0;
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   justify-content:space-between;
   gap:16px;
@@ -1306,7 +1320,7 @@
     padding:27px 13px
   }
   .brand {
-    font-size:14px
+    font-size:0.875rem
   }
   .brandMark {
     width:32px;
@@ -1338,7 +1352,7 @@
     padding:18px 17px
   }
   .heading h1 {
-    font-size:28px
+    font-size:1.75rem
   }
   .previewCounts {
     gap:8px
@@ -1357,7 +1371,7 @@
     width:100%;
     padding:17px 20px 12px;
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
     border-right:0;
     border-bottom:1px solid var(--line)
@@ -1367,7 +1381,7 @@
     margin-bottom:11px
   }
   .brand small {
-    font-size:8px
+    font-size:0.875rem
   }
   .sidebarLabel,.sidebarNote,.adminLabel {
     display:none
@@ -1375,7 +1389,7 @@
   .navButton,.navActive {
     margin:0;
     padding:9px 13px;
-    font-size:12px!important
+    font-size:1rem!important
   }
   .workspace {
     margin-left:0
@@ -1404,13 +1418,13 @@
     gap:18px
   }
   .heading h1 {
-    font-size:27px
+    font-size:1.6875rem
   }
   .heading p {
-    font-size:12px
+    font-size:1rem
   }
   .heading>.primary {
-    font-size:12px!important;
+    font-size:1rem!important;
     padding:9px 14px
   }
   .stats {
@@ -1422,7 +1436,7 @@
     padding:15px 18px
   }
   .stat strong {
-    font-size:27px
+    font-size:1.6875rem
   }
   .panelHeading {
     padding:19px 17px;
@@ -1430,10 +1444,10 @@
     gap:13px
   }
   .panelHeading h2 {
-    font-size:16px
+    font-size:1rem
   }
   .panelHeading p {
-    font-size:11px
+    font-size:0.875rem
   }
   .toolbar {
     padding:13px 17px;
@@ -1445,10 +1459,10 @@
     max-width:none
   }
   .filter {
-    font-size:11px!important
+    font-size:1rem!important
   }
   .table {
-    font-size:11px;
+    font-size:0.875rem;
     min-width:700px
   }
   .table td,.table th {
@@ -1456,18 +1470,18 @@
   }
   .pagination {
     padding:13px 17px;
-    font-size:10px
+    font-size:0.875rem
   }
   .pagination>div {
     gap:7px
   }
   .pagination button {
-    font-size:10px;
+    font-size:1rem;
     padding:5px 7px
   }
   .steps {
     gap:12px;
-    font-size:10px
+    font-size:0.875rem
   }
   .steps b {
     width:20px;
@@ -1486,7 +1500,7 @@
     gap:8px
   }
   .uploadActions .primary {
-    font-size:12px!important;
+    font-size:1rem!important;
     padding:10px 13px
   }
   .previewCounts {
@@ -1531,9 +1545,9 @@
   margin-top:12px;
   background:var(--paper);
   border-radius:8px;
-  font-size:14px;
+  font-size:0.875rem;
 }
 .pricePreview>span:first-child {
   color:var(--muted);
-  font-size:12px;
+  font-size:0.875rem;
 }

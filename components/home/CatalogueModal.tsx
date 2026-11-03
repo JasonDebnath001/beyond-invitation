@@ -8,7 +8,7 @@ import type { CatalogBrowsePage } from "@/lib/catalog-browse-options";
 import type { CatalogueRange } from "@/lib/catalogue-ranges";
 
 const gridClass = "grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4";
-const buttonClass = "rounded-full border border-carbon px-6 py-3 text-sm font-semibold text-carbon transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-wait disabled:opacity-50";
+const buttonClass = "rounded-full border border-carbon px-6 py-3 text-base font-semibold text-carbon transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-wait disabled:opacity-50";
 
 export default function CatalogueModal({ range, onClose }: {
   range: CatalogueRange;
@@ -123,9 +123,9 @@ export default function CatalogueModal({ range, onClose }: {
       <div className="flex max-h-[90dvh] flex-col">
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-gold/20 px-5 py-5 sm:px-8 sm:py-6">
           <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-gold">Explore the catalogue</p>
+            <p className="mb-2 text-sm font-bold uppercase tracking-[0.1em] text-gold-ink">Explore the catalogue</p>
             <h2 id={`${id}-title`} className="font-serif text-2xl font-semibold text-maroon sm:text-3xl">{range.title} wedding cards</h2>
-            <p id={`${id}-description`} className="mt-2 text-sm text-ink-mid">{range.price} per card. Browse designs and view product details.</p>
+            <p id={`${id}-description`} className="mt-2 text-base text-ink-mid">{range.price} per card. Browse designs and view product details.</p>
           </div>
           <button ref={closeRef} type="button" onClick={onClose} aria-label="Close catalogue"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-carbon/15 text-carbon transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
@@ -134,7 +134,7 @@ export default function CatalogueModal({ range, onClose }: {
         </header>
 
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-6 sm:px-8 sm:py-8" aria-busy={loading}>
-          <p role="status" className={page ? "mb-5 text-sm text-ink-mid" : "sr-only"}>
+          <p role="status" className={page ? "mb-5 text-base text-ink-mid" : "sr-only"}>
             {loading ? (page ? "Loading more wedding cards…" : "Loading wedding cards…") : page ? `${page.products.length} of ${page.total} designs` : ""}
           </p>
 
@@ -162,13 +162,13 @@ export default function CatalogueModal({ range, onClose }: {
           {page && page.products.length === 0 && !loading && (
             <div className="rounded-xl border border-gold/20 bg-paper/60 px-5 py-12 text-center">
               <h3 className="font-serif text-2xl text-maroon">No designs in this range yet</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink-mid">Please explore another price range or check back soon for new wedding cards.</p>
+              <p className="mx-auto mt-3 max-w-md text-base leading-6 text-ink-mid">Please explore another price range or check back soon for new wedding cards.</p>
             </div>
           )}
 
           {error && (
             <div className="mt-6 rounded-xl border border-maroon/20 bg-paper/50 p-5 text-center">
-              <p role="alert" className="text-sm text-maroon">{error}</p>
+              <p role="alert" className="text-base text-maroon">{error}</p>
               <button type="button" onClick={() => void loadPage(failedOffset.current)} disabled={loading} className={`mt-4 ${buttonClass}`}>Try again</button>
             </div>
           )}

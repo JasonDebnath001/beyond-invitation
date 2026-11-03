@@ -35,7 +35,7 @@ export default function AccountShell({ header, children }: { header: ReactNode; 
           <nav aria-label="Account sections" data-motion="rail" className="flex gap-2 overflow-x-auto px-1 py-2 lg:sticky lg:top-28 lg:flex-col lg:gap-1 lg:overflow-visible lg:border-l lg:border-gold/25 lg:p-0">
             {sections.map(({ id, label, icon: Icon }) => (
               <a key={id} href={`#${id}`} aria-current={active === id ? "true" : undefined} onClick={() => setActive(id)}
-                className={`relative flex shrink-0 items-center gap-3 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors lg:rounded-r-xl lg:rounded-l-none lg:border-0 lg:px-5 lg:py-3.5 lg:text-sm ${focusClass} ${active === id ? "border-gold/50 bg-white/80 text-carbon lg:bg-gold/10" : "border-carbon/15 text-ink-mid hover:bg-white/60 hover:text-carbon"}`}>
+                className={`relative flex shrink-0 items-center gap-3 whitespace-nowrap rounded-full border px-3 py-1.5 text-base font-semibold transition-colors lg:rounded-r-xl lg:rounded-l-none lg:border-0 lg:px-5 lg:py-3.5 ${focusClass} ${active === id ? "border-gold/50 bg-white/80 text-carbon lg:bg-gold/10" : "border-carbon/15 text-ink-mid hover:bg-white/60 hover:text-carbon"}`}>
                 {active === id && <span aria-hidden="true" className="absolute -left-px top-2.5 hidden h-[calc(100%-20px)] w-0.5 rounded-full bg-gold lg:block" />}
                 <Icon aria-hidden="true" className="hidden h-4 w-4 lg:block" strokeWidth={1.5} />{label}
               </a>

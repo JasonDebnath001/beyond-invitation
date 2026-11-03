@@ -259,7 +259,7 @@ export default function HomeTextAnimation() {
         className="border-y border-amber-900/10 bg-[#fffaf2] py-3"
       >
         <div className="mx-auto flex max-w-7xl items-center gap-5 overflow-hidden px-4">
-          <p className="hidden shrink-0 text-xs font-semibold uppercase tracking-[0.28em] text-amber-800/70 md:block">
+          <p className="hidden shrink-0 text-sm font-semibold uppercase tracking-[0.1em] text-amber-800 md:block">
             Explore
           </p>
 
@@ -276,7 +276,7 @@ export default function HomeTextAnimation() {
                   key={`${item}-${index}`}
                   className="flex items-center gap-7"
                 >
-                  <span className="text-sm font-semibold tracking-wide text-stone-800/75 md:text-base">
+                  <span className="text-base font-semibold tracking-wide text-stone-800">
                     {item}
                   </span>
 

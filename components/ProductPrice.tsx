@@ -13,7 +13,7 @@ export default function ProductPrice({
   price,
   mrp = price,
   priceClassName = "",
-  oldPriceClassName = "text-ink-light",
+  oldPriceClassName = "text-ink-mid",
   unavailableLabel = "Price on request",
   variant = "default",
 }: ProductPriceProps) {
@@ -28,13 +28,13 @@ export default function ProductPrice({
     return (
       <>
         {showOldPrice && (
-          <del className="whitespace-nowrap text-[12px] font-normal tracking-[0.03em] text-neutral-500 decoration-[#dc2b18] sm:text-[14px]">
+          <del className="max-w-full break-words text-sm font-normal leading-normal text-neutral-600 decoration-[#b91c0c]">
             <span className="sr-only">Old price: </span>
             {cardPrice(mrp)}
           </del>
         )}
         <span
-          className={`text-[13px] font-normal tracking-[0.05em] sm:text-[16px] ${hasPrice ? "text-[#ed210b]" : "text-neutral-600"}`}
+          className={`max-w-full break-words text-base font-semibold leading-normal ${hasPrice ? "text-[#b91c0c]" : "text-neutral-600"}`}
         >
           {hasPrice ? (
             <>

@@ -10,7 +10,7 @@ export default function MyOrdersPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
       <h1 className="font-serif text-3xl font-semibold text-maroon">Need help with an order?</h1>
-      <p className="mt-4 text-ink-light">Contact our team with your order or payment reference for an update.</p>
+      <p className="mt-4 text-ink-mid">Contact our team with your order or payment reference for an update.</p>
       <Link href="/contact" className="mt-6 inline-block underline">Contact us about your order</Link>
     </main>
   );

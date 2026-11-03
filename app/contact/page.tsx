@@ -47,8 +47,8 @@ export default async function ContactPage({ searchParams }: {
         <div className="pointer-events-none absolute -right-40 top-10 h-96 w-96 rounded-full bg-[#dcb162]/10 blur-3xl" />
         <div className="relative mx-auto grid min-w-0 max-w-7xl gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16">
           <div className="min-w-0">
-            <p data-motion="eyebrow" className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#a7772d]">Contact</p>
-            <h1 className="mt-4 text-[34px] font-light leading-[1.08] tracking-[-0.035em] text-[#50101f] lg:text-[52px]">
+            <p data-motion="eyebrow" className="text-sm font-bold uppercase tracking-[0.1em] text-ink-mid">Contact</p>
+            <h1 className="mt-4 text-[2.125rem] font-normal leading-[1.08] tracking-[-0.035em] text-[#50101f] lg:text-[3.25rem]">
               {"Tell us about your celebration.".split(" ").map((word, index) => (
                 <span key={word}>{index > 0 ? " " : ""}<span data-motion="heading-word" className="inline-block">{word}</span></span>
               ))}
@@ -58,8 +58,8 @@ export default async function ContactPage({ searchParams }: {
             <ContactChannels enquiryProduct={enquiryProduct} />
             <aside className="mt-6 rounded-2xl border border-gold/20 bg-white/80 px-5 py-4 shadow-[0_1px_0_rgba(201,168,76,0.25),0_18px_40px_-28px_rgba(80,16,31,0.35)]">
               <h2 className="font-semibold text-carbon">Already placed an order?</h2>
-              <p className="mt-1 text-sm leading-6 text-ink-mid">Message us on WhatsApp with your payment reference.</p>
-              <Link href="/my-orders" className="mt-2 inline-block text-sm font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon">Order help</Link>
+              <p className="mt-1 text-base leading-6 text-ink-mid">Message us on WhatsApp with your payment reference.</p>
+              <Link href="/my-orders" className="mt-2 inline-block text-base font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon">Order help</Link>
             </aside>
           </div>
           <div data-motion="form-card" className="order-first min-w-0 rounded-3xl border border-gold/20 bg-white p-6 shadow-[0_1px_0_rgba(201,168,76,0.25),0_18px_40px_-28px_rgba(80,16,31,0.35)] sm:p-8 lg:order-none lg:sticky lg:top-28 lg:self-start">

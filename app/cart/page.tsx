@@ -72,7 +72,7 @@ export default function CartPage() {
             Your cart is empty
           </h1>
 
-          <p className="mt-3 text-sm text-ink-light">
+          <p className="mt-3 text-base text-ink-mid">
             Browse our collection and
             add some beautiful
             invitation cards.
@@ -80,7 +80,7 @@ export default function CartPage() {
 
           <Link
             href="/collections/wedding"
-            className="mt-8 inline-flex rounded-full bg-maroon px-6 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+            className="mt-8 inline-flex rounded-full bg-maroon px-6 py-3 text-base font-semibold text-white transition hover:bg-maroon-dark"
           >
             Explore Wedding Cards →
           </Link>
@@ -96,7 +96,7 @@ export default function CartPage() {
           Shopping Cart
         </h1>
 
-        <p className="mt-2 text-sm text-ink-light">
+        <p className="mt-2 text-base text-ink-mid">
           {totalItems}{" "}
           {totalItems === 1
             ? "item"
@@ -145,7 +145,7 @@ export default function CartPage() {
                     {formatProductName(item.name, item.printName)}
                   </h3>
 
-                  <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-ink-light">
+                  <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base text-ink-mid">
                     <ProductPrice price={item.price} mrp={item.mrp} />
                     <span>/ pc</span>
                   </p>
@@ -157,7 +157,7 @@ export default function CartPage() {
                         item.slug,
                       )
                     }
-                    className="mt-4 text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
+                    className="mt-4 text-base font-medium text-ink-mid underline-offset-2 hover:text-maroon hover:underline"
                   >
                     Remove
                   </button>
@@ -182,7 +182,7 @@ export default function CartPage() {
                       −
                     </button>
 
-                    <span className="min-w-12 text-center text-sm font-semibold">
+                    <span className="min-w-12 text-center text-base font-semibold">
                       {item.quantity}
                     </span>
 
@@ -215,7 +215,7 @@ export default function CartPage() {
           <button
             type="button"
             onClick={clearCart}
-            className="text-sm font-medium text-ink-light underline-offset-2 hover:text-maroon hover:underline"
+            className="text-base font-medium text-ink-mid underline-offset-2 hover:text-maroon hover:underline"
           >
             Clear cart
           </button>
@@ -226,9 +226,9 @@ export default function CartPage() {
             Order Summary
           </h2>
 
-          <div className="mt-5 space-y-3 text-sm">
+          <div className="mt-5 space-y-3 text-base">
             <div className="flex min-w-0 justify-between gap-4">
-              <span className="min-w-0 text-ink-light">
+              <span className="min-w-0 text-ink-mid">
                 Subtotal (
                 {totalItems} items)
               </span>
@@ -242,7 +242,7 @@ export default function CartPage() {
             </div>
 
             <div className="flex justify-between gap-4">
-              <span className="text-ink-light">
+              <span className="text-ink-mid">
                 Shipping
               </span>
 
@@ -265,14 +265,14 @@ export default function CartPage() {
 
           <Link
             href="/checkout"
-            className="mt-6 flex w-full items-center justify-center rounded-full bg-maroon px-5 py-3 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+            className="mt-6 flex w-full items-center justify-center rounded-full bg-maroon px-5 py-3 text-base font-semibold text-white transition hover:bg-maroon-dark"
           >
             Proceed to Checkout
           </Link>
 
           <Link
             href="/collections/wedding-card"
-            className="mt-3 flex w-full items-center justify-center rounded-full border border-gold/30 px-5 py-3 text-sm font-semibold text-maroon transition hover:bg-gold-pale"
+            className="mt-3 flex w-full items-center justify-center rounded-full border border-gold/30 px-5 py-3 text-base font-semibold text-maroon transition hover:bg-gold-pale"
           >
             Continue Shopping
           </Link>

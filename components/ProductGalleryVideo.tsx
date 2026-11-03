@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import ProductVideoThumbnail from "@/components/ProductVideoThumbnail";
 
 interface ProductGalleryVideoProps {
   src: string;
   kind: "native" | "embed" | "external";
   label: string;
-  paused: boolean;
+  active: boolean;
+  poster?: string;
+  onAspectRatioChange?: (ratio: number) => void;
   onError: () => void;
 }
 
 const FIRST_FRAME_TIME = 0.001;
 
 function showFirstFrame(video: HTMLVideoElement) {
-  // A tiny seek asks the browser to decode the opening frame without playing.
-  // Keeping this as a video preview also works for hosts without canvas CORS.
   if (video.readyState < 1) return;
   try {
     video.currentTime = Number.isFinite(video.duration)
@@ -26,31 +27,65 @@ function showFirstFrame(video: HTMLVideoElement) {
   }
 }
 
-function embedSource(src: string, autoplay: boolean) {
+function embedSource(src: string) {
   const url = new URL(src);
-  url.searchParams.set("autoplay", autoplay ? "1" : "0");
-  url.searchParams.set("background", "0");
+  url.searchParams.set("autoplay", "1");
   url.searchParams.set("mute", "1");
   url.searchParams.set("muted", "1");
   url.searchParams.set("playsinline", "1");
   url.searchParams.set("controls", "0");
   url.searchParams.set("disablekb", "1");
   url.searchParams.set("fs", "0");
+  url.searchParams.set("loop", "1");
+  if (url.hostname === "player.vimeo.com") {
+    url.searchParams.set("background", "1");
+    url.searchParams.set("title", "0");
+    url.searchParams.set("byline", "0");
+    url.searchParams.set("portrait", "0");
+  } else {
+    url.searchParams.set("rel", "0");
+    const id = url.pathname.split("/").filter(Boolean).at(-1);
+    if (id) url.searchParams.set("playlist", id);
+  }
   return url.toString();
 }
 
-export default function ProductGalleryVideo({ src, kind, label, paused, onError }: ProductGalleryVideoProps) {
+export default function ProductGalleryVideo({
+  src,
+  kind,
+  label,
+  active,
+  poster,
+  onAspectRatioChange,
+  onError,
+}: ProductGalleryVideoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [mobile, setMobile] = useState(false);
   const [visible, setVisible] = useState(false);
   const [onScreen, setOnScreen] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
-  const [intent, setIntent] = useState<"auto" | "play" | "pause">("auto");
-  const [playing, setPlaying] = useState(false);
+  const [videoSize, setVideoSize] = useState<{ source: string; width: number; height: number } | null>(null);
+  const aspectRatio = kind === "native"
+    ? videoSize?.source === src ? videoSize.width / videoSize.height : 1
+    : 16 / 9;
   const playAllowedRef = useRef(false);
-  const shouldPlay = onScreen && pageVisible && !paused &&
-    (intent === "play" || (intent === "auto" && mobile && visible));
+  // Desktop follows the selected thumbnail; mobile follows the swiped slide.
+  const shouldPlay = onScreen && pageVisible && (mobile ? visible : active);
+  const syncVideoSize = useCallback((video: HTMLVideoElement) => {
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (width <= 0 || height <= 0) return;
+    setVideoSize((current) => current?.source === src && current.width === width && current.height === height
+      ? current : { source: src, width, height });
+    onAspectRatioChange?.(width / height);
+  }, [src, onAspectRatioChange]);
+
+  useEffect(() => {
+    // Preloaded metadata may be ready before hydration or thumbnail selection.
+    const video = videoRef.current;
+    if (video && video.readyState >= 1) syncVideoSize(video);
+  }, [src, active, syncVideoSize]);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
@@ -69,16 +104,27 @@ export default function ProductGalleryVideo({ src, kind, label, paused, onError 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => {
-      // Check horizontal slide visibility separately: a portrait video can be
-      // taller than the screen and never reach a large total-area threshold.
-      const bounds = entry.boundingClientRect;
-      const intersection = entry.intersectionRect;
-      setOnScreen(entry.isIntersecting && intersection.width > 0 && intersection.height > 0);
-      setVisible(entry.isIntersecting && bounds.width > 0 &&
-        intersection.width >= bounds.width * 0.75 &&
-        intersection.height >= Math.min(bounds.height, window.innerHeight) * 0.4);
-    }, { threshold: Array.from({ length: 21 }, (_, index) => index / 20) });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // A portrait video can be taller than the screen. Check horizontal slide
+        // visibility separately so a neighboring mobile slide cannot autoplay.
+        const bounds = entry.boundingClientRect;
+        const intersection = entry.intersectionRect;
+        setOnScreen(
+          entry.isIntersecting &&
+            intersection.width > 0 &&
+            intersection.height > 0,
+        );
+        setVisible(
+          entry.isIntersecting &&
+            bounds.width > 0 &&
+            intersection.width >= bounds.width * 0.75 &&
+            intersection.height >=
+              Math.min(bounds.height, window.innerHeight) * 0.4,
+        );
+      },
+      { threshold: Array.from({ length: 21 }, (_, index) => index / 20) },
+    );
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
@@ -88,7 +134,6 @@ export default function ProductGalleryVideo({ src, kind, label, paused, onError 
     if (!video) return;
     playAllowedRef.current = shouldPlay;
     if (shouldPlay) {
-      // If autoplay is blocked, the play button retries with a user gesture.
       void video.play().catch(() => {});
     } else {
       video.pause();
@@ -99,77 +144,60 @@ export default function ProductGalleryVideo({ src, kind, label, paused, onError 
     };
   }, [shouldPlay, src]);
 
-  function togglePlayback() {
-    if (kind === "embed") {
-      setIntent(shouldPlay ? "pause" : "play");
-      return;
-    }
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      setIntent("play");
-      // Update immediately: a user gesture can start playback before React
-      // commits the new intent, including a desktop's first manual play.
-      playAllowedRef.current = !paused && !document.hidden;
-      void video.play().catch(() => {});
-    } else {
-      setIntent("pause");
-      playAllowedRef.current = false;
-      video.pause();
-    }
-  }
-
-  const isPlaying = kind === "embed" ? shouldPlay : playing;
-
   return (
-    <div ref={containerRef} className="relative w-full bg-black">
+    <div
+      ref={containerRef}
+      style={{ "--product-media-aspect-ratio": aspectRatio } as CSSProperties}
+      className="relative w-full md:w-[min(100%,calc(var(--product-media-max-height)*var(--product-media-aspect-ratio)))]"
+    >
       {kind === "native" ? (
         <video
           ref={videoRef}
           src={src.includes("#") ? src : `${src}#t=${FIRST_FRAME_TIME}`}
+          poster={poster}
           aria-label={label}
+          autoPlay={shouldPlay}
           muted
           playsInline
           loop
+          controls={false}
+          disablePictureInPicture
+          disableRemotePlayback
+          tabIndex={-1}
           preload="metadata"
           onLoadedMetadata={(event) => {
-            if (event.currentTarget.paused) showFirstFrame(event.currentTarget);
+            const video = event.currentTarget;
+            syncVideoSize(video);
+            if (!playAllowedRef.current) showFirstFrame(video);
+          }}
+          onCanPlay={(event) => {
+            syncVideoSize(event.currentTarget);
+            if (playAllowedRef.current && !document.hidden)
+              void event.currentTarget.play().catch(() => {});
           }}
           onPlay={(event) => {
-            if (!playAllowedRef.current || document.hidden || paused) event.currentTarget.pause();
-            else setPlaying(true);
+            if (!playAllowedRef.current || document.hidden)
+              event.currentTarget.pause();
           }}
-          onPause={() => setPlaying(false)}
           onError={onError}
-          className="block h-auto w-full object-contain"
+          className="pointer-events-none block h-auto w-full object-contain md:max-h-[var(--product-media-max-height)]"
         />
-      ) : kind === "embed" ? (
+      ) : kind === "embed" && shouldPlay ? (
         <iframe
-          // Unload an offscreen player so it cannot continue playing audio.
-          key={shouldPlay ? "playing" : "preview"}
-          src={embedSource(src, shouldPlay)}
+          src={embedSource(src)}
           title={label}
-          loading="lazy"
           allow="autoplay; encrypted-media"
           tabIndex={-1}
           className="pointer-events-none block aspect-video w-full border-0"
         />
       ) : (
-        <a href={src} target="_blank" rel="noreferrer" className="flex aspect-video items-center justify-center bg-ivory p-5 text-center font-semibold text-carbon underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-carbon">Open product video</a>
-      )}
-      {kind !== "external" && (
-        <button
-          type="button"
-          onClick={togglePlayback}
-          aria-label={`${isPlaying ? "Pause" : "Play"} ${label}`}
-          className="absolute inset-0 flex w-full cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-white"
+        <div
+          role="img"
+          aria-label={label}
+          className="relative aspect-video w-full"
         >
-          {!isPlaying && (
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 shadow-sm">
-              <Play aria-hidden="true" className="ml-1 h-6 w-6 fill-current" />
-            </span>
-          )}
-        </button>
+          <ProductVideoThumbnail src={src} kind={kind} fallbackSrc={poster} />
+        </div>
       )}
     </div>
   );

@@ -82,11 +82,11 @@ export default function AboutPage() {
 
         <div className="relative mx-auto grid min-w-0 max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 md:px-8 lg:grid-cols-2 lg:gap-12 lg:px-10 lg:py-24">
           <div className="min-w-0 max-w-2xl">
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.32em] text-carbon">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.1em] text-carbon">
               Our Story
             </p>
 
-            <h1 className="break-words font-display text-4xl leading-[1.08] text-carbon sm:text-5xl lg:text-[52px] xl:text-6xl">
+            <h1 className="break-words font-display text-4xl leading-[1.08] text-carbon sm:text-5xl lg:text-[3.25rem] xl:text-6xl">
               Invitations that carry a legacy.
             </h1>
 
@@ -102,14 +102,14 @@ export default function AboutPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/collections/wedding"
-                className="inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-center text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-carbon-dark"
+                className="inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-center text-base font-semibold uppercase tracking-[0.1em] text-white transition hover:bg-carbon-dark"
               >
                 Explore Cards
               </Link>
 
               <Link
                 href="/contact"
-                className="inline-flex items-center justify-center rounded-full border border-carbon/25 bg-white/50 px-7 py-3 text-center text-sm font-semibold uppercase tracking-[0.2em] text-carbon transition hover:border-carbon hover:bg-white"
+                className="inline-flex items-center justify-center rounded-full border border-carbon/25 bg-white/50 px-7 py-3 text-center text-base font-semibold uppercase tracking-[0.1em] text-carbon transition hover:border-carbon hover:bg-white"
               >
                 Contact Us
               </Link>
@@ -119,7 +119,7 @@ export default function AboutPage() {
           <div className="w-full">
             <div className="mx-auto max-w-xl rounded-[2rem] border border-carbon/10 bg-white p-4 shadow-[0_24px_80px_rgba(62,12,23,0.12)] lg:ml-auto">
               <div className="rounded-[1.5rem] bg-gradient-to-br from-carbon via-maroon to-carbon-dark p-6 text-white sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold-light">
+                <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-light">
                   {TAGLINE}
                 </p>
 
@@ -140,7 +140,7 @@ export default function AboutPage() {
                       <p className="font-display text-2xl leading-none text-gold-light sm:text-3xl">
                         {item.value}
                       </p>
-                      <p className="mt-3 text-xs uppercase leading-5 tracking-[0.16em] text-white/75">
+                      <p className="mt-3 text-sm uppercase leading-5 tracking-[0.1em] text-white/85">
                         {item.label}
                       </p>
                     </div>
@@ -155,7 +155,7 @@ export default function AboutPage() {
       {/* Brand statement */}
       <section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-5xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
+          <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
             A legacy beyond ordinary invitations
           </p>
 
@@ -180,7 +180,7 @@ export default function AboutPage() {
       <section className="bg-paper px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-carbon">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-carbon">
               Why choose us
             </p>
 
@@ -195,7 +195,7 @@ export default function AboutPage() {
                 key={item.no}
                 className="flex h-full flex-col rounded-[1.75rem] border border-carbon/10 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:p-8"
               >
-                <p className="font-display text-4xl leading-none text-gold">
+                <p className="font-display text-4xl leading-none text-gold-ink">
                   {item.no}
                 </p>
 
@@ -216,7 +216,7 @@ export default function AboutPage() {
       <section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto grid min-w-0 max-w-7xl items-start gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="min-w-0 max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
               What we make
             </p>
 
@@ -233,7 +233,7 @@ export default function AboutPage() {
 
             <Link
               href="/collections/wedding"
-              className="mt-8 inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-carbon-dark"
+              className="mt-8 inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-base font-semibold uppercase tracking-[0.1em] text-white transition hover:bg-carbon-dark"
             >
               View Collection
             </Link>
@@ -262,7 +262,7 @@ export default function AboutPage() {
       <section className="bg-carbon px-4 py-14 text-white sm:px-6 sm:py-16 md:px-8 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto mb-12 max-w-4xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold-light">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-light">
               Simple process
             </p>
 
@@ -277,7 +277,7 @@ export default function AboutPage() {
                 key={step.title}
                 className="flex h-full flex-col rounded-[1.75rem] border border-white/15 bg-white/10 p-6"
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-light">
+                <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-light">
                   Step {index + 1}
                 </p>
 
@@ -285,7 +285,7 @@ export default function AboutPage() {
                   {step.title}
                 </h3>
 
-                <p className="mt-4 flex-1 leading-7 text-white/75">
+                <p className="mt-4 flex-1 leading-7 text-white/85">
                   {step.text}
                 </p>
               </article>
@@ -299,7 +299,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-carbon/10 bg-paper">
           <div className="grid min-w-0 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
             <div className="min-w-0 p-5 sm:p-8 lg:p-10 xl:p-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-gold">
+              <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
                 Visit Beyond Invitation
               </p>
 
@@ -315,7 +315,7 @@ export default function AboutPage() {
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl bg-white p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-carbon">
+                  <p className="text-sm font-semibold uppercase tracking-[0.1em] text-carbon">
                     Location
                   </p>
                   <p className="mt-3 break-words leading-7 text-ink-mid [overflow-wrap:anywhere]">
@@ -324,7 +324,7 @@ export default function AboutPage() {
                 </div>
 
                 <div className="rounded-2xl bg-white p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-carbon">
+                  <p className="text-sm font-semibold uppercase tracking-[0.1em] text-carbon">
                     Contact
                   </p>
 
@@ -339,14 +339,14 @@ export default function AboutPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/contact"
-                  className="inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-center text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-carbon-dark"
+                  className="inline-flex items-center justify-center rounded-full bg-carbon px-7 py-3 text-center text-base font-semibold uppercase tracking-[0.1em] text-white transition hover:bg-carbon-dark"
                 >
                   Enquire Now
                 </Link>
 
                 <Link
                   href="/faq"
-                  className="inline-flex items-center justify-center rounded-full border border-carbon/25 bg-white/50 px-7 py-3 text-center text-sm font-semibold uppercase tracking-[0.2em] text-carbon transition hover:border-carbon hover:bg-white"
+                  className="inline-flex items-center justify-center rounded-full border border-carbon/25 bg-white/50 px-7 py-3 text-center text-base font-semibold uppercase tracking-[0.1em] text-carbon transition hover:border-carbon hover:bg-white"
                 >
                   Read FAQs
                 </Link>
@@ -360,7 +360,7 @@ export default function AboutPage() {
                     BI
                   </p>
 
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.32em] text-gold">
+                  <p className="mt-4 text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
                     Leave an impression
                   </p>
                 </div>
@@ -373,7 +373,7 @@ export default function AboutPage() {
 
                   <div className="mt-8 h-px bg-carbon/10" />
 
-                  <p className="mt-6 text-sm leading-7 text-ink-mid">
+                  <p className="mt-6 text-base leading-7 text-ink-mid">
                     Traditional. Modern. Elegant. Made for your
                     celebration.
                   </p>

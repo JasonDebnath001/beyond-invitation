@@ -110,7 +110,7 @@ export default function ProductBuyBox({
     return (
       <Link
         href={`/contact?product=${encodeURIComponent(product.slug)}`}
-        className="block rounded-full bg-carbon px-6 py-3 text-center text-sm font-semibold uppercase tracking-[0.25em] text-paper transition hover:bg-gold hover:text-carbon"
+        className="block rounded-full bg-carbon px-6 py-3 text-center text-base font-semibold text-paper transition hover:bg-gold hover:text-carbon"
       >
         Price on request
       </Link>
@@ -119,7 +119,7 @@ export default function ProductBuyBox({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold text-carbon">
+      <p className="mb-2 text-base font-semibold text-carbon">
         Quantity
       </p>
 
@@ -134,7 +134,7 @@ export default function ProductBuyBox({
           −
         </button>
 
-        <span className="w-16 text-center text-sm font-semibold">
+        <span className="w-16 text-center text-base font-semibold">
           {qty}
         </span>
 
@@ -152,7 +152,7 @@ export default function ProductBuyBox({
         <button
           type="button"
           onClick={handleAdd}
-          className="rounded-full bg-carbon px-6 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-gold hover:text-carbon"
+          className="rounded-full bg-carbon px-6 py-3 text-base font-semibold text-white transition hover:bg-gold hover:text-carbon"
         >
           {added
             ? "✓ Added to Cart"
@@ -162,7 +162,7 @@ export default function ProductBuyBox({
         <button
           type="button"
           onClick={handleBuyNow}
-          className="rounded-full border border-gold px-6 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-carbon transition hover:bg-gold"
+          className="rounded-full border border-gold px-6 py-3 text-base font-semibold text-carbon transition hover:bg-gold"
         >
           Buy Now
         </button>

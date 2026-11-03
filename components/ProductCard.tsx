@@ -40,7 +40,7 @@ export default function ProductCard({
       />
       <div className="col-start-1 row-start-2 min-w-0 pt-2">
         <Link href={`/products/${product.slug}`} className="block focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-carbon">
-          <h3 className="break-words text-[13px] font-normal leading-[1.45] tracking-[0.035em] text-[#161616] hover:underline hover:underline-offset-4 sm:text-[16px]">
+          <h3 className="break-words text-base font-medium leading-normal text-[#161616] hover:underline hover:underline-offset-4">
             {title}
           </h3>
         </Link>

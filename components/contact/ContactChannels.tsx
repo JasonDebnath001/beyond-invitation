@@ -15,7 +15,7 @@ const rowClass =
 const discClass =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-paper text-carbon";
 const detailClass =
-  "mt-0.5 block text-sm leading-6 text-ink-mid [overflow-wrap:anywhere]";
+  "mt-0.5 block text-base leading-6 text-ink-mid [overflow-wrap:anywhere]";
 
 // Brand icons are no longer exported by the installed Lucide version.
 const Instagram = createLucideIcon("Instagram", [
@@ -29,7 +29,7 @@ function Arrow() {
     <ArrowUpRight
       aria-hidden="true"
       size={16}
-      className="ml-auto shrink-0 text-ink-light transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-focus-within:-translate-y-0.5 group-focus-within:translate-x-0.5 motion-reduce:transform-none"
+      className="ml-auto shrink-0 text-ink-mid transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-focus-within:-translate-y-0.5 group-focus-within:translate-x-0.5 motion-reduce:transform-none"
     />
   );
 }
@@ -71,14 +71,14 @@ export default function ContactChannels({
           <p className={detailClass}>
             <a
               href={`tel:+${CONTACT.whatsappNumber}`}
-              className="whitespace-nowrap hover:underline"
+              className="break-words hover:underline"
             >
               {CONTACT.displayPhone}
             </a>
             {" or "}
             <a
               href={`tel:${CONTACT.landline.replace(/-/g, "")}`}
-              className="whitespace-nowrap hover:underline"
+              className="break-words hover:underline"
             >
               {CONTACT.landline}
             </a>
@@ -116,7 +116,7 @@ export default function ContactChannels({
           </a>
           <Link
             href="/visit-us"
-            className="mt-1 inline-block text-xs font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon"
+            className="mt-1 inline-block text-base font-semibold text-carbon underline decoration-gold/50 underline-offset-4 hover:decoration-carbon"
           >
             Visit us
           </Link>

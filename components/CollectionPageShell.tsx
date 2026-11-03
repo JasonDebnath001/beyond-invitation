@@ -37,7 +37,7 @@ export default function CollectionPageShell({
     <main className="bg-white">
       <section className="border-b border-gold/20 bg-gradient-to-br from-paper via-white to-[#fff8f2]">
         <div className="mx-auto max-w-[1800px] px-4 py-5 sm:px-6 lg:px-8">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-ink-light">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-ink-mid">
             {breadcrumb.map((item, index) => (
               <div key={`${item.label}-${index}`} className="flex items-center gap-2">
                 {item.href ? (
@@ -65,7 +65,7 @@ export default function CollectionPageShell({
                   {accentIcon}
                 </span>
 
-                <span className="rounded-full bg-maroon/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-maroon">
+                <span className="rounded-full bg-maroon/10 px-3 py-1 text-sm font-semibold uppercase tracking-[0.1em] text-maroon">
                   {eyebrow}
                 </span>
               </div>
@@ -74,7 +74,7 @@ export default function CollectionPageShell({
                 {title}
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-light">
+              <p className="mt-2 max-w-2xl text-base leading-6 text-ink-mid">
                 {description}
               </p>
             </div>
@@ -83,10 +83,10 @@ export default function CollectionPageShell({
               <div className="h-9 w-px bg-gold/30" />
 
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">
+                <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
                   Collection
                 </p>
-                <p className="text-sm font-semibold text-carbon">
+                <p className="text-base font-semibold text-carbon">
                   {initialPage.total}{" "}
                   {initialPage.total === 1 ? "Product" : "Products"}
                 </p>
@@ -99,7 +99,7 @@ export default function CollectionPageShell({
       <section className="mx-auto max-w-[1800px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
         {errorMessage ? (
           <div className="min-w-0 break-words rounded-3xl border border-red-200 bg-red-50 p-6 [overflow-wrap:anywhere]">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-red-700">
               Collection unavailable
             </p>
 
@@ -107,11 +107,11 @@ export default function CollectionPageShell({
               Couldn&apos;t load this collection
             </h2>
 
-            <p className="mt-3 text-sm leading-6 text-red-700">
+            <p className="mt-3 text-base leading-6 text-red-700">
               We couldn&apos;t retrieve the products for this collection.
             </p>
 
-            <div className="mt-4 rounded-2xl bg-white/80 p-4 text-sm leading-6 text-red-700">
+            <div className="mt-4 rounded-2xl bg-white/80 p-4 text-base leading-6 text-red-700">
               Please try again shortly or contact us for help finding your invitation.
             </div>
           </div>
@@ -125,13 +125,13 @@ export default function CollectionPageShell({
               {emptyTitle}
             </h2>
 
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink-light">
+            <p className="mx-auto mt-2 max-w-xl text-base leading-6 text-ink-mid">
               {emptyDescription}
             </p>
 
             <Link
               href="/"
-              className="mt-5 inline-flex rounded-full bg-maroon px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-maroon-dark"
+              className="mt-5 inline-flex rounded-full bg-maroon px-5 py-2.5 text-base font-semibold text-white transition hover:bg-maroon-dark"
             >
               Back to Home
             </Link>
@@ -140,7 +140,7 @@ export default function CollectionPageShell({
           <>
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
+                <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
                   Browse Designs
                 </p>
 

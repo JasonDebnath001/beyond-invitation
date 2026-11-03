@@ -76,7 +76,7 @@ function ImageFrame({
       ) : (
         <div className="flex h-full min-h-[240px] w-full items-center justify-center bg-[radial-gradient(circle_at_30%_20%,#fff7e8_0%,#f5dfbd_38%,#d9b875_100%)] px-8 text-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#7b4d22]/70">
+            <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[#7b4d22]">
               Add image link
             </p>
             <p className="mt-3 font-serif text-2xl text-[#42230f]">
@@ -232,7 +232,7 @@ export default function WeddingBoxesEditorial() {
 
           <h2
             data-editorial-reveal
-            className="max-w-3xl break-words font-serif text-4xl leading-[0.98] tracking-[-0.04em] text-[#2a1810] sm:text-5xl md:text-6xl lg:text-[52px] xl:text-7xl"
+            className="max-w-3xl break-words font-serif text-4xl leading-tight tracking-[-0.04em] text-[#2a1810] sm:text-5xl md:text-6xl lg:text-[3.25rem] xl:text-7xl"
           >
             Introducing premium wedding boxes.
           </h2>
@@ -252,7 +252,7 @@ export default function WeddingBoxesEditorial() {
           >
             <Link
               href={COLLECTION_HREF}
-              className="group inline-flex max-w-full items-center justify-center rounded-full bg-[#2a1810] px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition duration-300 hover:-translate-y-0.5 hover:bg-[#8b1e2d] sm:px-7 sm:text-sm sm:tracking-[0.2em]"
+              className="group inline-flex max-w-full items-center justify-center rounded-full bg-[#2a1810] px-5 py-4 text-center text-base font-semibold uppercase tracking-[0.1em] text-white transition duration-300 hover:-translate-y-0.5 hover:bg-[#8b1e2d] sm:px-7"
             >
               Explore Boxes
               <span className="ml-3 transition duration-300 group-hover:translate-x-1">
@@ -325,7 +325,7 @@ export default function WeddingBoxesEditorial() {
             <h3 className="font-serif text-2xl leading-tight text-[#2a1810]">
               {item.title}
             </h3>
-            <p className="mt-3 text-sm leading-7 text-[#6f5847]">{item.text}</p>
+            <p className="mt-3 text-base leading-7 text-[#6f5847]">{item.text}</p>
           </article>
         ))}
       </div>

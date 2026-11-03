@@ -149,7 +149,7 @@ export default function CustomerReviewVideo() {
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Text column */}
           <div data-review-text className="text-center lg:text-left">
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-gold">
+            <p className="mb-3 text-sm font-bold uppercase tracking-[0.1em] text-gold-ink">
               In Their Own Words
             </p>
 
@@ -157,7 +157,7 @@ export default function CustomerReviewVideo() {
               Hear From Our Customers
             </h2>
 
-            <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-ink-mid sm:text-base lg:mx-0">
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-ink-mid lg:mx-0">
               {CUSTOMER_QUOTE}
             </p>
           </div>

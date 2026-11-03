@@ -11,7 +11,7 @@ import CartButton from "./CartButton";
 import SearchBar from "./SearchBar";
 import WishlistNavLink from "./WishlistNavLink";
 import AuthNavLink from "./AuthNavLink";
-import { BRAND, TAGLINE } from "./siteConfig";
+import { BRAND } from "./siteConfig";
 
 type DropdownItem = { label: string; href: string } | { section: string };
 
@@ -74,7 +74,7 @@ const navMenu: NavItem[] = [
       },
     ],
   },
-  { label: "Journal", href: "/blog" },
+  { label: "Blogs", href: "/blog" },
 ];
 
 function isHrefActive(pathname: string, href?: string) {
@@ -546,7 +546,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-[110] border-b border-carbon/10 bg-white/95 shadow-[0_8px_30px_rgba(123,28,46,0.08)]">
-      <div className="relative z-30 mx-auto flex h-16 max-w-[1500px] items-center gap-2 bg-white/95 px-3 backdrop-blur-xl sm:h-[72px] sm:gap-3 sm:px-6 lg:px-8">
+      <div className="relative z-30 mx-auto flex h-16 max-w-[1500px] items-center gap-2 bg-white/95 px-3 backdrop-blur-xl sm:h-[4.5rem] sm:gap-3 sm:px-6 lg:px-8">
         <Link
           href="/"
           className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3 2xl:w-[220px] 2xl:flex-none"
@@ -561,14 +561,8 @@ export default function Navbar() {
             className="h-9 w-9 shrink-0 rounded-xl object-contain sm:h-10 sm:w-10"
           />
 
-          <div className="min-w-0">
-            <div className="truncate text-sm font-extrabold leading-tight tracking-wide text-carbon sm:text-[16px]">
-              {BRAND}
-            </div>
-
-            <div className="mt-0.5 hidden max-w-[210px] truncate text-[10px] font-bold uppercase tracking-[0.28em] text-ink-mid sm:block">
-              {TAGLINE}
-            </div>
+          <div className="min-w-0 truncate text-base font-extrabold leading-tight tracking-wide text-carbon sm:text-lg">
+            {BRAND}
           </div>
         </Link>
 
@@ -622,7 +616,7 @@ export default function Navbar() {
                       }
                     }}
                     id={`desktop-nav-trigger-${navIndex}`}
-                    className={`inline-flex h-10 items-center gap-1 whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 min-[1680px]:text-[14px] ${
+                    className={`inline-flex h-11 items-center gap-1 whitespace-nowrap rounded-full px-3 text-base font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 ${
                       isActive ? "bg-paper text-carbon" : "text-carbon"
                     }`}
                     aria-expanded={activeDropdownIndex === navIndex}
@@ -636,14 +630,14 @@ export default function Navbar() {
                   <Link
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 min-[1680px]:text-[14px] ${
+                    className={`inline-flex h-11 items-center whitespace-nowrap rounded-full px-3 text-base font-bold transition hover:bg-paper focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 min-[1680px]:px-4 ${
                       isActive ? "bg-paper text-carbon" : "text-carbon"
                     }`}
                   >
                     {item.label}
                   </Link>
                 ) : (
-                  <span className="inline-flex h-10 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold text-carbon">
+                  <span className="inline-flex h-11 items-center whitespace-nowrap rounded-full px-4 text-base font-bold text-carbon">
                     {item.label}
                   </span>
                 )}
@@ -668,7 +662,7 @@ export default function Navbar() {
                         "section" in dropdownItem ? (
                           <div
                             key={`${dropdownItem.section}-${index}`}
-                            className="px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
+                            className="px-4 py-2 text-sm font-bold uppercase tracking-[0.08em] text-ink-mid"
                           >
                             {dropdownItem.section}
                           </div>
@@ -681,7 +675,7 @@ export default function Navbar() {
                                 ? "page"
                                 : undefined
                             }
-                            className="block rounded-2xl px-4 py-3 text-sm font-bold text-ink transition hover:bg-paper hover:text-carbon focus:outline-none focus-visible:bg-paper focus-visible:text-carbon focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-carbon/15"
+                            className="block rounded-2xl px-4 py-3 text-base font-bold text-ink transition hover:bg-paper hover:text-carbon focus:outline-none focus-visible:bg-paper focus-visible:text-carbon focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-carbon/15"
                           >
                             {dropdownItem.label}
                           </Link>
@@ -753,7 +747,7 @@ export default function Navbar() {
         tabIndex={-1}
         aria-hidden="true"
         onClick={() => closeMobile(true)}
-        className="fixed inset-x-0 bottom-0 top-16 z-0 bg-carbon/20 backdrop-blur-[2px] sm:top-[72px] 2xl:hidden"
+        className="fixed inset-x-0 bottom-0 top-16 z-0 bg-carbon/20 backdrop-blur-[2px] sm:top-[4.5rem] 2xl:hidden"
         style={{
           opacity: 0,
           visibility: "hidden",
@@ -841,12 +835,12 @@ export default function Navbar() {
                               ? "page"
                               : undefined
                           }
-                          className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-[15px] font-extrabold text-carbon transition hover:bg-white focus:outline-none focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-carbon/15"
+                          className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-base font-extrabold text-carbon transition hover:bg-white focus:outline-none focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-carbon/15 sm:text-lg"
                         >
                           {item.label}
                         </Link>
                       ) : (
-                        <div className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-[15px] font-extrabold text-carbon">
+                        <div className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-base font-extrabold text-carbon sm:text-lg">
                           {item.label}
                         </div>
                       )}
@@ -880,7 +874,7 @@ export default function Navbar() {
                           "section" in dropdownItem ? (
                             <div
                               key={`${dropdownItem.section}-${index}`}
-                              className="px-3 py-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-light"
+                              className="px-3 py-2 text-sm font-bold uppercase tracking-[0.08em] text-ink-mid"
                             >
                               {dropdownItem.section}
                             </div>
@@ -894,7 +888,7 @@ export default function Navbar() {
                                   ? "page"
                                   : undefined
                               }
-                              className={`block rounded-xl px-3 py-2.5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
+                              className={`block rounded-xl px-3 py-2.5 text-base font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-carbon/15 ${
                                 isHrefActive(pathname, dropdownItem.href)
                                   ? "bg-white text-carbon"
                                   : "text-ink hover:bg-white hover:text-carbon"

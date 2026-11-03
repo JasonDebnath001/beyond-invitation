@@ -30,7 +30,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto min-w-0 max-w-[1800px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
       <div className="mb-10">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-gold">
+        <p className="text-sm font-semibold uppercase tracking-[0.1em] text-gold-ink">
           Search Results
         </p>
         {query ? (
@@ -55,15 +55,15 @@ export default async function SearchPage({ searchParams }: PageProps) {
       {query && results.length === 0 && (
         <div className="rounded-xl border border-gold/25 bg-white px-4 py-12 text-center sm:py-16">
           <div className="text-5xl">🔍</div>
-          <p className="mt-4 break-words text-[15px] font-medium text-ink [overflow-wrap:anywhere]">
+          <p className="mt-4 break-words text-base font-medium text-ink [overflow-wrap:anywhere]">
             No products matched &ldquo;{query}&rdquo;
           </p>
-          <p className="mt-1 text-[13px] text-ink-light">
+          <p className="mt-1 text-sm text-ink-mid">
             Try a different keyword, or browse our full collection.
           </p>
           <Link
             href="/collections/wedding"
-            className="mt-5 inline-flex max-w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-maroon px-4 py-2.5 text-center text-[13.5px] font-medium text-maroon transition hover:bg-maroon hover:text-gold-light sm:px-6"
+            className="mt-5 inline-flex max-w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-maroon px-4 py-2.5 text-center text-base font-medium text-maroon transition hover:bg-maroon hover:text-gold-light sm:px-6"
           >
             Browse Wedding Cards →
           </Link>

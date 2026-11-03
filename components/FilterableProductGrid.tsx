@@ -49,7 +49,7 @@ export default function FilterableProductGrid({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-2xl border border-gold/20 bg-white/70 p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-ink">Price</span>
+          <span className="text-base font-semibold text-ink">Price</span>
 
           {PRICE_RANGES.map((range) => (
             <button
@@ -57,7 +57,7 @@ export default function FilterableProductGrid({
               type="button"
               onClick={() => setPrice(range.key)}
               aria-pressed={priceKey === range.key}
-              className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition ${
+              className={`rounded-full border px-3.5 py-1.5 text-base font-medium transition ${
                 priceKey === range.key
                   ? "border-maroon bg-maroon text-gold-light"
                   : "border-gold/30 bg-cream text-ink-mid hover:border-gold hover:bg-gold-pale"
@@ -69,7 +69,7 @@ export default function FilterableProductGrid({
         </div>
 
         <div className="flex w-full min-w-0 items-center gap-2 md:w-auto">
-          <label htmlFor="sort-products" className="text-sm font-semibold text-ink">
+          <label htmlFor="sort-products" className="text-base font-semibold text-ink">
             Sort
           </label>
 
@@ -77,7 +77,7 @@ export default function FilterableProductGrid({
             id="sort-products"
             value={sortKey}
             onChange={(e) => setSort(e.target.value as CatalogSort)}
-            className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-cream px-3 py-1.5 text-[13px] text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold md:flex-none"
+            className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-cream px-3 py-1.5 text-base text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold md:flex-none"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.key} value={opt.key}>
@@ -89,7 +89,7 @@ export default function FilterableProductGrid({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-mid" aria-live="polite">
+        <p className="text-base text-ink-mid" aria-live="polite">
           {loading === "replace" ? "Loading products…" : error && page.products.length === 0 ? "Products unavailable" : <>
           Showing{" "}
           <span className="font-semibold text-ink">
@@ -107,7 +107,7 @@ export default function FilterableProductGrid({
           <button
             type="button"
             onClick={clearFilters}
-            className="text-sm font-semibold text-maroon underline-offset-4 hover:underline"
+            className="text-base font-semibold text-maroon underline-offset-4 hover:underline"
           >
             Clear filters
           </button>

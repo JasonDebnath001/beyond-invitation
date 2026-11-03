@@ -32,9 +32,9 @@ export default function UnavailableItems({ slugs }: { slugs: string[] }) {
   const busy = wishlist.syncing || queue.length > 0;
   return (
     <section aria-label="Unavailable saved designs" className="mt-7 rounded-2xl border border-dashed border-gold/40 bg-paper/60 p-5">
-      <p className="text-sm text-ink-mid">{slugs.length} saved {slugs.length === 1 ? "item is" : "items are"} no longer available.</p>
+      <p className="text-base text-ink-mid">{slugs.length} saved {slugs.length === 1 ? "item is" : "items are"} no longer available.</p>
       <ul className="mt-4 flex flex-wrap gap-2">
-        {slugs.map((slug) => <li key={slug} className="flex max-w-full items-center gap-3 rounded-full bg-white px-3 py-1 text-xs text-ink-mid">
+        {slugs.map((slug) => <li key={slug} className="flex max-w-full items-center gap-3 rounded-full bg-white px-3 py-1 text-sm text-ink-mid">
           <span className="min-w-0 break-all">{slug}</span>
           <button type="button" disabled={busy} aria-label={`Remove unavailable design ${slug}`} onClick={() => wishlist.removeItem(slug)} className={`shrink-0 rounded-sm py-1 font-semibold text-carbon underline underline-offset-2 disabled:opacity-50 ${focusClass}`}>Remove</button>
         </li>)}

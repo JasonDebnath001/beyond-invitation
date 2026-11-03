@@ -99,7 +99,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       {/* Suppress body-only attribute warnings from extensions such as ColorZilla. */}
       <body
         suppressHydrationWarning
-        className="min-h-screen bg-white font-sans text-carbon antialiased"
+        className="min-h-screen bg-white font-body text-carbon antialiased"
       >
         <StorefrontShell>{children}</StorefrontShell>
       </body>

@@ -32,12 +32,12 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
             <Image src={src} alt={productName} fill sizes="(min-width:1800px) 419px, (min-width:1024px) calc(25vw - 31px), (min-width:768px) calc(33.333vw - 29.333px), (min-width:640px) calc(50vw - 34px), calc(50vw - 22px)"
               onError={() => setFailedSrc(src)} className="object-contain" />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-3 px-4 text-center text-[#8b7561]">
-              <ImageOff aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1} /><span className="text-xs">Image coming soon</span>
+            <div className="flex flex-col items-center justify-center gap-3 px-4 text-center text-ink-mid">
+              <ImageOff aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1} /><span className="text-sm">Image coming soon</span>
             </div>
           )}
         </Link>
-        {discount > 0 && <span className="pointer-events-none absolute left-2.5 top-2.5 z-10 bg-[#df270d] px-3 py-1 text-[11px] font-medium leading-4 text-white">−{discount}%</span>}
+        {discount > 0 && <span className="pointer-events-none absolute left-2.5 top-2.5 z-10 bg-[#b91c0c] px-3 py-1 text-xs font-semibold leading-normal text-white">−{discount}%</span>}
         {mode === "shared" ? <WishlistButton productSlug={product.slug} className="absolute right-2 top-2 z-20" /> : (
           <button type="button" aria-label="Remove from wishlist" title="Remove from wishlist" disabled={disabled || !onRemove}
             onClick={() => { if (article.current) onRemove?.(product.slug, article.current); }}
@@ -48,12 +48,12 @@ export default function WishlistCard({ product, onRemove, mode = "own", disabled
       </div>
       <div className="col-start-1 row-start-2 min-w-0 pt-2">
         <Link href={`/products/${product.slug}`} className={focusClass}>
-          <h2 title={productName} className="break-words text-[13px] font-normal leading-[1.45] tracking-[0.035em] text-[#161616] hover:underline hover:underline-offset-4 sm:text-[16px]">{productName}</h2>
+          <h2 title={productName} className="break-words text-base font-medium leading-normal text-[#161616] hover:underline hover:underline-offset-4">{productName}</h2>
         </Link>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <ProductPrice price={product.price} mrp={product.mrp} variant="card" />
         </div>
-        <p className="mt-1 text-[11px] leading-4 text-[#78695d] sm:text-xs">Min. {minimum} pieces</p>
+        <p className="mt-1 text-sm leading-normal text-ink-mid">Min. {minimum} pieces</p>
       </div>
       <div className="product-card-cart z-10 col-start-1 row-start-3 mt-3 self-end sm:row-start-1 sm:mx-3 sm:mb-4 sm:mt-0">
         <AddToCartButton product={product} variant="card" />

@@ -11,7 +11,7 @@ export function NavigationFeedback({ pending }: { pending: boolean }) {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-5 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold/25 bg-white px-5 py-3 text-sm font-semibold text-carbon shadow-lg"
+      className="pointer-events-none fixed bottom-5 left-1/2 z-[100] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-gold/25 bg-white px-5 py-3 text-base font-semibold text-carbon shadow-lg"
     >
       <span
         aria-hidden="true"

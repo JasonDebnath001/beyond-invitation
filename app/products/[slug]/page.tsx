@@ -157,8 +157,9 @@ function buildSeoDescription(product: ProductLike) {
   const subject = getSubject(product);
   const cleanDescription = stripHtml(product.description);
 
-  const fallback = `Buy ${product.name} online from ${BRAND}. Premium ${categoryLabel.toLowerCase()} invitation card${subject ? ` for ${subject} ceremonies` : ""
-    } with customisation, quality material, and pan-India delivery.`;
+  const fallback = `Buy ${product.name} online from ${BRAND}. Premium ${categoryLabel.toLowerCase()} invitation card${
+    subject ? ` for ${subject} ceremonies` : ""
+  } with customisation, quality material, and pan-India delivery.`;
 
   const priceLine =
     product.price > 0
@@ -220,17 +221,13 @@ async function RelatedProducts({ product }: { product: ProductLike }) {
       <JsonLdScript data={buildRelatedJsonLd(related)} />
       <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:mb-10 sm:flex-row sm:items-end">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
-            More to love
-          </p>
-          <h2 className="mt-2 font-display text-[26px] font-semibold text-carbon sm:text-[28px] md:text-[34px]">
+          <h2 className="font-display text-[1.625rem] font-semibold text-carbon sm:text-[1.75rem] md:text-[2.125rem]">
             You May Also Like
           </h2>
-          <div className="mt-4 h-px w-14 bg-carbon" />
         </div>
         <Link
           href={`/collections/${product.category}`}
-          className="inline-flex shrink-0 items-center gap-2 border-b border-carbon pb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-carbon"
+          className="inline-flex shrink-0 items-center gap-2 border-b border-carbon pb-1 text-base font-semibold uppercase tracking-[0.1em] text-carbon"
         >
           View collection <span>→</span>
         </Link>
@@ -242,7 +239,11 @@ async function RelatedProducts({ product }: { product: ProductLike }) {
 
 function RelatedProductsLoading() {
   return (
-    <section className="mt-14 sm:mt-20" role="status" aria-label="Loading related products">
+    <section
+      className="mt-14 sm:mt-20"
+      role="status"
+      aria-label="Loading related products"
+    >
       <div aria-hidden="true" className="motion-safe:animate-pulse">
         <div className="mb-8 h-8 w-56 rounded bg-paper" />
         <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4">
@@ -321,12 +322,14 @@ export async function generateMetadata({
       other: {
         "product:brand": BRAND_NAME,
         "product:retailer_item_id": getSku(product),
-        ...(product.price > 0 ? {
-          "product:price:amount": String(product.price),
-          "product:price:currency": "INR",
-          "og:price:amount": String(product.price),
-          "og:price:currency": "INR",
-        } : {}),
+        ...(product.price > 0
+          ? {
+              "product:price:amount": String(product.price),
+              "product:price:currency": "INR",
+              "og:price:amount": String(product.price),
+              "og:price:currency": "INR",
+            }
+          : {}),
       },
     };
   } catch {
@@ -354,38 +357,38 @@ function buildProductJsonLd(product: ProductLike) {
   const additionalProperty = [
     subject
       ? {
-        "@type": "PropertyValue",
-        name: "Tradition",
-        value: subject,
-      }
+          "@type": "PropertyValue",
+          name: "Tradition",
+          value: subject,
+        }
       : null,
     product.customisation
       ? {
-        "@type": "PropertyValue",
-        name: "Customisation",
-        value: stripHtml(product.customisation),
-      }
+          "@type": "PropertyValue",
+          name: "Customisation",
+          value: stripHtml(product.customisation),
+        }
       : null,
     product.material
       ? {
-        "@type": "PropertyValue",
-        name: "Material",
-        value: stripHtml(product.material),
-      }
+          "@type": "PropertyValue",
+          name: "Material",
+          value: stripHtml(product.material),
+        }
       : null,
     product.includes
       ? {
-        "@type": "PropertyValue",
-        name: "Includes",
-        value: stripHtml(product.includes),
-      }
+          "@type": "PropertyValue",
+          name: "Includes",
+          value: stripHtml(product.includes),
+        }
       : null,
     discount > 0
       ? {
-        "@type": "PropertyValue",
-        name: "Discount",
-        value: `${discount}% OFF`,
-      }
+          "@type": "PropertyValue",
+          name: "Discount",
+          value: `${discount}% OFF`,
+        }
       : null,
   ].filter(Boolean);
 
@@ -405,23 +408,26 @@ function buildProductJsonLd(product: ProductLike) {
     category: categoryLabel,
     material: product.material ? stripHtml(product.material) : undefined,
     additionalProperty,
-    offers: product.price > 0 ? {
-      "@type": "Offer",
-      "@id": `${productUrl}#offer`,
-      url: productUrl,
-      priceCurrency: "INR",
-      price: product.price,
-      availability:
-        product.price > 0
-          ? "https://schema.org/InStock"
-          : "https://schema.org/PreOrder",
-      itemCondition: "https://schema.org/NewCondition",
-      seller: {
-        "@type": "Organization",
-        name: BRAND,
-      },
-      priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
-    } : undefined,
+    offers:
+      product.price > 0
+        ? {
+            "@type": "Offer",
+            "@id": `${productUrl}#offer`,
+            url: productUrl,
+            priceCurrency: "INR",
+            price: product.price,
+            availability:
+              product.price > 0
+                ? "https://schema.org/InStock"
+                : "https://schema.org/PreOrder",
+            itemCondition: "https://schema.org/NewCondition",
+            seller: {
+              "@type": "Organization",
+              name: BRAND,
+            },
+            priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
+          }
+        : undefined,
   };
 }
 
@@ -537,11 +543,7 @@ function buildRelatedJsonLd(related: Product[]) {
   };
 }
 
-function JsonLdScript({
-  data,
-}: {
-  data: Record<string, unknown> | null;
-}) {
+function JsonLdScript({ data }: { data: Record<string, unknown> | null }) {
   if (!data) return null;
 
   return (
@@ -556,9 +558,9 @@ function JsonLdScript({
 
 function SpecRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <li className="flex gap-4 border-b border-gold/10 pb-2 last:border-b-0">
-      <span className="w-32 shrink-0 text-ink-light">{label}</span>
-      <span className="text-ink">{value}</span>
+    <li className="grid gap-1 border-b border-gold/10 pb-2 last:border-b-0 min-[400px]:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] min-[400px]:gap-4">
+      <span className="min-w-0 break-words text-ink-mid">{label}</span>
+      <span className="min-w-0 break-words text-ink">{value}</span>
     </li>
   );
 }
@@ -578,7 +580,7 @@ function Accordion({
 }) {
   return (
     <details className="group rounded-2xl border border-gold/15 bg-white shadow-sm transition hover:border-gold/30">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-display text-[17px] font-semibold text-carbon marker:hidden sm:px-6 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-display text-lg font-semibold text-carbon marker:hidden sm:px-6 [&::-webkit-details-marker]:hidden">
         <span>{title}</span>
 
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/25 text-gold transition-transform duration-200 group-open:rotate-45">
@@ -653,7 +655,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
       <div className="bg-white">
         <div className="mx-auto max-w-7xl overflow-x-clip px-4 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:py-12">
           {/* Breadcrumb */}
-          <nav className="mb-5 flex min-w-0 items-center gap-1.5 overflow-hidden text-[11.5px] text-ink-light sm:mb-8 sm:text-[12.5px]">
+          <nav className="mb-5 flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-ink-mid sm:mb-8">
             <Link
               href="/"
               className="shrink-0 whitespace-nowrap transition-colors hover:text-carbon"
@@ -665,20 +667,22 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <Link
               href={`/collections/${product.category}`}
-              className="shrink-0 whitespace-nowrap capitalize transition-colors hover:text-carbon"
+              className="min-w-0 break-words capitalize transition-colors hover:text-carbon"
             >
               {categoryLabel}
             </Link>
 
             <span className="shrink-0 text-gold">/</span>
 
-            <span className="min-w-0 truncate text-ink">{formatProductName(product.name, product.printName)}</span>
+            <span className="min-w-0 break-words text-ink">
+              {formatProductName(product.name, product.printName)}
+            </span>
           </nav>
 
           {/* Product layout */}
-          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] xl:gap-10 2xl:gap-14">
+          <div className="grid min-w-0 gap-6 lg:flex lg:items-start lg:gap-4 xl:gap-6">
             {/* Left: Gallery */}
-            <div className="min-w-0">
+            <div className="min-w-0 lg:shrink">
               <ProductGallery
                 key={product.slug}
                 images={product.images || []}
@@ -690,64 +694,54 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
 
             {/* Right: Product information */}
-            <div className="min-w-0 flex flex-col">
+            <div className="min-w-0 flex flex-col lg:min-w-[360px] lg:flex-1 xl:min-w-[400px]">
               {/* Product name + price */}
               <section className="min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
-                <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
-                  <span className="capitalize">{categoryLabel}</span>
-
-                  {subject && (
-                    <>
-                      <span className="text-gold/40">✦</span>
-                      <span>{subject}</span>
-                    </>
-                  )}
-                </div>
-
-                <div className="mt-3 flex items-start justify-between gap-4">
-                  <h1 className="min-w-0 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[36px] 2xl:text-[40px]">
+                <div className="flex items-start justify-between gap-4">
+                  <h1 className="min-w-0 break-words font-display text-2xl font-semibold leading-[1.12] text-carbon sm:text-3xl lg:text-[2.25rem] 2xl:text-[2.5rem]">
                     {formatProductName(product.name, product.printName)}
                   </h1>
-                  <WishlistButton productSlug={product.slug} className="shrink-0" />
+                  <WishlistButton
+                    productSlug={product.slug}
+                    className="shrink-0"
+                  />
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-3 text-[13px] text-ink-mid">
-                  <span className="tracking-[0.15em] text-gold">★★★★★</span>
-                  <span className="h-3 w-px bg-gold/30" />
-                  <span>Handcrafted to order</span>
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-ink-mid">
+                  <span className="tracking-[0.1em] text-gold">★★★★★</span>
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-end gap-3">
                   <ProductPrice
                     price={product.price}
                     mrp={product.mrp}
-                    priceClassName="font-display text-[30px] font-bold leading-none text-carbon sm:text-[34px]"
-                    oldPriceClassName="pb-0.5 text-lg text-ink-light"
+                    priceClassName="font-display text-[1.875rem] font-bold leading-none text-carbon sm:text-[2.125rem]"
+                    oldPriceClassName="pb-0.5 text-lg text-ink-mid"
                   />
 
                   {discount > 0 && (
-                    <span className="mb-0.5 rounded-md bg-[#E8F7EE] px-2.5 py-1 text-[13px] font-semibold text-[#27A060]">
+                    <span className="mb-0.5 rounded-md bg-[#E8F7EE] px-2.5 py-1 text-sm font-semibold text-emerald-800">
                       {discount}% OFF
                     </span>
                   )}
                 </div>
 
-                <p className="mt-2 text-[12px] text-ink-light">
+                <p className="mt-2 text-sm text-ink-mid">
                   Inclusive of all taxes
                 </p>
 
-                <div className="my-7 h-px w-full bg-gradient-to-r from-gold/30 via-gold/15 to-transparent" />
-
-                <ProductBuyBox product={product} />
+                <div className="mt-7">
+                  <ProductBuyBox product={product} />
+                </div>
               </section>
 
               {/* Description */}
               <section className="mt-5 min-w-0 rounded-2xl border border-gold/15 bg-white p-4 shadow-sm sm:p-6">
-                <h2 className="font-display text-[17px] font-semibold text-carbon">
+                <h2 className="font-display text-lg font-semibold text-carbon">
                   Description
                 </h2>
 
-                <div className="mt-4 text-[14px] leading-relaxed text-ink-mid">
+                <div className="mt-4 text-base leading-relaxed text-ink-mid">
                   {product.description ? (
                     hasHtml(product.description) ? (
                       <div
@@ -770,7 +764,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               {/* Collapsible sections */}
               <div className="mt-5 min-w-0 space-y-3">
                 <Accordion title="Printing">
-                  <p className="text-[14px] leading-relaxed text-ink-mid">
+                  <p className="text-base leading-relaxed text-ink-mid">
                     Printing charges is not included in the above price. The
                     printing cost is dependent on variables like number of
                     impressions, type of printing - Screen / UV / Offset, gold
@@ -781,7 +775,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </Accordion>
 
                 <Accordion title="Shipping">
-                  <div className="space-y-5 text-[14px] leading-relaxed text-ink-mid">
+                  <div className="space-y-5 text-base leading-relaxed text-ink-mid">
                     <div>
                       <h3 className="font-semibold text-carbon">1. Surface</h3>
 
@@ -824,7 +818,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
                 <Accordion title="Dimensions">
                   {dimensionRows.length > 0 ? (
-                    <ul className="space-y-2 text-[14px] text-ink-mid">
+                    <ul className="space-y-2 text-base text-ink-mid">
                       {dimensionRows.map((row) => (
                         <SpecRow
                           key={row.label}
@@ -834,22 +828,24 @@ export default async function ProductDetailPage({ params }: PageProps) {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-[14px] text-ink-mid">Coming soon</p>
+                    <p className="text-base text-ink-mid">Coming soon</p>
                   )}
                 </Accordion>
 
                 <Accordion title="Return Policy">
-                  <p className="text-[14px] leading-relaxed text-ink-mid">
+                  <p className="text-base leading-relaxed text-ink-mid">
                     We hope you love your order! However, we do not accept
                     returns unless there is an error from our end.
                   </p>
                 </Accordion>
 
                 <Accordion title="Product Details">
-                  <ul className="space-y-2 text-[14px] text-ink-mid">
+                  <ul className="space-y-2 text-base text-ink-mid">
                     <SpecRow
                       label="Category"
-                      value={<span className="capitalize">{categoryLabel}</span>}
+                      value={
+                        <span className="capitalize">{categoryLabel}</span>
+                      }
                     />
 
                     {subject && <SpecRow label="Tradition" value={subject} />}
@@ -865,12 +861,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
                     />
                   </ul>
 
-                  <p className="mt-4 text-[14px] leading-relaxed text-ink-mid">
+                  <p className="mt-4 text-base leading-relaxed text-ink-mid">
                     <span className="font-medium text-carbon">Phone - </span>
 
                     <a
                       href="tel:+917044815488"
-                      className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-gold"
+                      className="font-semibold text-carbon underline decoration-gold/40 underline-offset-4 transition hover:text-carbon-dark"
                     >
                       +91 7044815488
                     </a>
@@ -879,7 +875,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
             </div>
           </div>
-
         </div>
 
         <div className="mx-auto max-w-[1800px] px-4 pb-12 sm:px-6 lg:px-8">

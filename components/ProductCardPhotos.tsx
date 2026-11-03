@@ -52,15 +52,15 @@ export default function ProductCardPhotos({
             className="object-contain"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center text-neutral-400">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center text-neutral-600">
             <ImageOff aria-hidden="true" className="h-8 w-8" strokeWidth={1} />
-            <span className="text-xs">{placeholderLabel}</span>
+            <span className="text-sm">{placeholderLabel}</span>
           </div>
         )}
       </Link>
 
       {discount > 0 && (
-        <span className="pointer-events-none absolute left-2.5 top-2.5 z-10 bg-[#df270d] px-3 py-1 text-[11px] font-medium leading-4 text-white">
+        <span className="pointer-events-none absolute left-2.5 top-2.5 z-10 bg-[#b91c0c] px-3 py-1 text-xs font-semibold leading-normal text-white">
           −{discount}%
         </span>
       )}

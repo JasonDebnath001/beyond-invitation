@@ -7,10 +7,10 @@ const config: Config = {
       colors: {
         /* Legacy palette — kept so pages not yet redesigned still build. */
         maroon: { DEFAULT: "#7B1C2E", dark: "#5A1220", light: "#A83048" },
-        gold: { DEFAULT: "#C9A84C", light: "#E6C97A", pale: "#F5EED5" },
+        gold: { DEFAULT: "#C9A84C", light: "#E6C97A", pale: "#F5EED5", ink: "#80601F" },
         cream: "#FDF8F0",
         ivory: "#FAF4E8",
-        ink: { DEFAULT: "#2A1A10", mid: "#6B4C3B", light: "#9C7B68" },
+        ink: { DEFAULT: "#2A1A10", mid: "#6B4C3B", light: "#80614E" },
 
         /*
          * `carbon` = the theme's primary deep maroon "ink".
@@ -23,6 +23,7 @@ const config: Config = {
         paper: "#FBF7F1",
       },
       fontFamily: {
+        sans: ["var(--font-assistant)", "Arial", "sans-serif"],
         display: ["var(--font-assistant)", "sans-serif"],
         body: ["var(--font-assistant)", "sans-serif"],
         serif: ["var(--font-assistant)", "sans-serif"],

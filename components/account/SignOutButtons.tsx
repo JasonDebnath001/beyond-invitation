@@ -25,12 +25,12 @@ export default function SignOutButtons({ showAll = true }: { showAll?: boolean }
     <div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <button type="button" data-testid="sign-out" disabled={busy} onClick={() => signOut("local")}
-          className={`inline-flex items-center gap-2 rounded-full py-2.5 text-sm font-semibold text-carbon transition-colors hover:text-carbon-dark disabled:opacity-50 ${focusClass}`}>
+          className={`inline-flex items-center gap-2 rounded-full py-2.5 text-base font-semibold text-carbon transition-colors hover:text-carbon-dark disabled:opacity-50 ${focusClass}`}>
           <LogOut aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />Sign out
         </button>
         {showAll && <button type="button" data-testid="sign-out-all" disabled={busy} onClick={() => signOut("global")} className={secondaryClass}>Sign out of all devices</button>}
       </div>
-      {error && <p role="alert" className="mt-3 rounded-2xl bg-maroon/5 px-4 py-2 text-sm text-maroon motion-safe:animate-fadeUp">{error}</p>}
+      {error && <p role="alert" className="mt-3 rounded-2xl bg-maroon/5 px-4 py-2 text-base text-maroon motion-safe:animate-fadeUp">{error}</p>}
     </div>
   );
 }

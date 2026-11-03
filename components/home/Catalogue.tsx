@@ -12,7 +12,7 @@ export default function Catalogue() {
     <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-gold">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.1em] text-gold-ink">
             Explore
           </p>
           <h2 className="font-serif text-3xl font-semibold uppercase tracking-[0.06em] text-carbon min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.08em]">

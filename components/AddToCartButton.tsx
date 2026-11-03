@@ -46,16 +46,16 @@ export default function AddToCartButton({
   }
 
   const base =
-    "w-full font-semibold uppercase tracking-[0.08em] transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-carbon focus:ring-offset-2 min-[400px]:tracking-[0.13em]";
+    "w-full font-semibold tracking-normal transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-carbon focus:ring-offset-2";
   const size = large
-    ? "py-4 text-[12.5px]"
-    : "py-2.5 text-[10px] min-[400px]:py-3 sm:text-[11px]";
+    ? "py-4 text-base"
+    : "py-2.5 text-base min-[400px]:py-3";
   const colors = added
     ? "border border-carbon bg-carbon text-white"
     : "border border-carbon bg-white text-carbon hover:bg-carbon hover:text-white";
   const isCard = variant === "card";
   const buttonClassName = isCard
-    ? `flex min-h-11 w-full items-center justify-center whitespace-nowrap rounded-md px-3 py-2.5 text-xs font-semibold leading-4 tracking-[0.01em] text-white transition-[background-color,transform,box-shadow] duration-200 ease-out hover:shadow-[0_4px_12px_rgba(112,39,35,0.16)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carbon motion-reduce:transform-none motion-reduce:transition-none sm:min-h-8 sm:whitespace-normal sm:rounded-none sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.2em] sm:hover:-translate-y-0.5 sm:active:translate-y-0 ${added ? "bg-[#702723]" : "bg-[#96352f]/95 hover:bg-[#7e2a26]"}`
+    ? `flex min-h-11 w-full items-center justify-center whitespace-normal rounded-md px-2 py-2.5 text-base font-semibold leading-normal text-white transition-[background-color,transform,box-shadow] duration-200 ease-out hover:shadow-[0_4px_12px_rgba(112,39,35,0.16)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carbon motion-reduce:transform-none motion-reduce:transition-none sm:rounded-none sm:px-3 sm:py-2 sm:hover:-translate-y-0.5 sm:active:translate-y-0 ${added ? "bg-[#702723]" : "bg-[#96352f]/95 hover:bg-[#7e2a26]"}`
     : `${base} ${size} ${colors}`;
 
   if (!Number.isFinite(product.price) || product.price <= 0) {

@@ -79,26 +79,26 @@ export default function Footer() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_45%)]" />
 
       <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-14 sm:px-6 sm:pt-16 md:pt-20 lg:px-8">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr] lg:gap-10 xl:gap-16">
-          <div className="sm:col-span-2 lg:col-span-1 lg:border-r lg:border-white/10 lg:pr-8 xl:pr-12">
-            <div className="font-display text-[26px] font-medium tracking-[0.04em] text-white">
+        <div className="grid min-w-0 gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-10 xl:gap-16">
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1 lg:border-r lg:border-white/10 lg:pr-8 xl:pr-12">
+            <div className="font-display text-[1.625rem] font-semibold tracking-[0.02em] text-white">
               {BRAND}
             </div>
 
             <div className="mt-2 flex max-w-full items-center gap-2 sm:gap-3">
               <span className="h-px w-5 shrink-0 bg-[#d6b36a] sm:w-8" />
-              <div className="min-w-0 text-center text-[8px] font-medium uppercase leading-4 tracking-[0.2em] text-white/45 sm:text-[9px] sm:tracking-[0.28em] xl:tracking-[0.34em]">
+              <div className="min-w-0 text-center text-sm font-medium uppercase leading-relaxed tracking-[0.06em] text-white/90">
                 {TAGLINE}
               </div>
               <span className="h-px w-5 shrink-0 bg-[#d6b36a] sm:w-8" />
             </div>
 
-            <p className="mt-6 max-w-[310px] text-[14px] leading-7 text-white/62">
+            <p className="mt-6 max-w-[35ch] text-base leading-relaxed text-white/90">
               Invitation cards tailored to your theme and finished by hand —
               exclusive designs paired with unparalleled service.
             </p>
 
-            <div className="mt-8 flex gap-4">
+            <div className="mt-8 flex flex-wrap gap-4">
               {socials.map((s) => (
                 <a
                   key={s.label}
@@ -117,9 +117,9 @@ export default function Footer() {
           {footerColumns.map((col) => (
             <div
               key={col.heading}
-              className="lg:border-r lg:border-white/10 lg:pr-6 last:border-r-0 xl:pr-10"
+              className="min-w-0 lg:border-r lg:border-white/10 lg:pr-6 last:border-r-0 xl:pr-10"
             >
-              <h4 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#f0d99b]">
+              <h4 className="text-base font-semibold uppercase tracking-[0.08em] text-[#f0d99b]">
                 {col.heading}
               </h4>
 
@@ -128,9 +128,9 @@ export default function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="group inline-flex items-center gap-3 text-[14px] text-white/65 transition-colors hover:text-white"
+                      className="group inline-flex items-center gap-3 text-base leading-relaxed text-white/90 transition-colors hover:text-white"
                     >
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#d6b36a]/60 transition-all group-hover:w-4 group-hover:rounded-full group-hover:bg-[#d6b36a]" />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#d6b36a]/60 transition-all group-hover:w-4 group-hover:rounded-full group-hover:bg-[#d6b36a]" />
                       {link.label}
                     </Link>
                   </li>
@@ -142,11 +142,11 @@ export default function Footer() {
 
         <div className="mt-14 border-t border-white/10 pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[12px] tracking-wide text-white/40">
+            <p className="text-sm leading-relaxed text-white/90">
               &copy; {year} {BRAND}. All rights reserved.
             </p>
 
-            <p className="text-[13px] font-medium tracking-wide text-[#f0d99b]">
+            <p className="text-sm font-medium leading-relaxed text-[#f0d99b]">
               Crafted with elegance for every celebration.
             </p>
           </div>

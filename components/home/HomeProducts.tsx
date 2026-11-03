@@ -1,10 +1,14 @@
-import { fetchErpProductPage } from "@/lib/catalog";
+import { fetchErpProductBySlug, fetchErpProductPage } from "@/lib/catalog";
 import { fetchItemCategoryProductPage } from "@/lib/catalog-item-category";
 import { PRODUCTS_PER_PAGE } from "@/lib/product-page";
 import { getSiteUrl } from "@/lib/site-config";
 import { ProductSection } from "@/components/ProductGrid";
 import { FeatureStrip, SaleCollection } from "@/components/Sections";
 import JsonLd from "@/components/seo/JsonLd";
+
+const TRENDY_PRODUCT_SLUGS = [
+  "1308", "1320", "1901", "1902", "1903", "1904", "1905", "1906",
+];
 
 function getAbsoluteImageUrl(image: string | undefined, siteUrl: string) {
   if (!image) return undefined;
@@ -15,9 +19,11 @@ function getAbsoluteImageUrl(image: string | undefined, siteUrl: string) {
 function ProductSectionSkeleton({
   label,
   title,
+  count = PRODUCTS_PER_PAGE,
 }: {
   label: string;
   title: string;
+  count?: number;
 }) {
   return (
     <section className="bg-white py-14 md:py-20">
@@ -31,7 +37,7 @@ function ProductSectionSkeleton({
           </h2>
         </div>
         <div aria-hidden="true" className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-8 motion-safe:animate-pulse sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: PRODUCTS_PER_PAGE }, (_, index) => (
+          {Array.from({ length: count }, (_, index) => (
             <div key={index} className="min-w-0">
               <div className="aspect-square bg-neutral-100" />
               <div className="space-y-2.5 pt-4">
@@ -47,27 +53,33 @@ function ProductSectionSkeleton({
   );
 }
 
-/** Reserve the same ten-card grids while the first catalogue page loads. */
+/** Reserve each collection's grid while its products load. */
 export function HomeProductsSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading products">
       <p role="status" className="sr-only">Loading products</p>
       <ProductSectionSkeleton label="Limited time offer" title="Sale Collection" />
-      <ProductSectionSkeleton label="Fresh from our catalogue" title="Trendy Collection" />
+      <ProductSectionSkeleton
+        label="Fresh from our catalogue"
+        title="Trendy Collection"
+        count={TRENDY_PRODUCT_SLUGS.length}
+      />
       <FeatureStrip />
       <ProductSectionSkeleton label="Exclusive & elegant" title="Premium Invitations" />
     </div>
   );
 }
 
-/** Sale and Trendy share a priced page; Premium features wedding boxes. */
+/** Sale uses a priced page; Trendy is curated; Premium features wedding boxes. */
 export default async function HomeProducts({ description }: { description: string }) {
   let weddingBoxesPage;
   let pricedPage;
+  let trendyProductResults;
   try {
-    [weddingBoxesPage, pricedPage] = await Promise.all([
+    [weddingBoxesPage, pricedPage, trendyProductResults] = await Promise.all([
       fetchItemCategoryProductPage("Wedding Box"),
       fetchErpProductPage(0, true),
+      Promise.all(TRENDY_PRODUCT_SLUGS.map((slug) => fetchErpProductBySlug(slug))),
     ]);
   } catch (error) {
     console.error("Catalogue product fetch failed on homepage:", error);
@@ -85,8 +97,9 @@ export default async function HomeProducts({ description }: { description: strin
   }
 
   const { products, nextOffset } = weddingBoxesPage;
+  const trendyProducts = trendyProductResults.flatMap((product) => product ? [product] : []);
   const featuredProducts = Array.from(
-    new Map([...pricedPage.products, ...products].map((product) => [product.slug, product])).values(),
+    new Map([...pricedPage.products, ...trendyProducts, ...products].map((product) => [product.slug, product])).values(),
   );
   const siteUrl = getSiteUrl();
   const productListJsonLd = {
@@ -122,9 +135,8 @@ export default async function HomeProducts({ description }: { description: strin
       <ProductSection
         label="Fresh from our catalogue"
         title="Trendy Collection"
-        products={pricedPage.products}
-        nextOffset={pricedPage.nextOffset}
-        pricedOnly
+        products={trendyProducts}
+        nextOffset={null}
         viewAllHref="/catalog"
         viewAllText="View All Products"
       />

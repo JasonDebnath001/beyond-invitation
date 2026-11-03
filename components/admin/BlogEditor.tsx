@@ -45,6 +45,7 @@ import { prepareProductPhoto } from "@/lib/admin/item-photo-client";
 import BlogMarkdown from "@/components/blog/BlogMarkdown";
 import BlogImage from "@/components/blog/BlogImage";
 import BlogAdminShell from "./BlogAdminShell";
+import BlogImagePicker from "./BlogImagePicker";
 import styles from "./BlogAdmin.module.css";
 
 const emptyInput: BlogInput = {
@@ -87,9 +88,7 @@ export default function BlogEditor({ id }: { id?: string }) {
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [customSlug, setCustomSlug] = useState(!!id);
   const [mediaOpen, setMediaOpen] = useState(false);
-  const [mediaUrl, setMediaUrl] = useState("");
-  const [mediaAlt, setMediaAlt] = useState("");
-  const [mediaError, setMediaError] = useState("");
+  const [pendingImages, setPendingImages] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -100,7 +99,10 @@ export default function BlogEditor({ id }: { id?: string }) {
   const activeRequest = useRef<AbortController | null>(null);
   const saveLock = useRef(false);
   const busy = saving || !!uploading;
-  const dirty = JSON.stringify(input) !== baseline;
+  const dirty = JSON.stringify(input) !== baseline || pendingImages;
+  const setImagesBusy = useCallback((busy: boolean) => {
+    setUploading(busy ? "inline" : null);
+  }, []);
 
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -150,6 +152,12 @@ export default function BlogEditor({ id }: { id?: string }) {
     const { start, end } = selection.current;
     const selected = input.content.slice(start, end) || placeholder;
     const replacement = before + selected + after;
+    if (input.content.length - (end - start) + replacement.length > 100000) {
+      setError(
+        "Article content must be 100,000 characters or fewer. Shorten it before adding more content.",
+      );
+      return false;
+    }
     update(
       "content",
       input.content.slice(0, start) + replacement + input.content.slice(end),
@@ -166,12 +174,12 @@ export default function BlogEditor({ id }: { id?: string }) {
         end: start + before.length + selected.length,
       };
     });
+    return true;
   }
-  async function upload(file: File, target: "cover" | "inline") {
+  async function upload(file: File) {
     if (busy || saveLock.current) return;
-    setUploading(target);
+    setUploading("cover");
     setError("");
-    setMediaError("");
     setSuccess("");
     const controller = new AbortController();
     activeRequest.current = controller;
@@ -184,13 +192,9 @@ export default function BlogEditor({ id }: { id?: string }) {
         { method: "POST", body: form, signal: controller.signal },
       );
       if (controller.signal.aborted) return;
-      if (target === "cover") update("cover_image", url);
-      else setMediaUrl(url);
+      update("cover_image", url);
     } catch (error) {
-      if (!controller.signal.aborted)
-        (target === "inline" ? setMediaError : setError)(
-          (error as Error).message,
-        );
+      if (!controller.signal.aborted) setError((error as Error).message);
     } finally {
       if (!controller.signal.aborted) setUploading(null);
     }
@@ -199,6 +203,14 @@ export default function BlogEditor({ id }: { id?: string }) {
     if (busy || saveLock.current || loading || loadError) return;
     setError("");
     setSuccess("");
+    if (pendingImages) {
+      setError(
+        "Insert your selected article images or remove them from the image panel before saving.",
+      );
+      setMediaOpen(true);
+      setMode("write");
+      return;
+    }
     let values: BlogInput;
     try {
       values = parseBlogInput({ ...input, status });
@@ -377,7 +389,7 @@ export default function BlogEditor({ id }: { id?: string }) {
                 <>
                   <LoaderCircle size={15} className={styles.spin} />
                   {uploading
-                    ? "Preparing and uploading image…"
+                    ? "Preparing and uploading images…"
                     : "Saving your story…"}
                 </>
               ) : dirty ? (
@@ -514,7 +526,9 @@ export default function BlogEditor({ id }: { id?: string }) {
                       aria-describedby="blog-author-help"
                       onChange={(event) => update("author", event.target.value)}
                     />
-                    <small id="blog-author-help">This name appears in the article byline and blog listing.</small>
+                    <small id="blog-author-help">
+                      This name appears in the article byline and blog listing.
+                    </small>
                   </label>
                   <label className={styles.field}>
                     Short introduction
@@ -558,6 +572,32 @@ export default function BlogEditor({ id }: { id?: string }) {
                     </button>
                   </div>
                 </div>
+                <div className={styles.imageTools}>
+                  <button
+                    type="button"
+                    className={styles.secondary}
+                    disabled={busy}
+                    aria-expanded={mediaOpen && mode === "write"}
+                    aria-controls="blog-image-picker"
+                    onClick={() => {
+                      setMode("write");
+                      setMediaOpen(!mediaOpen || mode !== "write");
+                    }}
+                  >
+                    <ImagePlus size={17} /> Add images
+                    {pendingImages && <span> (pending)</span>}
+                  </button>
+                  <span>Add several photos to the article, alongside your cover.</span>
+                </div>
+                <div id="blog-image-picker" hidden={!mediaOpen || mode !== "write"}>
+                  <BlogImagePicker
+                    disabled={saving || uploading === "cover"}
+                    onBusyChange={setImagesBusy}
+                    onPendingChange={setPendingImages}
+                    onInsert={(markdown) => insert(markdown)}
+                    onClose={() => setMediaOpen(false)}
+                  />
+                </div>
                 {mode === "write" ? (
                   <>
                     <div
@@ -577,112 +617,7 @@ export default function BlogEditor({ id }: { id?: string }) {
                           <tool.icon size={17} />
                         </button>
                       ))}
-                      <span />
-                      <button
-                        type="button"
-                        title="Insert image"
-                        aria-label="Insert image"
-                        disabled={!!uploading}
-                        onClick={() => {
-                          setMediaOpen(!mediaOpen);
-                          setMediaError("");
-                        }}
-                      >
-                        <ImagePlus size={18} />
-                      </button>
                     </div>
-                    {mediaOpen && (
-                      <div className={styles.mediaPanel}>
-                        <div className={styles.mediaHeading}>
-                          <strong>Add an image to your story</strong>
-                          <button
-                            type="button"
-                            aria-label="Close image panel"
-                            disabled={!!uploading}
-                            onClick={() => setMediaOpen(false)}
-                          >
-                            <X size={17} />
-                          </button>
-                        </div>
-                        <label className={styles.uploadInline}>
-                          <UploadCloud size={16} />
-                          {uploading === "inline"
-                            ? "Uploading image…"
-                            : "Upload an image"}
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            disabled={busy}
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              event.target.value = "";
-                              if (file) void upload(file, "inline");
-                            }}
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          Or paste an image URL
-                          <input
-                            value={mediaUrl}
-                            placeholder="https://…"
-                            disabled={!!uploading}
-                            onChange={(event) =>
-                              setMediaUrl(event.target.value)
-                            }
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          Image description (alt text)
-                          <input
-                            value={mediaAlt}
-                            maxLength={250}
-                            placeholder="Describe what the image shows"
-                            onChange={(event) =>
-                              setMediaAlt(event.target.value)
-                            }
-                          />
-                        </label>
-                        {mediaError && (
-                          <p className={styles.errorText} role="alert">
-                            {mediaError}
-                          </p>
-                        )}
-                        <button
-                          className={styles.secondary}
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
-                            if (
-                              !safeBlogImage(mediaUrl.trim()) ||
-                              !mediaAlt.trim()
-                            ) {
-                              setMediaError(
-                                "Add an HTTPS image URL and a short image description.",
-                              );
-                              return;
-                            }
-                            const alt = mediaAlt
-                              .trim()
-                              .replace(/[\\[\]]/g, "\\$&")
-                              .replace(/[\r\n]/g, " ");
-                            const url = mediaUrl
-                              .trim()
-                              .replace(/\(/g, "%28")
-                              .replace(/\)/g, "%29");
-                            insert(`\n\n![${alt}](${url})\n\n`);
-                            setMediaOpen(false);
-                            setMediaUrl("");
-                            setMediaAlt("");
-                          }}
-                        >
-                          Insert image <ImagePlus size={15} />
-                        </button>
-                        <small>
-                          JPG, PNG or WebP, up to 20 MB. Images are resized
-                          automatically.
-                        </small>
-                      </div>
-                    )}
                     <textarea
                       ref={textarea}
                       className={styles.markdownInput}
@@ -719,7 +654,11 @@ export default function BlogEditor({ id }: { id?: string }) {
                   <div className={styles.preview}>
                     <span className={styles.eyebrow}>ARTICLE PREVIEW</span>
                     <h2>{input.title || "Your story title"}</h2>
-                    {input.author.trim() && <p className={styles.previewByline}>By {input.author.trim()}</p>}
+                    {input.author.trim() && (
+                      <p className={styles.previewByline}>
+                        By {input.author.trim()}
+                      </p>
+                    )}
                     {input.excerpt && (
                       <p className={styles.previewExcerpt}>{input.excerpt}</p>
                     )}
@@ -831,7 +770,7 @@ export default function BlogEditor({ id }: { id?: string }) {
                       onChange={(event) => {
                         const file = event.target.files?.[0];
                         event.target.value = "";
-                        if (file) void upload(file, "cover");
+                        if (file) void upload(file);
                       }}
                     />
                   </label>

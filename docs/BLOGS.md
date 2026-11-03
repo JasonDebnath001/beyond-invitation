@@ -15,7 +15,7 @@ The application uses the existing `NEXT_PUBLIC_SUPABASE_URL`, public anonymous/p
 1. Open `/admin`, select **Blogs**, then **Add blog**.
 2. Enter a title and the **Author name** directly below it. New articles start with a blank author field; enter the name to display in the preview, blog listing and article byline. Existing articles retain their saved author, which you can edit here. The URL slug fills automatically until manually edited. Choose a category, then add a short introduction and Markdown content.
 3. Use the toolbar for headings, bold, italics, quotes, lists, links, dividers and images. **Preview** renders the same Markdown component as the public article. GitHub-style tables and task lists are supported. Raw HTML is not rendered and unsafe URL schemes are blocked.
-4. Upload a cover photo, or supply an HTTPS image URL. Enter a meaningful image description. Use **Insert image** in the content toolbar for uploaded or linked inline images with alt text. Remove/replace a cover with its controls; edit or remove inline image Markdown in the text.
+4. Upload a cover photo, or supply an HTTPS image URL, and enter a meaningful image description. The cover stays separate from the images in the article. Use **Add images** above the article content to open the image picker. Select multiple JPG, PNG or WebP files, review their previews and enter a description (alt text) for each image. You can also add images by URL. Uploads run one at a time with progress and a retry option for failed uploads. Insert the images into the article, then use **Preview** to see them together with the text. Remove/replace a cover with its controls; edit or remove inline image Markdown in the text.
 5. **Save draft** keeps the story in admin. Publishing requires a title, valid unique slug, author, introduction and content. A cover is optional; article cards use a branded placeholder when absent.
 6. Choose **Publish article**, then **Publish now**. The story appears immediately. Check **Feature this story** to make it eligible for the leading editor’s pick; the most recently published featured story is selected, falling back to the latest article.
 
@@ -27,8 +27,10 @@ Reopen an article to edit it. **Save changes** updates a published article; **Mo
 
 `POST /api/admin/blogs/images` accepts an `image` multipart field. The browser accepts JPG, PNG and WebP originals up to 20 MB, resizing them before the server’s 3 MB limit. The server decodes and validates raster content, strips metadata, orients it and stores a WebP image up to 1,800 pixels. Animated/malformed images and SVG uploads are rejected. Storage paths are UUIDs, and uploads do not overwrite existing files.
 
+Multiple article images are saved as ordinary Markdown in the existing `content` field, preserving their order and individual alt text. The admin preview and public article use the same renderer and display every inserted image at its natural aspect ratio within the available width. Existing articles remain compatible; multi-image support needs no additional database migration.
+
 Images upload when selected and are public, including images used in drafts. Removing or replacing an image detaches it from the article; it does not delete the stored object because another article may reference it. Abandoned uploads can therefore leave unused objects for later cleanup. Unsaved article text remains in the open editor after errors; it is not automatically backed up across tab closure.
 
 ## Validation
 
-Run the focused blog tests with `node --test tests/blog.test.cjs tests/blog-database.test.cjs tests/blog-editor.test.cjs`. Type-check with `npx tsc --noEmit`; use ESLint on the changed files. A production build is not required for normal blog editing or development checks.
+Run the focused blog image tests with `node --test tests/blog-images.test.cjs`, or run all available tests with `npm test`. Type-check with `npx tsc --noEmit`; use ESLint on the changed files. A production build is not required for normal blog editing or development checks.

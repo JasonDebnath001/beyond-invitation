@@ -112,17 +112,6 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         )}
         <div className={styles.articleLayout}>
-          <aside className={styles.articleAside}>
-            <span className={styles.eyebrow}>A NOTE FROM OUR JOURNAL</span>
-            <p>
-              A little thought.
-              <br />A lasting impression.
-            </p>
-            <span>Inspiration for celebrations that feel like you.</span>
-            <Link href="/wedding-cards">
-              Discover our invitations <ArrowUpRight size={15} />
-            </Link>
-          </aside>
           <div className={styles.articleBody}>
             <BlogMarkdown content={post.content} />
             <div className={styles.articleEnd}>

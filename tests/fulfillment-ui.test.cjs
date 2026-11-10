@@ -27,7 +27,7 @@ function fixture(overrides = {}) {
   };
 }
 
-async function mount(initialOrder = fixture(), { onMutation, accessError } = {}) {
+async function mount(initialOrder = fixture(), { onMutation, canManageShipments = true } = {}) {
   let order = initialOrder;
   const requests = [];
   const network = async (url, options = {}) => {
@@ -62,7 +62,7 @@ async function mount(initialOrder = fixture(), { onMutation, accessError } = {})
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await React.act(async () => root.render(React.createElement(module.exports.default, { accessError })));
+  await React.act(async () => root.render(React.createElement(module.exports.default, { canManageShipments })));
   return {
     container, requests,
     async fillMeasurements(values = ["2.5", "30", "20", "10"]) {
@@ -131,12 +131,15 @@ test("uncertain outcomes offer verification instead of another creation", async 
   } finally { await ui.close(); }
 });
 
-test("an access error never requests or displays order data", async () => {
-  const ui = await mount(fixture(), { accessError: "Staff access is required." });
+test("anonymous visitors can view orders but cannot submit shipments", async () => {
+  const ui = await mount(fixture(), { canManageShipments: false });
   try {
-    assert.equal(ui.requests.length, 0);
-    assert.match(ui.container.textContent, /Staff access required/);
-    assert.doesNotMatch(ui.container.textContent, /Example Buyer|buyer@example/);
+    assert.equal(ui.requests.length, 1);
+    assert.match(ui.container.textContent, /Example Buyer|buyer@example/);
+    assert.doesNotMatch(ui.container.textContent, /Staff access required/);
+    assert.equal(ui.container.querySelector('button[type="submit"]').disabled, true);
+    await ui.submitTwice();
+    assert.equal(ui.requests.filter((request) => request.method === "POST").length, 0);
   } finally { await ui.close(); }
 });
 

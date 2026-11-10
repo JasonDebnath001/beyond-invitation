@@ -59,10 +59,11 @@ function ModeBadge({ mode }: { mode: FulfillmentOrder["paymentMode"] }) {
 
 type PackageFields = Record<keyof ShipmentPackage, string>;
 
-function OrderDetails({ order, onUpdate, onReload }: {
+function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
   order: FulfillmentOrder;
   onUpdate: (order: FulfillmentOrder) => void;
   onReload: () => Promise<boolean>;
+  canManageShipments: boolean;
 }) {
   const [measurements, setMeasurements] = useState<PackageFields>(() => ({
     weightKg: order.fulfillment.package ? String(order.fulfillment.package.weightKg) : "",
@@ -90,7 +91,7 @@ function OrderDetails({ order, onUpdate, onReload }: {
   }
 
   async function submit(action: "create" | "reconcile", body: unknown) {
-    if (inFlight.current) return;
+    if (inFlight.current || !canManageShipments) return;
     inFlight.current = true;
     setBusy(action);
     setError("");
@@ -127,7 +128,7 @@ function OrderDetails({ order, onUpdate, onReload }: {
 
   function createShipment(event: FormEvent) {
     event.preventDefault();
-    if (!order.canCreateShipment || mustRefresh) return;
+    if (!canManageShipments || !order.canCreateShipment || mustRefresh) return;
     const packed: ShipmentPackage = {
       weightKg: Number(measurements.weightKg),
       lengthCm: Number(measurements.lengthCm),
@@ -183,8 +184,9 @@ function OrderDetails({ order, onUpdate, onReload }: {
       <form className={styles.packageForm} onSubmit={createShipment}>
         <h3>Packed parcel measurements</h3>
         <p>Measure the final parcel, including its packaging.</p>
+        {!canManageShipments && <p className={styles.help}>You can view orders without signing in. <Link href="/sign-in?next=%2Fadmin%2Forders">Sign in to create or link shipments.</Link></p>}
         <p className={styles.notice}>The final courier charge may change with packed measurements. The customer’s payment stays unchanged.</p>
-        <fieldset disabled={!!busy || !order.canCreateShipment || mustRefresh} className={styles.measurements}>
+        <fieldset disabled={!canManageShipments || !!busy || !order.canCreateShipment || mustRefresh} className={styles.measurements}>
           {([
             ["weightKg", "Weight (kg)", "0.001"],
             ["lengthCm", "Length (cm)", "0.51"],
@@ -192,13 +194,13 @@ function OrderDetails({ order, onUpdate, onReload }: {
             ["heightCm", "Height (cm)", "0.51"],
           ] as const).map(([key, label, minimum]) => <label key={key}>{label}<input type="number" inputMode="decimal" min={minimum} max="1000" step="any" required value={measurements[key]} onChange={(event) => setMeasurements((current) => ({ ...current, [key]: event.target.value }))} /></label>)}
         </fieldset>
-        <button type="submit" disabled={!!busy || !order.canCreateShipment || mustRefresh} className={styles.primary}>
+        <button type="submit" disabled={!canManageShipments || !!busy || !order.canCreateShipment || mustRefresh} className={styles.primary}>
           {busy === "create" ? <LoaderCircle size={17} className={styles.spin} /> : <Package size={17} />}
           {busy === "create" ? "Creating order…" : "Create Shiprocket Order"}
         </button>
         <p className={styles.help}>This creates the shipping order. Courier selection and pickup are arranged separately.</p>
       </form>
-      {order.canReconcileShipment && <form className={styles.reconcile} onSubmit={(event) => {
+      {canManageShipments && order.canReconcileShipment && <form className={styles.reconcile} onSubmit={(event) => {
         event.preventDefault();
         if (!/^\d+$/.test(providerOrderId) || !Number.isSafeInteger(Number(providerOrderId)) || Number(providerOrderId) <= 0) {
           setError("Enter the numeric Shiprocket order ID shown in your Shiprocket dashboard.");
@@ -215,7 +217,7 @@ function OrderDetails({ order, onUpdate, onReload }: {
   </section>;
 }
 
-export default function OrderShippingDashboard({ accessError }: { accessError?: string }) {
+export default function OrderShippingDashboard({ canManageShipments = false }: { canManageShipments?: boolean }) {
   const [orders, setOrders] = useState<FulfillmentOrder[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -226,7 +228,6 @@ export default function OrderShippingDashboard({ accessError }: { accessError?: 
   const requestRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async (before?: string): Promise<boolean> => {
-    if (accessError) return false;
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
@@ -260,7 +261,7 @@ export default function OrderShippingDashboard({ accessError }: { accessError?: 
       clearTimeout(deadline);
       if (requestRef.current === controller) setLoading(false);
     }
-  }, [accessError]);
+  }, []);
 
   useEffect(() => { void load(); return () => { requestRef.current?.abort(); requestRef.current = null; }; }, [load]);
   const filtered = useMemo(() => {
@@ -278,9 +279,9 @@ export default function OrderShippingDashboard({ accessError }: { accessError?: 
 
   return <OrderShell>
     <div className={styles.heading}><div><span className={styles.eyebrow}>FROM ORDER TO DELIVERY</span><h1>Order shipping</h1><p>Review paid orders and prepare their parcels for Shiprocket.</p></div>
-      {!accessError && <button type="button" disabled={loading} onClick={() => void load()} className={styles.secondary}><RefreshCw size={17} className={loading ? styles.spin : undefined} />Refresh</button>}
+      <button type="button" disabled={loading} onClick={() => void load()} className={styles.secondary}><RefreshCw size={17} className={loading ? styles.spin : undefined} />Refresh</button>
     </div>
-    {accessError ? <div className={styles.empty} role="alert"><CircleAlert size={28} /><h2>Staff access required</h2><p>{accessError}</p><Link href="/sign-in?next=%2Fadmin%2Forders" className={styles.secondary}>Sign in with a staff account</Link></div> : <>
+    <>
       <div className={styles.stats}><div><span>Orders loaded</span><strong>{orders.length}</strong></div><div><span>Ready to prepare</span><strong>{ready}</strong></div><div><span>Created in Shiprocket</span><strong>{created}</strong></div></div>
       {error && <div className={styles.error} role="alert"><CircleAlert size={18} /><span>{error}</span><button type="button" onClick={() => void load()} disabled={loading}>Retry</button></div>}
       <div className={styles.toolbar}><label className={styles.search}><Search size={18} /><input aria-label="Search orders" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, order or pincode" /></label><label className={styles.modeFilter}>Payments<select value={mode} onChange={(event) => setMode(event.target.value)}><option value="all">All modes</option><option value="live">Live</option><option value="test">Test</option><option value="unknown">Unknown</option></select></label></div>
@@ -295,8 +296,8 @@ export default function OrderShippingDashboard({ accessError }: { accessError?: 
           </button>)}
           {moreAvailable && <button type="button" className={styles.secondary} disabled={loading} onClick={() => void load(orders[orders.length - 1]?.createdAt)}>{loading ? "Loading…" : "Load older orders"}</button>}
         </section>
-        {selected ? <OrderDetails key={selected.id} order={selected} onReload={() => load()} onUpdate={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? updated : order))} /> : <div className={styles.empty}><Package size={26} /><p>Select an order to view its delivery details.</p></div>}
+        {selected ? <OrderDetails key={selected.id} order={selected} canManageShipments={canManageShipments} onReload={() => load()} onUpdate={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? updated : order))} /> : <div className={styles.empty}><Package size={26} /><p>Select an order to view its delivery details.</p></div>}
       </div>}
-    </>}
+    </>
   </OrderShell>;
 }

@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getFulfillmentAdmin } from "@/lib/admin-auth";
 import { listFulfillmentOrders } from "@/lib/order-fulfillment";
 import { AdminOrderRequestError, adminOrdersError, adminOrdersHeaders } from "@/lib/admin/order-request";
 
@@ -8,7 +7,6 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    await getFulfillmentAdmin();
     const limitValue = request.nextUrl.searchParams.get("limit");
     const limit = limitValue === null ? 50 : Number(limitValue);
     const before = request.nextUrl.searchParams.get("before") || undefined;

@@ -1,6 +1,8 @@
 # Paid orders and Shiprocket
 
-Open `/admin/orders` after signing in to the website. This page is separate from the existing catalogue/blog administration. It requires a verified Supabase user whose UUID is in the server-only `ADMIN_USER_IDS` comma-separated allowlist, or whose **server-managed** `app_metadata.role` is `admin`. Customer-editable `user_metadata` does not grant access. Configure the allowlist separately in every deployment; `.env.local` only configures this machine.
+Open `/admin/orders` from the Orders link in `/admin`. **Viewing orders does not require sign-in**, as requested for this admin workspace. Anyone who can reach the page or its listing API can read customer names, contact details, delivery addresses, order notes and order details. `noindex` and `no-store` are not access controls; protect the deployment externally if these details must remain private.
+
+Creating or linking a Shiprocket shipment still requires a verified Supabase user whose UUID is in the server-only `ADMIN_USER_IDS` comma-separated allowlist, or whose **server-managed** `app_metadata.role` is `admin`. Customer-editable `user_metadata` does not grant write access. Configure the allowlist separately in every deployment; `.env.local` only configures this machine.
 
 ## Staff workflow
 
@@ -24,7 +26,7 @@ ADMIN_USER_IDS=verified-supabase-user-uuid
 
 The Shiprocket API user needs permission to read pickup locations and orders and create orders. The selected pickup nickname must already exist in Shiprocket. This integration uses the live external API at `https://apiv2.shiprocket.in/v1/external`; it does not claim to be a Shiprocket sandbox. See the [official API documentation](https://apidocs.shiprocket.in/).
 
-Existing Supabase order storage and server credentials remain required. **No new database migration is required.** The existing `website_orders.shipping_address` JSONB snapshot stores trusted `paymentMode`, `paymentKeyId` and a `fulfillment` record. Customer-facing RLS still only permits an authenticated customer to read their own orders; only the backend writes them.
+Existing Supabase order storage and server credentials remain required. **No new database migration is required.** The existing `website_orders.shipping_address` JSONB snapshot stores trusted `paymentMode`, `paymentKeyId` and a `fulfillment` record. Direct customer database access remains protected by RLS; the public admin listing uses the backend server client and deliberately exposes the order view independently of that RLS policy. Only the backend writes orders.
 
 ## Test and live payment separation
 

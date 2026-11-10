@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import ProductPrice from "@/components/ProductPrice";
 import { formatProductName } from "@/lib/product-name";
+import { useShippingQuote } from "@/components/useShippingQuote";
 
 import {
   useCart,
@@ -18,7 +19,12 @@ export default function CartPage() {
     clearCart,
     totalItems,
     totalPrice,
+    deliveryPincode,
+    setDeliveryPincode,
   } = useCart();
+  const shipping = useShippingQuote(items, deliveryPincode);
+  const [pincodeTouched, setPincodeTouched] = useState(false);
+  const pincodeInvalid = pincodeTouched && !shipping.validPincode;
 
   const [
     failedImages,
@@ -226,6 +232,58 @@ export default function CartPage() {
             Order Summary
           </h2>
 
+          <form
+            className="mt-5 rounded-2xl border border-gold/20 bg-gold-pale/40 p-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setPincodeTouched(true);
+              if (shipping.validPincode) shipping.refresh();
+            }}
+          >
+            <label htmlFor="cart-delivery-pincode" className="block text-sm font-semibold text-maroon">
+              Delivery pincode
+            </label>
+            <div className="mt-2 flex min-w-0 gap-2">
+              <input
+                id="cart-delivery-pincode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={6}
+                value={deliveryPincode}
+                onChange={(event) => setDeliveryPincode(event.target.value)}
+                onBlur={() => setPincodeTouched(true)}
+                aria-invalid={pincodeInvalid || undefined}
+                aria-describedby="cart-shipping-status"
+                placeholder="6-digit pincode"
+                className="min-w-0 flex-1 rounded-xl border border-gold/30 bg-white px-3 py-2.5 text-base outline-none focus:border-maroon"
+              />
+              <button
+                type="submit"
+                disabled={shipping.loading}
+                className="shrink-0 rounded-xl bg-maroon px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-maroon-dark disabled:opacity-60"
+              >
+                {shipping.loading ? "Checking…" : shipping.error ? "Retry" : "Check"}
+              </button>
+            </div>
+            <p
+              id="cart-shipping-status"
+              role="status"
+              aria-live="polite"
+              className={`mt-2 text-sm ${pincodeInvalid || shipping.error ? "text-red-700" : "text-ink-mid"}`}
+            >
+              {pincodeInvalid
+                ? "Enter a valid six-digit Indian pincode."
+                : shipping.loading
+                  ? "Calculating shipping for your cart…"
+                  : shipping.error
+                    ? shipping.error
+                    : shipping.quote
+                      ? `Shipping is available to ${deliveryPincode}. Your pincode will carry over to checkout.`
+                      : "Enter your pincode to see the shipping fee."}
+            </p>
+          </form>
+
           <div className="mt-5 space-y-3 text-base">
             <div className="flex min-w-0 justify-between gap-4">
               <span className="min-w-0 text-ink-mid">
@@ -236,18 +294,18 @@ export default function CartPage() {
               <span className="shrink-0 font-medium">
                 ₹
                 {formatPrice(
-                  totalPrice,
+                  shipping.quote ? shipping.quote.subtotalPaise / 100 : totalPrice,
                 )}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span className="text-ink-mid">
-                Shipping
+                Shipping estimate
               </span>
 
               <span className="shrink-0 font-medium">
-                Free
+                {shipping.quote ? `₹${formatPrice(shipping.quote.amountPaise / 100)}` : shipping.loading ? "Checking…" : "—"}
               </span>
             </div>
 
@@ -255,13 +313,13 @@ export default function CartPage() {
               <span>Total</span>
 
               <span className="shrink-0">
-                ₹
-                {formatPrice(
-                  totalPrice,
-                )}
+                {shipping.quote ? `₹${formatPrice(shipping.quote.totalPaise / 100)}` : "—"}
               </span>
             </div>
           </div>
+          {!shipping.quote && (
+            <p className="mt-3 text-sm text-ink-mid">Your total will include shipping once a valid pincode is checked.</p>
+          )}
 
           <Link
             href="/checkout"

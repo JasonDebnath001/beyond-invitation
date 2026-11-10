@@ -2,14 +2,17 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
 import type { Product } from "@/types";
+import { isValidIndianPincode } from "@/lib/shipping";
 import {
   getProductQuantityRules,
   normalizeProductQuantity,
@@ -71,6 +74,7 @@ type CartAction =
  * contain the Subject field—from continuing to use the wrong step.
  */
 const STORAGE_KEY = "beyond-invitation-cart-v2";
+const PINCODE_STORAGE_KEY = "beyond-invitation-delivery-pincode";
 
 function cartReducer(
   state: CartState,
@@ -207,6 +211,8 @@ function cartReducer(
 
 interface CartContextValue {
   items: CartItem[];
+  deliveryPincode: string;
+  setDeliveryPincode: (pincode: string) => void;
 
   addItem: (
     product: CartProduct,
@@ -243,6 +249,36 @@ export function CartProvider({
   );
 
   const isFirstPersist = useRef(true);
+  const [deliveryPincode, setPincode] = useState("");
+  const [pincodeHydrated, setPincodeHydrated] = useState(false);
+  const pincodeEdited = useRef(false);
+  const setDeliveryPincode = useCallback((pincode: string) => {
+    pincodeEdited.current = true;
+    setPincode(pincode.replace(/\D/g, "").slice(0, 6));
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PINCODE_STORAGE_KEY);
+      if (!pincodeEdited.current && saved && isValidIndianPincode(saved)) setPincode(saved);
+    } catch {
+      // The current session still remembers the pincode when storage is unavailable.
+    }
+    setPincodeHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!pincodeHydrated) return;
+    try {
+      if (isValidIndianPincode(deliveryPincode)) {
+        localStorage.setItem(PINCODE_STORAGE_KEY, deliveryPincode);
+      } else {
+        localStorage.removeItem(PINCODE_STORAGE_KEY);
+      }
+    } catch {
+      // Storage may be unavailable in private browsing.
+    }
+  }, [deliveryPincode, pincodeHydrated]);
 
   useEffect(() => {
     try {
@@ -300,6 +336,8 @@ export function CartProvider({
 
   const value: CartContextValue = {
     items: state.items,
+    deliveryPincode,
+    setDeliveryPincode,
 
     addItem: (product, quantity) => {
       const defaultQuantity = getProductQuantityRules(product).minimum;

@@ -90,6 +90,8 @@ export interface CheckoutCustomer {
 
 interface StartArgs {
   items: CheckoutItem[];
+  expectedAmountPaise: number;
+  expectedShippingAmountPaise: number;
   customer?: CheckoutCustomer;
   onSuccess?: (r: {
     paymentId: string;
@@ -98,6 +100,7 @@ interface StartArgs {
   }) => void;
   onError?: (message: string) => void;
   onDismiss?: () => void;
+  onQuoteChanged?: () => void;
 }
 
 export function useRazorpayCheckout() {
@@ -133,12 +136,15 @@ export function useRazorpayCheckout() {
           body: JSON.stringify({
             items: args.items,
             customer: args.customer,
+            expectedAmountPaise: args.expectedAmountPaise,
+            expectedShippingAmountPaise: args.expectedShippingAmountPaise,
           }),
         });
 
         const orderData = await orderRes.json();
 
         if (!orderRes.ok) {
+          if (orderRes.status === 409) args.onQuoteChanged?.();
           throw new Error(orderData?.error || "Couldn't start checkout.");
         }
 

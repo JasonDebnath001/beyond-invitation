@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRazorpay } from "@/lib/razorpay";
-import { resolveCartProducts } from "@/lib/checkout";
+import { CheckoutValidationError, resolveCartProducts } from "@/lib/checkout";
+import { quoteCartShipping, ShippingQuoteError } from "@/lib/cart-shipping";
+import { isValidIndianPincode } from "@/lib/shipping";
 import {
   attachRazorpayOrder,
   createWebsiteOrder,
@@ -43,8 +45,10 @@ function validateCustomer(customer: OrderCustomer) {
   if (!customer.addressLine1) return "Address line 1 is required.";
   if (!customer.city) return "City is required.";
   if (!customer.state) return "State is required.";
-  if (!customer.pincode) return "PIN code is required.";
-  if (!customer.country) return "Country is required.";
+  if (!isValidIndianPincode(customer.pincode))
+    return "Enter a valid six-digit Indian PIN code.";
+  if (customer.country.toLowerCase() !== "india")
+    return "Delivery is currently available within India only.";
 
   if (!/^\S+@\S+\.\S+$/.test(customer.email)) {
     return "Valid email address is required.";
@@ -59,8 +63,14 @@ function validateCustomer(customer: OrderCustomer) {
   }
   if (
     customer.notes.length > 2000 ||
-    [customer.addressLine1, customer.addressLine2, customer.city,
-      customer.state, customer.pincode, customer.country].some((value) => value.length > 500)
+    [
+      customer.addressLine1,
+      customer.addressLine2,
+      customer.city,
+      customer.state,
+      customer.pincode,
+      customer.country,
+    ].some((value) => value.length > 500)
   ) {
     return "Address or order notes are too long.";
   }
@@ -87,19 +97,61 @@ export async function POST(request: NextRequest) {
     }
 
     if (
-      !Array.isArray(body?.items) || body.items.length < 1 || body.items.length > 100 ||
+      !Array.isArray(body?.items) ||
+      body.items.length < 1 ||
+      body.items.length > 100 ||
       body.items.some((item: unknown) => !item || typeof item !== "object")
     ) {
-      return NextResponse.json({ error: "Provide between 1 and 100 cart items." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Provide between 1 and 100 cart items." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      !Number.isSafeInteger(body.expectedAmountPaise) ||
+      body.expectedAmountPaise < 100 ||
+      !Number.isSafeInteger(body.expectedShippingAmountPaise) ||
+      body.expectedShippingAmountPaise < 0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Please calculate shipping and review your total before paying.",
+        },
+        { status: 400 },
+      );
     }
 
     const reseller = await getActiveResellerFromCookies();
-    const cart = await resolveCartProducts(body.items, reseller);
+    const products = await resolveCartProducts(body.items, reseller);
+    // Recheck with Shiprocket before taking any payment. Never accept a fee,
+    // product weight, courier or total supplied by the browser as authoritative.
+    const shipping = await quoteCartShipping(products, customer.pincode, {
+      refresh: true,
+    });
+    if (
+      body.expectedAmountPaise !== shipping.totalPaise ||
+      body.expectedShippingAmountPaise !== shipping.amountPaise
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Your order total has changed. Please review the updated shipping fee and total, then pay again.",
+          code: "QUOTE_CHANGED",
+          quote: shipping,
+        },
+        { status: 409 },
+      );
+    }
+    const cart = { ...products, amountPaise: shipping.totalPaise, shipping };
     const { lines, amountPaise, currency } = cart;
 
     if (
-      lines.length === 0 || !Number.isSafeInteger(amountPaise) ||
-      amountPaise < 100 || amountPaise > 2147483647
+      lines.length === 0 ||
+      !Number.isSafeInteger(amountPaise) ||
+      amountPaise < 100 ||
+      amountPaise > 2147483647
     ) {
       return NextResponse.json(
         {
@@ -115,7 +167,9 @@ export async function POST(request: NextRequest) {
     let websiteOrderId: string;
     try {
       const auth = await getSupabaseAuthServerClient();
-      const { data: { user } } = await auth.auth.getUser();
+      const {
+        data: { user },
+      } = await auth.auth.getUser();
       websiteOrderId = await createWebsiteOrder({
         customer,
         cart,
@@ -126,7 +180,9 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error("Website order could not be saved before checkout:", error);
       return NextResponse.json(
-        { error: "Checkout is temporarily unavailable. Please try again later." },
+        {
+          error: "Checkout is temporarily unavailable. Please try again later.",
+        },
         { status: 503 },
       );
     }
@@ -146,8 +202,13 @@ export async function POST(request: NextRequest) {
     };
 
     try {
-      if (Number(razorpayOrder.amount) !== amountPaise || razorpayOrder.currency !== currency) {
-        throw new Error("Razorpay order amount or currency does not match the saved cart.");
+      if (
+        Number(razorpayOrder.amount) !== amountPaise ||
+        razorpayOrder.currency !== currency
+      ) {
+        throw new Error(
+          "Razorpay order amount or currency does not match the saved cart.",
+        );
       }
       await attachRazorpayOrder(websiteOrderId, razorpayOrder.id);
     } catch (createError) {
@@ -174,14 +235,25 @@ export async function POST(request: NextRequest) {
       amount: Number(razorpayOrder.amount),
       currency: razorpayOrder.currency,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      shipping,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create payment order.";
+    if (err instanceof ShippingQuoteError) {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: err.status },
+      );
+    }
+    if (err instanceof CheckoutValidationError) {
+      return NextResponse.json(
+        { error: err.message, code: "INVALID_CART" },
+        { status: 400 },
+      );
+    }
 
     return NextResponse.json(
       {
-        error: message,
+        error: "Checkout is temporarily unavailable. Please try again later.",
       },
       {
         status: 500,

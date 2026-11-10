@@ -454,6 +454,11 @@ export default function ItemDashboard() {
           <BookOpen size={18} />
           Blogs
         </a>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/admin/orders" className={styles.navButton}>
+          <Package size={18} />
+          Orders
+        </a>
         <div className={styles.sidebarNote}>
           <span className={styles.statusDot} />
           Connected catalogue

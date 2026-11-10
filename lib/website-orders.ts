@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ResolvedCart } from "@/lib/checkout";
-import { getRazorpay } from "@/lib/razorpay";
+import { getRazorpay, getRazorpayPaymentContext } from "@/lib/razorpay";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export interface OrderCustomer {
@@ -26,12 +26,18 @@ type StoredOrder = {
 export class InvalidOrderPaymentError extends Error {}
 
 function storageError(error: { code?: string } | null): Error {
-  if (error?.code === "42P01" || error?.code === "PGRST205" || error?.code === "PGRST202") {
+  if (
+    error?.code === "42P01" ||
+    error?.code === "PGRST205" ||
+    error?.code === "PGRST202"
+  ) {
     return new Error(
       "Website order storage is not installed. Apply supabase/migrations/20260916_website_orders.sql in the Supabase SQL Editor.",
     );
   }
-  return new Error(`Website order storage failed (${error?.code || "no row returned"}).`);
+  return new Error(
+    `Website order storage failed (${error?.code || "no row returned"}).`,
+  );
 }
 
 /** Persist the complete snapshot before creating/exposing a Razorpay order. */
@@ -42,6 +48,7 @@ export async function createWebsiteOrder(args: {
   resellerCode?: string;
 }): Promise<string> {
   const { customer, cart } = args;
+  const paymentContext = getRazorpayPaymentContext();
   const { data, error } = await getSupabaseAdminClient()
     .from("website_orders")
     .insert({
@@ -56,6 +63,11 @@ export async function createWebsiteOrder(args: {
         state: customer.state,
         pincode: customer.pincode,
         country: customer.country,
+        paymentMode: paymentContext.mode,
+        paymentKeyId: paymentContext.keyId,
+        // Keep the accepted delivery price and courier alongside its address.
+        // Existing JSONB storage preserves this without a schema migration.
+        ...(cart.shipping ? { shippingQuote: cart.shipping } : {}),
       },
       notes: customer.notes,
       items: cart.lines,
@@ -70,7 +82,10 @@ export async function createWebsiteOrder(args: {
   return data.id;
 }
 
-export async function attachRazorpayOrder(websiteOrderId: string, razorpayOrderId: string) {
+export async function attachRazorpayOrder(
+  websiteOrderId: string,
+  razorpayOrderId: string,
+) {
   const { data, error } = await getSupabaseAdminClient()
     .from("website_orders")
     .update({ razorpay_order_id: razorpayOrderId })
@@ -105,7 +120,9 @@ export async function confirmWebsiteOrderPayment(args: {
     payment.currency !== order.currency ||
     !["authorized", "captured"].includes(payment.status)
   ) {
-    throw new InvalidOrderPaymentError("Payment does not match the website order.");
+    throw new InvalidOrderPaymentError(
+      "Payment does not match the website order.",
+    );
   }
 
   if (payment.status === "authorized") {

@@ -23,7 +23,7 @@ RAZORPAY_KEY_SECRET=your-razorpay-key-secret
 RAZORPAY_WEBHOOK_SECRET=your-webhook-secret
 ```
 
-The public Supabase key cannot create tables or perform trusted payment writes. At implementation time, this workspace had only public Supabase credentials and no database-admin connection. **The migration has been tested locally, but has not been applied to the hosted project.** The Supabase secret key and Razorpay webhook secret still need to be configured.
+The public Supabase key cannot create tables or perform trusted payment writes. Apply the migration only when installing order storage in a new project; do not run it again if `website_orders` and `mark_website_order_paid` already exist. Keep the Supabase server key and Razorpay webhook secret configured in each deployment.
 
 ## Stored data and access
 
@@ -50,7 +50,7 @@ The existing `/my-orders` page remains an order-help page. This change establish
 6. Authorized payments and temporary storage/API failures show **Payment confirmation pending** with the payment reference and instructions not to pay again. The webhook provides recovery if the browser closes or immediate confirmation fails.
 7. The webhook verifies the exact raw-body signature before processing. It uses the same payment reconciliation and returns a non-2xx response on failure so Razorpay can retry.
 
-The two systems do not share a transaction. A gateway creation/link failure can leave an unpaid pending row, and a paid notification can arrive while storage is unavailable. Monitor webhook delivery failures in Razorpay and replay failed deliveries after restoring service. Do not manually mark an order paid based only on a browser message. Refund, cancellation, inventory, invoicing and shipping workflows are not implemented by this migration.
+The two systems do not share a transaction. A gateway creation/link failure can leave an unpaid pending row, and a paid notification can arrive while storage is unavailable. Monitor webhook delivery failures in Razorpay and replay failed deliveries after restoring service. Do not manually mark an order paid based only on a browser message. Refund, cancellation, inventory and invoicing workflows are not implemented by this migration. Staff can create Shiprocket orders through the separately protected [order shipping workflow](../docs/SHIPPING.md); it uses the existing JSONB snapshot and does not need a new migration.
 
 Inspect the installation in the SQL Editor:
 

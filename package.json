@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "node --test",
-    "lint": "next lint"
+    "lint": "next lint",
+    "shiprocket:check": "node scripts/check-shiprocket.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

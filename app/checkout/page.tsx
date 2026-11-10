@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartProvider";
@@ -8,6 +8,8 @@ import { useAuth } from "@/components/AuthProvider";
 import ProductPrice from "@/components/ProductPrice";
 import { formatProductName } from "@/lib/product-name";
 import { useRazorpayCheckout } from "@/components/useRazorpayCheckout";
+import { useShippingQuote } from "@/components/useShippingQuote";
+import { isValidIndianPincode } from "@/lib/shipping";
 
 type CheckoutForm = {
   name: string;
@@ -46,12 +48,14 @@ const initialForm: CheckoutForm = {
 };
 
 export default function CheckoutPage() {
-  const { items, totalItems, totalPrice, clearCart } = useCart();
+  const { items, totalItems, totalPrice, clearCart, deliveryPincode, setDeliveryPincode } = useCart();
   const { user } = useAuth();
   const router = useRouter();
   const { startCheckout, loading } = useRazorpayCheckout();
 
-  const [form, setForm] = useState<CheckoutForm>(initialForm);
+  const [form, setForm] = useState<CheckoutForm>(() => ({ ...initialForm, pincode: deliveryPincode }));
+  const pincodeEdited = useRef(false);
+  const shipping = useShippingQuote(items, form.pincode);
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
@@ -65,6 +69,11 @@ export default function CheckoutPage() {
   const selectedStateHasCities = useMemo(() => {
     return Boolean(form.state && cities.length > 0);
   }, [form.state, cities.length]);
+
+  useEffect(() => {
+    if (pincodeEdited.current || !deliveryPincode) return;
+    setForm((current) => current.pincode ? current : { ...current, pincode: deliveryPincode });
+  }, [deliveryPincode]);
 
   useEffect(() => {
     if (!user) return;
@@ -167,6 +176,13 @@ export default function CheckoutPage() {
     key: K,
     value: CheckoutForm[K],
   ) {
+    if (key === "pincode") {
+      const pincode = value.replace(/\D/g, "").slice(0, 6);
+      pincodeEdited.current = true;
+      setDeliveryPincode(pincode);
+      setForm((current) => ({ ...current, pincode }));
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       [key]: value,
@@ -192,8 +208,8 @@ export default function CheckoutPage() {
     if (!form.addressLine1.trim()) return "Please enter address line 1.";
     if (!form.state.trim()) return "Please select state.";
     if (!form.city.trim()) return "Please select city.";
-    if (!form.pincode.trim()) return "Please enter PIN code.";
-    if (!form.country.trim()) return "Please enter country.";
+    if (!isValidIndianPincode(form.pincode)) return "Please enter a valid six-digit Indian PIN code.";
+    if (form.country !== "India") return "Online delivery is currently available within India.";
     return "";
   }
 
@@ -205,8 +221,15 @@ export default function CheckoutPage() {
       setError(validationError);
       return;
     }
+    if (!shipping.quote || shipping.quote.expiresAt <= Date.now()) {
+      setError("Please wait for a current shipping estimate before paying.");
+      shipping.refresh();
+      return;
+    }
 
     startCheckout({
+      expectedAmountPaise: shipping.quote.totalPaise,
+      expectedShippingAmountPaise: shipping.quote.amountPaise,
       items: items.map((item) => ({
         itemCode: item.itemCode,
         slug: item.slug,
@@ -232,6 +255,7 @@ export default function CheckoutPage() {
         router.push(`/checkout/success?${params}`);
       },
       onError: (message) => setError(message),
+      onQuoteChanged: shipping.refresh,
     });
   }
 
@@ -417,18 +441,29 @@ export default function CheckoutPage() {
             <label className="block text-base font-medium text-ink">
               PIN Code *
               <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={6}
+                disabled={loading}
                 value={form.pincode}
                 onChange={(e) => updateField("pincode", e.target.value)}
+                aria-describedby="checkout-pincode-help"
+                aria-invalid={form.pincode.length === 6 && !shipping.validPincode || undefined}
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
-                placeholder="PIN code"
+                placeholder="6-digit pincode"
               />
+              <span id="checkout-pincode-help" className="mt-2 block text-sm font-normal text-ink-mid">
+                Your cart pincode is filled here. Changing it updates shipping.
+              </span>
             </label>
 
             <label className="block text-base font-medium text-ink">
               Country *
               <input
                 value={form.country}
-                onChange={(e) => updateField("country", e.target.value)}
+                readOnly
+                autoComplete="country-name"
                 className="mt-1 w-full rounded-xl border border-gold/25 bg-white px-4 py-3 text-base outline-none transition focus:border-maroon"
                 placeholder="Country"
               />
@@ -482,18 +517,35 @@ export default function CheckoutPage() {
                   Subtotal ({totalItems} items)
                 </span>
                 <span className="shrink-0 font-medium">
-                  ₹{formatPrice(totalPrice)}
+                  ₹{formatPrice(shipping.quote ? shipping.quote.subtotalPaise / 100 : totalPrice)}
                 </span>
               </div>
 
               <div className="mt-3 flex justify-between gap-4">
-                <span className="text-ink-mid">Shipping</span>
-                <span className="shrink-0 font-medium">Free</span>
+                <span className="text-ink-mid">Shipping estimate</span>
+                <span className="shrink-0 font-medium">
+                  {shipping.quote ? `₹${formatPrice(shipping.quote.amountPaise / 100)}` : shipping.loading ? "Checking…" : "—"}
+                </span>
+              </div>
+
+              <div role="status" aria-live="polite" className={`mt-3 text-sm ${shipping.error ? "text-red-700" : "text-ink-mid"}`}>
+                {shipping.loading
+                  ? "Updating shipping for your delivery pincode…"
+                  : shipping.error
+                    ? shipping.error
+                    : shipping.quote
+                      ? `Delivery pincode: ${form.pincode}`
+                      : "Enter a valid delivery pincode to calculate your total."}
+                {shipping.error && (
+                  <button type="button" onClick={shipping.refresh} className="ml-2 font-semibold text-maroon underline underline-offset-2">
+                    Retry
+                  </button>
+                )}
               </div>
 
               <div className="mt-4 flex justify-between gap-4 border-t border-gold/20 pt-4 text-lg font-semibold text-maroon">
                 <span>Total</span>
-                <span className="shrink-0">₹{formatPrice(totalPrice)}</span>
+                <span className="shrink-0">{shipping.quote ? `₹${formatPrice(shipping.quote.totalPaise / 100)}` : "—"}</span>
               </div>
             </div>
           </div>
@@ -501,7 +553,7 @@ export default function CheckoutPage() {
           <button
             type="button"
             onClick={handlePayment}
-            disabled={loading || statesLoading || citiesLoading}
+            disabled={loading || statesLoading || citiesLoading || !shipping.quote || shipping.loading}
             className="mt-6 w-full rounded-full bg-maroon px-5 py-3 text-base font-semibold text-white transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Processing…" : "Pay Now"}

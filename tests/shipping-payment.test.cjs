@@ -7,6 +7,7 @@ const ts = require("typescript");
 const subtotalPaise = 50_000;
 const shippingAmountPaise = 5_572;
 const totalPaise = subtotalPaise + shippingAmountPaise;
+const trackingToken = "a".repeat(43);
 const cart = {
   lines: [{ itemCode: "CARD-1", printName: "", name: "Invitation", basePrice: 9, price: 10, quantity: 50, weightGrams: 40 }],
   amountPaise: subtotalPaise, currency: "INR", commission: 50,
@@ -68,7 +69,7 @@ function createRoute(filename, { quoteError } = {}) {
       return { id: "order_test123", amount: input.amount, currency: input.currency };
     } } }) },
     "@/lib/website-orders": {
-      createWebsiteOrder: async (input) => { calls.save.push(input); return "website-order-test"; },
+      createWebsiteOrder: async (input) => { calls.save.push(input); return { id: "website-order-test", trackingToken }; },
       attachRazorpayOrder: async (...args) => { calls.attach.push(args); },
     },
     "@/lib/supabase/auth-server": { getSupabaseAuthServerClient: async () => ({
@@ -166,7 +167,14 @@ test("successful checkout charges the authoritative merchandise plus shipping to
   assert.deepEqual(fixture.calls.save[0].cart.shipping, quote);
   assert.equal(fixture.calls.save[0].cart.commission, cart.commission);
   assert.equal(fixture.calls.attach.length, 1);
-  assert.equal((await response.json()).amount, totalPaise);
+  const result = await response.json();
+  assert.equal(result.amount, totalPaise);
+  assert.equal(result.websiteOrderId, "website-order-test");
+  assert.equal(result.trackingToken, trackingToken);
+  assert.equal(result.trackingTokenHash, undefined);
+  assert.match(response.headers.get("Cache-Control"), /private, no-store/);
+  assert.equal(response.headers.get("Referrer-Policy"), "no-referrer");
+  assert.equal(JSON.stringify(fixture.calls.createPayment).includes(trackingToken), false, "Private token must not be sent to Razorpay");
 });
 
 test("unavailable shipping cannot create an order or initiate payment", async () => {
@@ -190,8 +198,10 @@ test("domestic shipping checkout rejects non-Indian delivery countries", async (
 
 test("the website order snapshot stores the accepted shipping fee and gross payment total", async () => {
   let saved;
+  const tracking = loadModule("lib/order-tracking-token.ts", { "server-only": {}, "node:crypto": require("node:crypto") });
   const websiteOrders = loadModule("lib/website-orders.ts", {
     "server-only": {},
+    "@/lib/order-tracking-token": tracking,
     "@/lib/razorpay": {
       getRazorpay: () => assert.fail("Saving a snapshot must not initiate payment"),
       getRazorpayPaymentContext: () => ({ mode: "test", keyId: "rzp_test_snapshot" }),
@@ -206,14 +216,16 @@ test("the website order snapshot stores the accepted shipping fee and gross paym
       },
     }) },
   });
-  const id = await websiteOrders.createWebsiteOrder({
+  const result = await websiteOrders.createWebsiteOrder({
     customer: { ...customer, phone: customer.contact, paymentMode: "live" },
     cart: { ...cart, amountPaise: totalPaise, shipping: quote, paymentMode: "live", paymentKeyId: "rzp_live_browser_claim" },
     userId: null,
     resellerCode: "TEST-RESELLER",
     paymentMode: "live",
   });
-  assert.equal(id, "saved-test-order");
+  assert.equal(result.id, "saved-test-order");
+  assert.equal(tracking.verifyOrderTrackingToken(result.trackingToken, saved.shipping_address.trackingTokenHash), true);
+  assert.equal(JSON.stringify(saved).includes(result.trackingToken), false, "Only the hash may be persisted");
   assert.equal(saved.amount_paise, totalPaise);
   assert.equal(saved.shipping_address.pincode, quote.pincode);
   assert.deepEqual(saved.shipping_address.shippingQuote, quote);

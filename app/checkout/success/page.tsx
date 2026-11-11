@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { BRAND } from "@/components/siteConfig";
+import PrivateTrackingLink from "@/components/PrivateTrackingLink";
 
 export const metadata: Metadata = {
   title: `Order Confirmed – ${BRAND}`,
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
+  referrer: "no-referrer",
 };
 
 interface PageProps {
@@ -45,6 +47,8 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           Payment ID: <span className="font-medium text-ink">{payment_id}</span>
         </p>
       )}
+
+      {order_id && <PrivateTrackingLink orderId={order_id} />}
 
       <div className="mt-8">
         <Link

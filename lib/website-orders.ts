@@ -3,6 +3,7 @@ import "server-only";
 import type { ResolvedCart } from "@/lib/checkout";
 import { getRazorpay, getRazorpayPaymentContext } from "@/lib/razorpay";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createOrderTrackingToken } from "@/lib/order-tracking-token";
 
 export interface OrderCustomer {
   name: string;
@@ -46,9 +47,10 @@ export async function createWebsiteOrder(args: {
   cart: ResolvedCart;
   userId: string | null;
   resellerCode?: string;
-}): Promise<string> {
+}): Promise<{ id: string; trackingToken: string }> {
   const { customer, cart } = args;
   const paymentContext = getRazorpayPaymentContext();
+  const tracking = createOrderTrackingToken();
   const { data, error } = await getSupabaseAdminClient()
     .from("website_orders")
     .insert({
@@ -65,6 +67,7 @@ export async function createWebsiteOrder(args: {
         country: customer.country,
         paymentMode: paymentContext.mode,
         paymentKeyId: paymentContext.keyId,
+        trackingTokenHash: tracking.hash,
         // Keep the accepted delivery price and courier alongside its address.
         // Existing JSONB storage preserves this without a schema migration.
         ...(cart.shipping ? { shippingQuote: cart.shipping } : {}),
@@ -79,7 +82,7 @@ export async function createWebsiteOrder(args: {
     .select("id")
     .single();
   if (error || !data) throw storageError(error);
-  return data.id;
+  return { id: data.id, trackingToken: tracking.token };
 }
 
 export async function attachRazorpayOrder(

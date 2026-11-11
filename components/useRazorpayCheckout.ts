@@ -97,6 +97,7 @@ interface StartArgs {
     paymentId: string;
     websiteOrderId: string | null;
     paymentPending: boolean;
+    trackingToken: string | null;
   }) => void;
   onError?: (message: string) => void;
   onDismiss?: () => void;
@@ -180,6 +181,9 @@ export function useRazorpayCheckout() {
           },
           handler: async (response: any) => {
             try {
+              if (response.razorpay_order_id !== orderData.orderId) {
+                throw new Error("Payment details do not match this checkout. Please contact us with your payment reference.");
+              }
               const verifyRes = await fetch("/api/razorpay/verify", {
                 method: "POST",
                 headers: {
@@ -196,10 +200,17 @@ export function useRazorpayCheckout() {
                 );
               }
 
+              if ((verifyData.websiteOrderId && verifyData.websiteOrderId !== orderData.websiteOrderId) ||
+                  verifyData.paymentId !== response.razorpay_payment_id) {
+                throw new Error("Payment details do not match this checkout. Please contact us with your payment reference.");
+              }
+
               args.onSuccess?.({
                 paymentId: verifyData.paymentId,
                 websiteOrderId: verifyData.websiteOrderId ?? orderData.websiteOrderId ?? null,
                 paymentPending: !!verifyData.paymentPending,
+                trackingToken: typeof orderData.trackingToken === "string" && /^[A-Za-z0-9_-]{43}$/.test(orderData.trackingToken)
+                  ? orderData.trackingToken : null,
               });
             } catch (e) {
               args.onError?.(

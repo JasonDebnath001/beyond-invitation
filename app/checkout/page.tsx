@@ -247,12 +247,14 @@ export default function CheckoutPage() {
         country: form.country.trim(),
         notes: form.notes.trim(),
       },
-      onSuccess: ({ paymentId, websiteOrderId, paymentPending }) => {
+      onSuccess: ({ paymentId, websiteOrderId, paymentPending, trackingToken }) => {
         clearCart();
         const params = new URLSearchParams({ payment_id: paymentId });
         if (websiteOrderId) params.set("order_id", websiteOrderId);
         if (paymentPending) params.set("pending", "1");
-        router.push(`/checkout/success?${params}`);
+        // A fragment keeps the private tracking capability out of HTTP request URLs.
+        const privateLink = websiteOrderId && trackingToken ? `#token=${encodeURIComponent(trackingToken)}` : "";
+        router.push(`/checkout/success?${params}${privateLink}`);
       },
       onError: (message) => setError(message),
       onQuoteChanged: shipping.refresh,

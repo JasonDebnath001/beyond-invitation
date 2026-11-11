@@ -6,6 +6,7 @@ import { ChevronDown, Package, ArrowUpRight } from "lucide-react";
 import type { AccountOrder } from "@/lib/account";
 import { formatProductName } from "@/lib/product-name";
 import { useAccountMotion } from "./AccountMotion";
+import OrderTracking from "./OrderTracking";
 import { cardClass, focusClass, linkClass, secondaryClass, SectionHeading } from "./AccountUI";
 
 function OrderRow({ order }: { order: AccountOrder }) {
@@ -50,6 +51,7 @@ function OrderRow({ order }: { order: AccountOrder }) {
           {order.paymentReference && <p className="break-all border-t border-gold/20 py-4 text-sm leading-normal text-ink-mid">Payment reference <span className="font-medium text-ink">{order.paymentReference}</span></p>}
         </div>
       </div>
+      {order.status === "paid" && <OrderTracking orderId={order.id} />}
     </li>
   );
 }

@@ -24,7 +24,7 @@ SHIPROCKET_PICKUP_LOCATION=exact-saved-pickup-nickname
 ADMIN_USER_IDS=verified-supabase-user-uuid
 ```
 
-The Shiprocket API user needs permission to read pickup locations and orders and create orders. The selected pickup nickname must already exist in Shiprocket. This integration uses the live external API at `https://apiv2.shiprocket.in/v1/external`; it does not claim to be a Shiprocket sandbox. See the [official API documentation](https://apidocs.shiprocket.in/).
+The Shiprocket API user needs permission to read pickup locations, orders and tracking, and create orders. The selected pickup nickname must already exist in Shiprocket. This integration uses the live external API at `https://apiv2.shiprocket.in/v1/external`; it does not claim to be a Shiprocket sandbox. See the [official API documentation](https://apidocs.shiprocket.in/).
 
 Existing Supabase order storage and server credentials remain required. **No new database migration is required.** The existing `website_orders.shipping_address` JSONB snapshot stores trusted `paymentMode`, `paymentKeyId` and a `fulfillment` record. Direct customer database access remains protected by RLS; the public admin listing uses the backend server client and deliberately exposes the order view independently of that RLS policy. Only the backend writes orders.
 
@@ -46,7 +46,21 @@ The merchant reference is the website order UUID converted to a stable decimal s
 
 For an uncertain attempt, find the displayed merchant reference in Shiprocket. Enter the existing numeric **Shiprocket order ID** in the page's reconciliation form. The server reads that order and verifies its merchant reference, delivery pincode, total and single shipment before linking it. Cancelled or ambiguous shipments cannot be linked. If no matching order can be found, investigate with Shiprocket before clearing any attempt; the UI intentionally has no blind reset/retry action.
 
-This feature does not yet sync tracking events, create invoices, decrement inventory, send email, or handle refunds/cancellations. The original Razorpay payment-confirmation and webhook flows still independently save paid status.
+This feature does not create invoices, decrement inventory, send email, or handle refunds/cancellations. The original Razorpay payment-confirmation and webhook flows still independently save paid status.
+
+## Customer tracking
+
+- **Signed-in checkout:** open `/account`, then **Track order** beneath the paid order. The server verifies the signed-in user and reads only that user's saved order using RLS and an explicit ownership filter. Existing linked live orders can be tracked this way too.
+- **Guest checkout:** new checkouts show **Track your order** and **Copy private tracking link** on the payment confirmation page. Save or bookmark the link. The `/track-order?order=...#token=...` link works without an account. It is not emailed automatically. Anyone holding the complete link can view that order's delivery tracking; it does not expose the customer's address, email, phone, items or payment references.
+- The website displays the carrier's latest status, courier/AWB when supplied, estimated or actual delivery date and available activity history. Dates are shown in India time. Courier timestamps with no timezone are interpreted as India time for this domestic integration. Creating the order alone does not guarantee an AWB or carrier scans; select the courier and book the shipment in Shiprocket first. Until then the website shows preparation or waiting for tracking updates.
+- Tracking loads when the customer clicks **Track order**. **Refresh tracking** requests the latest available update; identical provider reads are shared for up to 60 seconds. This is on-demand reading, not a webhook/background notification system. Provider delays may mean the newest physical movement is not yet visible. On a failed refresh, the browser keeps the last result and labels it potentially out of date.
+- Test orders show that they have no live delivery. Tracking never creates shipments, assigns couriers, books pickups or changes the customer's payment. Tracking an already-linked live order does not require the current Razorpay key to remain in live mode.
+
+Each new website order gets a cryptographically random private token; only its SHA-256 hash is saved in `shipping_address.trackingTokenHash`. The plaintext is returned only to the initiating checkout, carried through verified payment success, and kept in the URL fragment so it is absent from server request URLs. The browser posts it to `/api/orders/tracking`; it is not sent to Razorpay. Token/ownership checks happen before every cache lookup. Private responses use `no-store` and tracking pages use `noindex` and `no-referrer`.
+
+No new environment variable, scheduled job, webhook or database migration is required. Existing guest orders created before this feature have no private tracking token; signing in later does not claim those orders by email. For those orders, staff can share Shiprocket's own tracking link. The new random links cannot be recovered from the stored hash if lost.
+
+Tracking uses Shiprocket's read-only [`GET /courier/track/shipment/{shipment_id}`](https://www.postman.com/shiprocketdev/shiprocket-dev-s-public-workspace/request/rbc1yz6/get-tracking-through-shipment-id). It validates returned order/shipment IDs against the saved linked shipment and only sends selected tracking fields to the browser. Reads do not update the fulfillment JSONB snapshot, so they cannot interfere with shipment creation or reconciliation.
 
 ## Validation
 

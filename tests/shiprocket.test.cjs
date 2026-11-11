@@ -19,10 +19,10 @@ const fakeCredentials = {
 
 // Each test gets isolated env, clock and network boundaries. No request can
 // escape this mock or reach the seller's real account.
-function createClient({ env = {}, onAuth, onPickup, onRates, onCreate, onOrder } = {}) {
+function createClient({ env = {}, onAuth, onPickup, onRates, onCreate, onOrder, onTracking } = {}) {
   const calls = [];
   let now = 1_800_000_000_000;
-  const counts = { auth: 0, pickup: 0, rates: 0, create: 0, order: 0 };
+  const counts = { auth: 0, pickup: 0, rates: 0, create: 0, order: 0, tracking: 0 };
   const fetchStub = async (input, options = {}) => {
     const url = new URL(input);
     assert.equal(url.origin, "https://apiv2.shiprocket.in");
@@ -62,6 +62,10 @@ function createClient({ env = {}, onAuth, onPickup, onRates, onCreate, onOrder }
         return onOrder
           ? onOrder(call, counts)
           : Response.json({ data: sampleExistingOrder });
+      case "/v1/external/courier/track/shipment/789":
+        counts.tracking++;
+        assert.equal(options.method, "GET");
+        return onTracking ? onTracking(call, counts) : Response.json(sampleTracking);
       default:
         assert.fail(`Unexpected endpoint in Shiprocket client: ${url.pathname}`);
     }
@@ -446,4 +450,132 @@ test("cancelled or cancelling orders and shipments cannot be reconciled as succe
       return true;
     });
   }
+});
+
+// Shape follows the domestic shipment tracking example in Shiprocket's public
+// Postman collection. `id` is a tracking record ID, not the shipment ID.
+const sampleTracking = { tracking_data: {
+  track_status: 1, shipment_status: 42,
+  shipment_track: [{ id: 98765, shipment_id: 789, order_id: 456, awb_code: "AWB123456",
+    current_status: "PICKED UP", courier_name: "Example Courier", delivered_date: null,
+    consignee_name: "UPSTREAM-PRIVATE", delivered_to: "UPSTREAM-PRIVATE", edd: "2026-11-15 18:00:00" }],
+  shipment_track_activities: [
+    { date: "2026-11-11 14:00:00", activity: "Shipment picked up", location: "Kolkata hub" },
+    { date: "2026-11-11 15:00:00", activity: "In transit", location: "Sorting facility" },
+  ],
+  track_url: "https://shiprocket.co//tracking/AWB123456", etd: "2026-11-14 18:00:00",
+} };
+
+test("tracking is read-only, verifies linked IDs, and returns only customer-safe fields", async () => {
+  const client = createClient();
+  assert.deepEqual(await client.api.getShiprocketTracking(789, 456), {
+    available: true, status: "PICKED UP", courierName: "Example Courier", awb: "AWB123456",
+    trackingUrl: "https://shiprocket.co//tracking/AWB123456",
+    estimatedDeliveryAt: "2026-11-14T12:30:00.000Z", deliveredAt: null,
+    events: [
+      { date: "2026-11-11T09:30:00.000Z", status: "In transit", location: "Sorting facility" },
+      { date: "2026-11-11T08:30:00.000Z", status: "Shipment picked up", location: "Kolkata hub" },
+    ],
+  });
+  assert.equal(client.counts.tracking, 1);
+  assert.equal(client.counts.create, 0);
+  assert.equal(client.counts.order, 0);
+  assert.deepEqual(client.calls.map((call) => call.url.pathname), [
+    "/v1/external/auth/login", "/v1/external/courier/track/shipment/789",
+  ]);
+});
+
+test("tracking rejects invalid inputs without network calls and mismatched provider identifiers", async () => {
+  for (const ids of [[0, 456], [789, -1], ["789", 456], [789, "456"], [NaN, 456], [789, Number.MAX_SAFE_INTEGER + 1]]) {
+    const client = createClient();
+    await assert.rejects(client.api.getShiprocketTracking(...ids), safeError(client.api));
+    assert.equal(client.calls.length, 0);
+  }
+  for (const invalid of [{ shipment_id: 790 }, { order_id: 457 }, { shipment_id: null }, { order_id: null }]) {
+    const client = createClient({ onTracking: () => Response.json({ tracking_data: {
+      ...sampleTracking.tracking_data, shipment_track: [{ ...sampleTracking.tracking_data.shipment_track[0], ...invalid }],
+    } }) });
+    await assert.rejects(client.api.getShiprocketTracking(789, 456), safeError(client.api));
+  }
+});
+
+test("documented no-activities tracking response is pending without exposing upstream errors", async () => {
+  for (const data of [
+    { track_status: 0 },
+    { track_status: "0", error: "Aahh! There is no activities found in our DB. Please have some patience it will be updated soon." },
+    { track_status: 0, shipment_track: [], shipment_track_activities: null },
+  ]) {
+    const client = createClient({ onTracking: () => Response.json({ tracking_data: data }) });
+    assert.deepEqual(await client.api.getShiprocketTracking(789, 456), {
+      available: false, status: null, courierName: null, awb: null, trackingUrl: null,
+      estimatedDeliveryAt: null, deliveredAt: null, events: [],
+    });
+  }
+});
+
+test("tracking rejects malformed data and provider failures rather than claiming it is pending", async () => {
+  const bodies = [
+    {}, { tracking_data: {} }, { tracking_data: [] },
+    { tracking_data: { track_status: 0, error: "UPSTREAM-PRIVATE API permission denied" } },
+    { tracking_data: { track_status: 0, status_code: 403 } },
+    { tracking_data: { track_status: 0, success: false } },
+    { tracking_data: { track_status: 0, shipment_track: sampleTracking.tracking_data.shipment_track } },
+    { tracking_data: { ...sampleTracking.tracking_data, shipment_track: [] } },
+    { tracking_data: { ...sampleTracking.tracking_data, shipment_track: [sampleTracking.tracking_data.shipment_track[0], sampleTracking.tracking_data.shipment_track[0]] } },
+    { tracking_data: { ...sampleTracking.tracking_data, shipment_track_activities: {} } },
+    { tracking_data: { ...sampleTracking.tracking_data, error: "UPSTREAM-PRIVATE" } },
+    { tracking_data: sampleTracking.tracking_data, errors: { permission: "UPSTREAM-PRIVATE" } },
+  ];
+  for (const body of bodies) {
+    const client = createClient({ onTracking: () => Response.json(body) });
+    await assert.rejects(client.api.getShiprocketTracking(789, 456), safeError(client.api));
+  }
+  for (const status of [403, 404, 429, 500]) {
+    const client = createClient({ onTracking: () => Response.json({ message: "UPSTREAM-PRIVATE" }, { status }) });
+    await assert.rejects(client.api.getShiprocketTracking(789, 456), safeError(client.api));
+  }
+});
+
+test("only known HTTPS Shiprocket tracking links are exposed and no link is fetched", async () => {
+  for (const url of ["javascript:alert(1)", "https://shiprocket.co.evil.test/tracking/x", "https://evil.test/",
+    "https://shiprocket.co@evil.test/", "https://user:password@shiprocket.co/tracking/x", "http://shiprocket.co/tracking/x",
+    "https://shiprocket.co:444/tracking/x", "https://shiprocket.co\\@evil.test/", "https://shiprocket.co/\ntracking/x"]) {
+    const client = createClient({ onTracking: () => Response.json({ tracking_data: { ...sampleTracking.tracking_data, track_url: url } }) });
+    assert.equal((await client.api.getShiprocketTracking(789, 456)).trackingUrl, null);
+    assert.equal(client.calls.length, 2);
+  }
+});
+
+test("tracking dates keep explicit offsets, interpret domestic timestamps in India, and discard invalid dates", async () => {
+  const client = createClient({ onTracking: () => Response.json({ tracking_data: {
+    ...sampleTracking.tracking_data, etd: "2026-02-30 09:00:00",
+    shipment_track: [{ ...sampleTracking.tracking_data.shipment_track[0], edd: "2026-11-15", delivered_date: "2026-11-14T12:00:00Z" }],
+    shipment_track_activities: [
+      { date: "2026-11-11T15:00:00+05:30", activity: "Explicit India offset" },
+      { date: "2026-11-11T09:30:00Z", activity: "Explicit UTC" },
+      { date: "2026-11-11 24:00:00", activity: "Invalid time" },
+      { date: "2026-02-30 09:00:00", activity: "Invalid date" },
+      { date: "0000-00-00 00:00:00", activity: "No date" },
+      { date: "not a date", activity: "Invalid" },
+    ],
+  } }) });
+  const result = await client.api.getShiprocketTracking(789, 456);
+  assert.equal(result.estimatedDeliveryAt, "2026-11-14T18:30:00.000Z");
+  assert.equal(result.deliveredAt, "2026-11-14T12:00:00.000Z");
+  assert.equal(result.events.length, 2);
+  assert.ok(result.events.every((event) => event.date === "2026-11-11T09:30:00.000Z"));
+});
+
+test("tracking output bounds event counts and text and omits malformed events", async () => {
+  const client = createClient({ onTracking: () => Response.json({ tracking_data: {
+    ...sampleTracking.tracking_data,
+    shipment_track: [{ ...sampleTracking.tracking_data.shipment_track[0], current_status: "A".repeat(300), courier_name: "B".repeat(300), awb_code: "javascript:unsafe" }],
+    shipment_track_activities: [null, {}, ...Array.from({ length: 60 }, () => ({ date: "2026-11-11 09:00:00", activity: "C".repeat(300), location: "D".repeat(300) }))],
+  } }) });
+  const result = await client.api.getShiprocketTracking(789, 456);
+  assert.equal(result.status.length, 100);
+  assert.equal(result.courierName.length, 100);
+  assert.equal(result.awb, null);
+  assert.equal(result.events.length, 50);
+  assert.ok(result.events.every((event) => event.status.length === 160 && event.location.length === 160));
 });

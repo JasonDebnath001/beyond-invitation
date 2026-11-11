@@ -165,18 +165,21 @@ export async function POST(request: NextRequest) {
 
     const razorpay = getRazorpay();
     let websiteOrderId: string;
+    let trackingToken: string;
     try {
       const auth = await getSupabaseAuthServerClient();
       const {
         data: { user },
       } = await auth.auth.getUser();
-      websiteOrderId = await createWebsiteOrder({
+      const savedOrder = await createWebsiteOrder({
         customer,
         cart,
         // Verified Auth identity only; never trust an email or a supplied user_id.
         userId: user?.id ?? null,
         resellerCode: reseller?.code,
       });
+      websiteOrderId = savedOrder.id;
+      trackingToken = savedOrder.trackingToken;
     } catch (error) {
       console.error("Website order could not be saved before checkout:", error);
       return NextResponse.json(
@@ -231,12 +234,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       websiteOrderId,
+      trackingToken,
       orderId: razorpayOrder.id,
       amount: Number(razorpayOrder.amount),
       currency: razorpayOrder.currency,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
       shipping,
-    });
+    }, { headers: { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" } });
   } catch (err) {
     if (err instanceof ShippingQuoteError) {
       return NextResponse.json(

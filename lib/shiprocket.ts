@@ -96,6 +96,18 @@ export interface ShiprocketCreatedOrder {
   status?: string;
 }
 
+/** Customer-safe fields from the read-only tracking endpoint. */
+export interface ShiprocketTracking {
+  available: boolean;
+  status: string | null;
+  courierName: string | null;
+  awb: string | null;
+  trackingUrl: string | null;
+  estimatedDeliveryAt: string | null;
+  deliveredAt: string | null;
+  events: { date: string; status: string; location: string | null }[];
+}
+
 /** Unknown outcomes must be reconciled with Shiprocket before another submission. */
 export class ShiprocketOrderError extends ShiprocketError {
   constructor(
@@ -602,4 +614,87 @@ export async function getShiprocketOrder(orderId: number): Promise<ShiprocketCre
       (order.currency !== undefined && order.currency !== "INR")) throw invalidResponse();
   const status = safeOrderStatus(order.status);
   return { orderId, shipmentId: positiveId(shipment.id)!, merchantOrderId, total, deliveryPincode, ...(status ? { status } : {}) };
+}
+
+function trackingText(value: unknown, limit = 160): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  return text ? text.slice(0, limit) : null;
+}
+
+/** Domestic carrier timestamps without an offset are interpreted in India time. */
+function trackingDate(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 40) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/.exec(value.trim());
+  if (!match) return null;
+  const [, year, month, day, hour = "00", minute = "00", second = "00", fraction = "", zone = "+05:30"] = match;
+  const calendar = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (Number(year) < 1970 || calendar.getUTCFullYear() !== Number(year) ||
+      calendar.getUTCMonth() !== Number(month) - 1 || calendar.getUTCDate() !== Number(day) ||
+      Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}${fraction}${zone}`);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function trackingLink(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 1000 || /[\u0000-\u0020\u007f\\]/.test(value)) return null;
+  try {
+    const url = new URL(value);
+    const hosts = ["shiprocket.co", "www.shiprocket.co", "onlinetracker.shiprocket.co",
+      "shiprocket.in", "www.shiprocket.in", "my.shiprocket.in"];
+    return url.protocol === "https:" && !url.username && !url.password && !url.port && hosts.includes(url.hostname)
+      ? url.href : null;
+  } catch { return null; }
+}
+
+/** Only reads tracking; never assigns a courier, books a pickup or changes an order. */
+export async function getShiprocketTracking(shipmentId: number, expectedOrderId: number): Promise<ShiprocketTracking> {
+  if (typeof shipmentId !== "number" || !positiveId(shipmentId) ||
+      typeof expectedOrderId !== "number" || !positiveId(expectedOrderId))
+    throw new ShiprocketError("INVALID_INPUT", "Provide valid numeric shipment and order IDs.");
+  const response = await authenticatedGet(`/courier/track/shipment/${shipmentId}`);
+  const data = record(response.tracking_data);
+  if (!data || response.error || response.errors || data.success === false ||
+      (numeric(data.status_code) ?? 0) >= 400) throw invalidResponse();
+  const trackStatus = numeric(data.track_status);
+  const empty: ShiprocketTracking = {
+    available: false, status: null, courierName: null, awb: null, trackingUrl: null,
+    estimatedDeliveryAt: null, deliveredAt: null, events: [],
+  };
+  if (trackStatus === 0) {
+    // The documented "no activities found" response uses an error string even
+    // for shipments whose first carrier scan is still pending. Other errors fail closed.
+    if ((data.error && (typeof data.error !== "string" || !/no (?:activities|activity|tracking)\b.*\bfound\b/i.test(data.error))) ||
+        data.errors || (data.shipment_track !== undefined && (!Array.isArray(data.shipment_track) || data.shipment_track.length > 0)) ||
+        (data.shipment_track_activities !== undefined && data.shipment_track_activities !== null &&
+          (!Array.isArray(data.shipment_track_activities) || data.shipment_track_activities.length > 0))) throw invalidResponse();
+    return empty;
+  }
+  if (trackStatus !== 1 || data.error || data.errors || !Array.isArray(data.shipment_track) || data.shipment_track.length !== 1)
+    throw invalidResponse();
+  const shipment = record(data.shipment_track[0]);
+  // The tracking record's `id` is different from `shipment_id` in Shiprocket's API.
+  if (!shipment || positiveId(shipment.shipment_id) !== shipmentId || positiveId(shipment.order_id) !== expectedOrderId)
+    throw invalidResponse();
+  if (data.shipment_track_activities !== undefined && data.shipment_track_activities !== null &&
+      !Array.isArray(data.shipment_track_activities)) throw invalidResponse();
+  const activities: unknown[] = Array.isArray(data.shipment_track_activities) ? data.shipment_track_activities : [];
+  const events = activities.slice(0, 500).flatMap((activity) => {
+    const event = record(activity);
+    const date = trackingDate(event?.date);
+    const status = trackingText(event?.activity);
+    return date && status ? [{ date, status, location: trackingText(event?.location) }] : [];
+  }).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 50);
+  const awb = typeof shipment.awb_code === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{1,99}$/.test(shipment.awb_code.trim())
+    ? shipment.awb_code.trim() : null;
+  return {
+    available: true,
+    status: trackingText(shipment.current_status, 100),
+    courierName: trackingText(shipment.courier_name, 100) ?? trackingText(data.courier_name, 100),
+    awb,
+    trackingUrl: trackingLink(data.track_url),
+    estimatedDeliveryAt: trackingDate(data.etd) ?? trackingDate(shipment.edd),
+    deliveredAt: trackingDate(shipment.delivered_date),
+    events,
+  };
 }

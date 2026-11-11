@@ -25,7 +25,9 @@ export default function CartPage() {
     shippingSelection,
     setShippingSelection,
   } = useCart();
-  const shipping = useShippingQuote(items, deliveryPincode, shippingSelection);
+  // A saved pin is not enough to identify the full delivery address for this order.
+  const quickAtCheckout = shippingSelection.service === "quick";
+  const shipping = useShippingQuote(items, deliveryPincode, { service: shippingSelection.service });
   const [pincodeTouched, setPincodeTouched] = useState(false);
   const pincodeInvalid = pincodeTouched && !shipping.validPincode;
 
@@ -235,7 +237,7 @@ export default function CartPage() {
             Order Summary
           </h2>
 
-          <form
+          {!quickAtCheckout && <form
             className="mt-5 rounded-2xl border border-gold/20 bg-gold-pale/40 p-4"
             onSubmit={(event) => {
               event.preventDefault();
@@ -278,7 +280,7 @@ export default function CartPage() {
               {pincodeInvalid
                 ? "Enter a valid six-digit Indian pincode."
                 : shipping.locationRequired && shipping.validPincode
-                  ? "Pin and confirm your delivery location below to check Shiprocket Quick."
+                  ? "Quick shipping is calculated from your full address at checkout."
                 : shipping.loading
                   ? "Calculating shipping for your cart…"
                   : shipping.error
@@ -287,9 +289,9 @@ export default function CartPage() {
                       ? `Shipping is available to ${deliveryPincode}. Your pincode will carry over to checkout.`
                       : "Enter your pincode to see the shipping fee."}
             </p>
-          </form>
+          </form>}
 
-          <DeliveryServiceSelector selection={shippingSelection} onChange={setShippingSelection} pincode={deliveryPincode} />
+          <DeliveryServiceSelector selection={shippingSelection} onChange={setShippingSelection} />
 
           <div className="mt-5 space-y-3 text-base">
             <div className="flex min-w-0 justify-between gap-4">
@@ -311,8 +313,8 @@ export default function CartPage() {
                 Shipping estimate
               </span>
 
-              <span className="shrink-0 font-medium">
-                {shipping.quote ? `₹${formatPrice(shipping.quote.amountPaise / 100)}` : shipping.loading ? "Checking…" : "—"}
+              <span className="text-right font-medium">
+                {quickAtCheckout ? "Calculated at checkout" : shipping.quote ? `₹${formatPrice(shipping.quote.amountPaise / 100)}` : shipping.loading ? "Checking…" : "—"}
               </span>
             </div>
 
@@ -325,7 +327,7 @@ export default function CartPage() {
             </div>
           </div>
           {!shipping.quote && (
-            <p className="mt-3 text-sm text-ink-mid">Your total will include shipping once your delivery location is checked.</p>
+            <p className="mt-3 text-sm text-ink-mid">{quickAtCheckout ? "Continue to checkout and enter your full address to calculate Quick shipping and your total." : "Your total will include shipping once your delivery location is checked."}</p>
           )}
 
           <Link

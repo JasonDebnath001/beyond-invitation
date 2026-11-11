@@ -18,6 +18,7 @@ const checkoutArgs = {
   items: [{ itemCode: "TEST", quantity: 50 }],
   expectedAmountPaise: 112345, expectedShippingAmountPaise: 12345,
   service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 },
+  deliveryPlaceId: "ChIJTestDeliveryPlace",
 };
 
 async function mount(network, { scriptReady = true } = {}) {
@@ -73,6 +74,9 @@ test("leaving checkout aborts the pending order request and ignores its late res
   let signal;
   const ui = await mount(async (url, options) => {
     assert.equal(url, "/api/razorpay/order");
+    const submitted = JSON.parse(options.body);
+    assert.equal(submitted.deliveryPlaceId, checkoutArgs.deliveryPlaceId);
+    assert.deepEqual(submitted.deliveryLocation, checkoutArgs.deliveryLocation);
     signal = options.signal;
     return new Promise((resolve) => { resolveOrder = resolve; });
   });

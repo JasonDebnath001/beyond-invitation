@@ -4,6 +4,7 @@ import type { ResolvedCart } from "@/lib/checkout";
 import { getRazorpay, getRazorpayPaymentContext } from "@/lib/razorpay";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createOrderTrackingToken } from "@/lib/order-tracking-token";
+import { isValidDeliveryPlaceId, type ShippingQuote } from "@/lib/shipping";
 
 export interface OrderCustomer {
   name: string;
@@ -25,6 +26,17 @@ type StoredOrder = {
 };
 
 export class InvalidOrderPaymentError extends Error {}
+
+/** Keep the reusable Google place reference, not derived coordinates, in durable order history. */
+function shippingQuoteForStorage(quote: ShippingQuote | undefined): ShippingQuote | undefined {
+  if (!quote || quote.deliveryPlaceId === undefined) return quote;
+  if (quote.service !== "quick" || !isValidDeliveryPlaceId(quote.deliveryPlaceId)) {
+    throw new Error("The delivery location reference could not be saved. Please check shipping again.");
+  }
+  const stored = { ...quote };
+  delete stored.deliveryLocation;
+  return stored;
+}
 
 function storageError(error: { code?: string } | null): Error {
   if (
@@ -49,6 +61,7 @@ export async function createWebsiteOrder(args: {
   resellerCode?: string;
 }): Promise<{ id: string; trackingToken: string }> {
   const { customer, cart } = args;
+  const shippingQuote = shippingQuoteForStorage(cart.shipping);
   const paymentContext = getRazorpayPaymentContext();
   const tracking = createOrderTrackingToken();
   const { data, error } = await getSupabaseAdminClient()
@@ -70,7 +83,7 @@ export async function createWebsiteOrder(args: {
         trackingTokenHash: tracking.hash,
         // Keep the accepted delivery price and courier alongside its address.
         // Existing JSONB storage preserves this without a schema migration.
-        ...(cart.shipping ? { shippingQuote: cart.shipping } : {}),
+        ...(shippingQuote ? { shippingQuote } : {}),
       },
       notes: customer.notes,
       items: cart.lines,

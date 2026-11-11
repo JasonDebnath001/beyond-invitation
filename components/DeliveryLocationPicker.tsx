@@ -7,21 +7,29 @@ import { isValidDeliveryLocation, type DeliveryLocation } from "@/lib/shipping";
 
 type Props = {
   value?: DeliveryLocation;
+  /** A geocoded suggestion centres the map but still needs customer confirmation. */
+  suggestedLocation?: DeliveryLocation;
   disabled?: boolean;
   onConfirm: (location: DeliveryLocation) => void;
   onInvalidate: () => void;
 };
 
-export default function DeliveryLocationPicker({ value, onConfirm, onInvalidate, disabled = false }: Props) {
+export default function DeliveryLocationPicker({ value, suggestedLocation, onConfirm, onInvalidate, disabled = false }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const marker = useRef<Marker | null>(null);
-  const placePin = useRef<((point: DeliveryLocation, centre?: boolean) => void) | null>(null);
+  const placePin = useRef<((point: DeliveryLocation, centre?: boolean, invalidate?: boolean) => void) | null>(null);
   const callbacks = useRef({ onConfirm, onInvalidate, disabled });
   callbacks.current = { onConfirm, onInvalidate, disabled };
   const locationRequest = useRef(0);
-  const initialPoint = useRef(value);
-  const [candidate, setCandidate] = useState<DeliveryLocation | undefined>(value);
+  const acceptedPoint = isValidDeliveryLocation(value) ? value : undefined;
+  const suggestedPoint = isValidDeliveryLocation(suggestedLocation) ? suggestedLocation : undefined;
+  const initialPoint = useRef(acceptedPoint ?? suggestedPoint);
+  initialPoint.current = acceptedPoint ?? suggestedPoint;
+  const acceptedKey = acceptedPoint ? `${acceptedPoint.latitude},${acceptedPoint.longitude}` : "";
+  const suggestedKey = suggestedPoint ? `${suggestedPoint.latitude},${suggestedPoint.longitude}` : "";
+  const observedPoints = useRef({ acceptedKey, suggestedKey });
+  const [candidate, setCandidate] = useState<DeliveryLocation | undefined>(acceptedPoint ?? suggestedPoint);
   const [ready, setReady] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +93,20 @@ export default function DeliveryLocationPicker({ value, onConfirm, onInvalidate,
       map.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const previous = observedPoints.current;
+    observedPoints.current = { acceptedKey, suggestedKey };
+    if (!ready || disabled) return;
+    // Removing an accepted value is how a manual drag invalidates it. Do not
+    // snap that drag back to an unchanged, earlier geocoding suggestion.
+    const next = acceptedKey && acceptedKey !== previous.acceptedKey ? acceptedPoint :
+      !acceptedKey && suggestedKey && suggestedKey !== previous.suggestedKey ? suggestedPoint : undefined;
+    if (!next) return;
+    locationRequest.current++;
+    setLocating(false);
+    placePin.current?.(next, true, false);
+  }, [acceptedKey, suggestedKey, acceptedPoint, suggestedPoint, ready, disabled]);
 
   useEffect(() => {
     if (disabled) {

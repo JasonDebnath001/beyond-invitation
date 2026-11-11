@@ -95,6 +95,7 @@ interface StartArgs {
   expectedShippingAmountPaise: number;
   service?: ShippingSelection["service"];
   deliveryLocation?: DeliveryLocation;
+  deliveryPlaceId?: string;
   customer?: CheckoutCustomer;
   onSuccess?: (r: {
     paymentId: string;
@@ -159,6 +160,7 @@ export function useRazorpayCheckout() {
             expectedShippingAmountPaise: args.expectedShippingAmountPaise,
             service: args.service ?? "standard",
             ...(args.service === "quick" && args.deliveryLocation ? { deliveryLocation: args.deliveryLocation } : {}),
+            ...(args.service === "quick" && args.deliveryPlaceId ? { deliveryPlaceId: args.deliveryPlaceId } : {}),
           }),
         });
 

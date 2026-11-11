@@ -18,11 +18,13 @@ export function useShippingQuote(items: CheckoutItem[], pincode: string, selecti
   const validPincode = isValidIndianPincode(pincode);
   const service = selection.service;
   const deliveryLocation = service === "quick" && isValidDeliveryLocation(selection.deliveryLocation) ? selection.deliveryLocation : undefined;
+  const deliveryPlaceId = service === "quick" ? selection.deliveryPlaceId : undefined;
   const locationRequired = service === "quick" && !deliveryLocation;
   const payload = JSON.stringify({
     pincode,
     service,
     ...(deliveryLocation ? { deliveryLocation } : {}),
+    ...(deliveryPlaceId ? { deliveryPlaceId } : {}),
     items: items.map(({ itemCode, slug, quantity }) => ({ itemCode, slug, quantity })),
   });
   const key = validPincode && !locationRequired && items.length > 0 ? `${attempt}:${payload}` : "";
@@ -49,6 +51,7 @@ export function useShippingQuote(items: CheckoutItem[], pincode: string, selecti
         const quote = result?.quote as ShippingQuote | undefined;
         if (!quote || quote.pincode !== pincode || quote.currency !== "INR" ||
             (quote.service ?? "standard") !== service ||
+            quote.deliveryPlaceId !== deliveryPlaceId ||
             (service === "quick" && (!isValidDeliveryLocation(quote.deliveryLocation) ||
               quote.deliveryLocation.latitude !== deliveryLocation?.latitude || quote.deliveryLocation.longitude !== deliveryLocation?.longitude)) ||
             !Number.isSafeInteger(quote.amountPaise) || quote.amountPaise < 0 ||
@@ -76,7 +79,7 @@ export function useShippingQuote(items: CheckoutItem[], pincode: string, selecti
       clearTimeout(debounceTimer);
       if (expiryTimer) clearTimeout(expiryTimer);
     };
-  }, [key, payload, pincode, refresh, service, deliveryLocation?.latitude, deliveryLocation?.longitude]);
+  }, [key, payload, pincode, refresh, service, deliveryLocation?.latitude, deliveryLocation?.longitude, deliveryPlaceId]);
 
   const current = state?.key === key ? state : null;
   const quote = current?.status === "ready" && current.quote && current.quote.expiresAt > Date.now()

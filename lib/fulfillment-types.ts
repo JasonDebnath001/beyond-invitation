@@ -47,6 +47,7 @@ export interface FulfillmentOrder {
   shippingAmountPaise: number | null;
   deliveryService: "standard" | "quick";
   deliveryLocation: { latitude: number; longitude: number } | null;
+  deliveryPlaceId?: string;
   fulfillment: {
     state: FulfillmentState;
     merchantOrderId: string;

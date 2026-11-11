@@ -11,6 +11,15 @@ const liveKeyId = "rzp_live_test_fixture";
 const parcel = { weightKg: 2.2, lengthCm: 20, breadthCm: 15, heightCm: 10 };
 const reference = BigInt(`0x${orderId.replace(/-/g, "")}`).toString();
 
+function shippingModule() {
+  const { outputText } = ts.transpileModule(readFileSync(path.join(__dirname, "..", "lib", "shipping.ts"), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
+  const loaded = { exports: {} };
+  new Function("module", "exports", outputText)(loaded, loaded.exports);
+  return loaded.exports;
+}
+
 function orderSnapshot(overrides = {}) {
   const row = {
     id: orderId,
@@ -39,9 +48,9 @@ function savedAttempt(state = "needs_review") {
   return { version: 1, state, merchantOrderId: reference, attemptId: "private-attempt-id", package: parcel, updatedAt: "2026-11-10T01:00:00.000Z" };
 }
 
-function createFixture({ row = orderSnapshot(), rows, context = { mode: "live", keyId: liveKeyId }, payment = {}, paymentError, pickupError, createError, onCreate, lookup = {}, lookupError, beforeLookup, failWriteNumber, beforeWrite, quickRates = [{ name: "Shiprocket Quick", rate: 65 }], quickError, quickCouriers = [{ id: 71, name: "Quick 2 Wheeler" }, { id: 72, name: "Quick 3 Wheeler" }], assignmentError, onAssign } = {}) {
+function createFixture({ row = orderSnapshot(), rows, context = { mode: "live", keyId: liveKeyId }, payment = {}, paymentError, pickupError, createError, onCreate, lookup = {}, lookupError, beforeLookup, failWriteNumber, beforeWrite, quickRates = [{ name: "Shiprocket Quick", rate: 65 }], quickError, quickCouriers = [{ id: 71, name: "Quick 2 Wheeler" }, { id: 72, name: "Quick 3 Wheeler" }], assignmentError, onAssign, geocode, geocodeError } = {}) {
   const stored = new Map((rows ?? [row]).map((item) => [item.id, structuredClone(item)]));
-  const calls = { payments: [], pickups: 0, creates: [], lookups: [], writes: [], selects: [], quickRates: [], quickCouriers: 0, assignments: [], quickPickups: 0 };
+  const calls = { payments: [], pickups: 0, creates: [], lookups: [], writes: [], selects: [], quickRates: [], quickCouriers: 0, assignments: [], quickPickups: 0, geocodes: [] };
   const matches = (item, filters) => filters.every(([operator, key, value]) => {
     if (operator === "lt") return item[key] < value;
     if (key === "shipping_address") return isDeepStrictEqual(item[key], JSON.parse(value));
@@ -97,6 +106,12 @@ function createFixture({ row = orderSnapshot(), rows, context = { mode: "live", 
   const imports = {
     "server-only": {},
     "node:crypto": { randomUUID },
+    "@/lib/shipping": shippingModule(),
+    "@/lib/address-geocoding": { lookupDeliveryPlace: async (placeId, address) => {
+      calls.geocodes.push({ placeId, address: structuredClone(address) });
+      if (geocodeError) throw geocodeError;
+      return geocode ?? { status: "matched", provider: "google", placeId, location: { latitude: 19.08, longitude: 72.88 } };
+    } },
     "@/lib/supabase/admin": { getSupabaseAdminClient: () => database },
     "@/lib/razorpay": {
       getRazorpayPaymentContext: () => {
@@ -185,6 +200,84 @@ function quickSnapshot({ created = true, booking, ...overrides } = {}) {
   } });
 }
 
+function googleQuickSnapshot(options = {}) {
+  const row = quickSnapshot(options);
+  const quote = { ...row.shipping_address.shippingQuote, deliveryPlaceId: "ChIJ_TEST_DELIVERY_BUILDING" };
+  delete quote.deliveryLocation;
+  return { ...row, shipping_address: { ...row.shipping_address, shippingQuote: quote } };
+}
+
+test("Google-backed creation resolves the stored place against the saved address and never persists its coordinates", async () => {
+  const row = googleQuickSnapshot({ created: false });
+  const fixture = createFixture({ row });
+  const result = await fixture.api.createOrderShipment(orderId, parcel);
+  assert.equal(result.fulfillment.state, "created");
+  assert.equal(result.canBookQuickPickup, true);
+  assert.equal(result.deliveryLocation, null);
+  assert.deepEqual(fixture.calls.geocodes, [{ placeId: "ChIJ_TEST_DELIVERY_BUILDING", address: {
+    addressLine1: "Saved delivery address", addressLine2: "Unit 1", city: "Mumbai", state: "Maharashtra", pincode: "400001", country: "India",
+  } }]);
+  assert.deepEqual(fixture.calls.quickRates[0].deliveryLocation, { latitude: 19.08, longitude: 72.88 });
+  assert.equal(fixture.calls.creates[0].latitude, 19.08);
+  assert.equal(fixture.calls.creates[0].longitude, 72.88);
+  assert.equal(fixture.calls.creates[0].shipping_method, "HL");
+  assert.deepEqual(fixture.row.shipping_address.shippingQuote, row.shipping_address.shippingQuote);
+  for (const write of fixture.calls.writes) {
+    assert.equal(write.update.shipping_address.shippingQuote.deliveryLocation, undefined);
+    const snapshot = JSON.parse(write.filters.find(([, key]) => key === "shipping_address")[2]);
+    assert.equal(snapshot.shippingQuote.deliveryLocation, undefined, "Resolved points must not change the durable CAS snapshot");
+  }
+});
+
+test("Google lookup failure or an unverified destination prevents creation and booking before claims", async () => {
+  const invalidResults = [
+    { status: "review", provider: "google", placeId: "ChIJ_TEST_DELIVERY_BUILDING", location: { latitude: 19.08, longitude: 72.88 } },
+    { status: "not_found" },
+    { status: "matched", provider: "google", placeId: "ChIJ_DIFFERENT_BUILDING", location: { latitude: 19.08, longitude: 72.88 } },
+    { status: "matched", provider: "google", placeId: "ChIJ_TEST_DELIVERY_BUILDING", location: { latitude: 91, longitude: 72.88 } },
+  ];
+  for (const options of [{ geocodeError: new Error("PRIVATE lookup detail") }, ...invalidResults.map((geocode) => ({ geocode }))]) {
+    for (const created of [false, true]) {
+      const fixture = createFixture({ row: googleQuickSnapshot({ created }), ...options });
+      const action = created ? fixture.api.bookQuickPickup(orderId, 71, 6500) : fixture.api.createOrderShipment(orderId, parcel);
+      await assert.rejects(action, expectCode(fixture, options.geocodeError ? "QUICK_LOCATION_UNAVAILABLE" : "QUICK_LOCATION_MISSING"));
+      assert.equal(fixture.calls.writes.length, 0);
+      assert.equal(fixture.calls.creates.length, 0);
+      assert.equal(fixture.calls.assignments.length, 0);
+    }
+  }
+});
+
+test("Google references allow admin eligibility and booking reconciliation during a geocoding outage", async () => {
+  const row = googleQuickSnapshot();
+  const fixture = createFixture({ row, geocodeError: new Error("PRIVATE Google outage") });
+  const [listed] = await fixture.api.listFulfillmentOrders();
+  assert.equal(listed.canBookQuickPickup, true);
+  assert.equal(listed.deliveryLocation, null);
+  assert.equal((await fixture.api.refreshQuickBooking(orderId)).fulfillment.state, "created");
+  assert.equal(fixture.calls.geocodes.length, 0);
+  assert.equal(fixture.calls.assignments.length, 0);
+});
+
+test("Google destinations are refreshed for each packed-parcel quote and booking without persisting them", async () => {
+  const fixture = createFixture({ row: googleQuickSnapshot() });
+  await fixture.api.quoteQuickPickup(orderId);
+  await fixture.api.bookQuickPickup(orderId, 71, 6500);
+  assert.equal(fixture.calls.geocodes.length, 2);
+  assert.deepEqual(fixture.calls.assignments, [[654, 71]]);
+  assert.equal(fixture.row.shipping_address.shippingQuote.deliveryLocation, undefined);
+});
+
+test("malformed Google references never fall back to legacy coordinates", async () => {
+  const row = quickSnapshot({ created: false });
+  row.shipping_address.shippingQuote.deliveryPlaceId = "";
+  const fixture = createFixture({ row });
+  await assert.rejects(fixture.api.createOrderShipment(orderId, parcel), expectCode(fixture, "QUICK_LOCATION_MISSING"));
+  assert.equal(fixture.calls.geocodes.length, 0);
+  assert.equal(fixture.calls.creates.length, 0);
+  assert.equal(fixture.calls.writes.length, 0);
+});
+
 test("Quick order creation uses the saved map point, HL route and measured weight without dispatching", async () => {
   const fixture = createFixture({ row: quickSnapshot({ created: false }) });
   const order = await fixture.api.createOrderShipment(orderId, parcel);
@@ -199,6 +292,7 @@ test("Quick order creation uses the saved map point, HL route and measured weigh
   assert.equal(fixture.calls.creates[0].longitude, 72.8777);
   assert.equal(fixture.calls.creates[0].shipping_charges, 55.72, "Paid shipping does not change");
   assert.equal(fixture.calls.assignments.length, 0);
+  assert.equal(fixture.calls.geocodes.length, 0, "Existing coordinate-only orders do not depend on Google");
 });
 
 test("Quick creation fails closed for missing coordinates, pickup coordinates or unavailable service", async () => {

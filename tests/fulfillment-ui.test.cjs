@@ -141,6 +141,31 @@ test("Quick booking controls and exact delivery point stay hidden from anonymous
   } finally { await ui.close(); }
 });
 
+test("staff can inspect Google place-ID destinations without saved coordinates, while legacy links still work", async () => {
+  for (const order of [quickOrder({ deliveryPlaceId: "ChIJTestDeliveryPlace_One", deliveryLocation: null }), quickOrder()]) {
+    const ui = await mount(order);
+    try {
+      const link = ui.container.querySelector("a.mapLink");
+      assert.ok(link);
+      assert.match(link.textContent, /Google Maps/);
+      const url = new URL(link.href);
+      assert.equal(url.origin + url.pathname, "https://www.google.com/maps/search/");
+      assert.equal(url.searchParams.get("api"), "1");
+      if (order.deliveryPlaceId) {
+        assert.equal(url.searchParams.get("query_place_id"), order.deliveryPlaceId);
+        assert.equal(url.searchParams.get("query"), "Example address, Mumbai, Maharashtra, 400001, India");
+      } else {
+        assert.equal(url.searchParams.get("query_place_id"), null);
+        assert.equal(url.searchParams.get("query"), "19.076,72.8777");
+      }
+      assert.equal(ui.requests.length, 1, "Displaying the link does not geocode or book a shipment");
+    } finally { await ui.close(); }
+  }
+  const publicView = await mount(quickOrder({ deliveryPlaceId: "ChIJTestDeliveryPlace_One", deliveryLocation: null }), { canManageShipments: false });
+  try { assert.equal(publicView.container.querySelector("a.mapLink"), null); }
+  finally { await publicView.close(); }
+});
+
 test("uncertain Quick outcomes offer checking without another booking", async () => {
   const original = quickOrder();
   const ui = await mount({ ...original, canBookQuickPickup: false, fulfillment: { ...original.fulfillment,

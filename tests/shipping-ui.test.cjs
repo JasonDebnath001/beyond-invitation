@@ -30,6 +30,8 @@ function load(file, imports = {}, globals = {}) {
 }
 
 const shippingTypes = load("lib/shipping.ts");
+const addressTypes = load("lib/delivery-address.ts", { "@/lib/shipping": shippingTypes });
+const placeId = "ChIJTestDeliveryPlace_One";
 const quantities = load("lib/product-quantity.ts");
 const sampleItems = [{
   slug: "test-card", itemCode: "TEST", subject: "Wedding Card", name: "Test card", printName: "",
@@ -40,23 +42,30 @@ function quoteFor(body, amountPaise = 12345) {
   return {
     service: body.service || "standard",
     ...(body.deliveryLocation ? { deliveryLocation: body.deliveryLocation } : {}),
+    ...(body.deliveryPlaceId ? { deliveryPlaceId: body.deliveryPlaceId } : {}),
     pincode: body.pincode, subtotalPaise, amountPaise, totalPaise: subtotalPaise + amountPaise,
     currency: "INR", weightKg: 2.5, courierId: 1, courierName: "Test Courier",
     estimatedDeliveryDays: 3, expiresAt: Date.now() + 60_000,
   };
 }
 
-async function mount({ initialPincode = "", initialSelection, beforeHydration, onQuote, checkout = false, contextOverride } = {}) {
+async function mount({ initialPincode = "", initialSelection, beforeHydration, onQuote, onGeocode, checkout = false, contextOverride } = {}) {
   localStorage.clear();
   localStorage.setItem("beyond-invitation-cart-v2", JSON.stringify(sampleItems));
   if (initialPincode) localStorage.setItem("beyond-invitation-delivery-pincode", initialPincode);
   if (initialSelection) localStorage.setItem("beyond-invitation-shipping-selection", JSON.stringify(initialSelection));
   const requests = [];
+  const geocodes = [];
   const timers = new Map();
   let timerId = 0;
   const network = async (url, options = {}) => {
     if (url === "/api/locations/states") return Response.json({ states: ["Maharashtra"] });
     if (url.startsWith("/api/locations/cities")) return Response.json({ cities: ["Mumbai"] });
+    if (url === "/api/locations/geocode") {
+      const body = JSON.parse(options.body);
+      geocodes.push({ body, signal: options.signal });
+      return onGeocode ? onGeocode(body, options.signal) : Response.json({ status: "matched", provider: "google", placeId, location: { latitude: 19.076, longitude: 72.8777 }, label: "Delivery address located" });
+    }
     assert.equal(url, "/api/shipping/quote", "UI tests may only use mocked endpoints");
     const body = JSON.parse(options.body);
     requests.push({ body, signal: options.signal });
@@ -80,9 +89,14 @@ async function mount({ initialPincode = "", initialSelection, beforeHydration, o
   }
   const selector = load("components/DeliveryServiceSelector.tsx", {
     "@/lib/shipping": shippingTypes,
-    "next/dynamic": { __esModule: true, default: () => ({ value, onConfirm, onInvalidate, disabled }) => React.createElement("div", null,
-      React.createElement("button", { type: "button", disabled, "data-testid": "confirm-point", onClick: () => onConfirm({ latitude: 19.076, longitude: 72.8777 }) }, value ? "Delivery location confirmed" : "Confirm delivery location"),
-      React.createElement("button", { type: "button", disabled, "data-testid": "move-point", onClick: onInvalidate }, "Move pin")) },
+  });
+  const deliveryLocation = load("components/CheckoutDeliveryLocation.tsx", {
+    "@/lib/shipping": shippingTypes,
+    "@/lib/delivery-address": addressTypes,
+  }, {
+    fetch: network,
+    setTimeout: (callback, delay) => { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
+    clearTimeout: (id) => timers.delete(id),
   });
   const shared = {
     "next/link": { __esModule: true, default: ({ children, ...props }) => React.createElement("a", props, children) },
@@ -101,6 +115,8 @@ async function mount({ initialPincode = "", initialSelection, beforeHydration, o
     "@/components/AuthProvider": { useAuth: () => ({ user: null }) },
     "@/components/useRazorpayCheckout": { useRazorpayCheckout: () => ({ startCheckout: (args) => paymentCalls.push(args), loading: paymentLoading }) },
     "@/lib/shipping": shippingTypes,
+    "@/lib/delivery-address": addressTypes,
+    "@/components/CheckoutDeliveryLocation": deliveryLocation,
   }, { fetch: network }).default;
   const container = document.createElement("div");
   document.body.append(container);
@@ -112,7 +128,7 @@ async function mount({ initialPincode = "", initialSelection, beforeHydration, o
   }
   await render(checkout);
   return {
-    container, requests, paymentCalls, render,
+    container, requests, geocodes, paymentCalls, render,
     get context() { return context; },
     async setContext(value) { externalContext = value; await render(true); },
     async setPaymentLoading(value) { paymentLoading = value; await render(true); },
@@ -134,7 +150,7 @@ async function mount({ initialPincode = "", initialSelection, beforeHydration, o
       await React.act(async () => {
         const promises = [];
         for (const [id, timer] of [...timers]) {
-          if (timer.delay > 400) continue;
+          if (timer.delay > 1000) continue;
           timers.delete(id);
           promises.push(timer.callback());
         }
@@ -260,6 +276,7 @@ test("a changed shipping price refreshes the quote before any payment window ope
       expectedShippingAmountPaise: 12345,
       service: "quick",
       deliveryLocation: { latitude: 19.076, longitude: 72.8777 },
+      deliveryPlaceId: placeId,
       onQuoteChanged: () => { refreshes++; },
       onError: (message) => errors.push(message),
     }));
@@ -268,6 +285,7 @@ test("a changed shipping price refreshes the quote before any payment window ope
     assert.equal(requests[0].customer.pincode, "400001");
     assert.equal(requests[0].service, "quick");
     assert.deepEqual(requests[0].deliveryLocation, { latitude: 19.076, longitude: 72.8777 });
+    assert.equal(requests[0].deliveryPlaceId, placeId);
     assert.equal(opened, 0);
     assert.equal(refreshes, 1);
     assert.match(errors[0], /review your updated total/);
@@ -279,60 +297,97 @@ test("a changed shipping price refreshes the quote before any payment window ope
   }
 });
 
-test("Quick requires a confirmed point, carries into checkout, and address edits invalidate it", async () => {
+async function enterDeliveryAddress(ui) {
+  await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "Test delivery address");
+  await ui.select(ui.container.querySelectorAll("select")[0], "Maharashtra");
+  await ui.select(ui.container.querySelectorAll("select")[1], "Mumbai");
+}
+
+test("Quick proceeds to full-address checkout without requiring a cart pincode or map", async () => {
+  const ui = await mount();
+  try {
+    await ui.click(ui.container.querySelector('input[value="quick"]'));
+    await ui.flush();
+    assert.equal(ui.requests.length, 0);
+    assert.equal(ui.container.querySelector("#cart-delivery-pincode"), null);
+    assert.equal(ui.container.querySelector('[data-testid="delivery-map"]'), null);
+    assert.match(ui.container.textContent, /Calculated at checkout/);
+    const proceed = ui.container.querySelector('a[href="/checkout"]');
+    assert.ok(proceed);
+    assert.equal(proceed.getAttribute("aria-disabled"), null);
+    await ui.render(true);
+    assert.equal(ui.container.querySelector('input[value="quick"]').checked, true);
+    assert.equal(ui.container.querySelector('input[placeholder="6-digit pincode"]').value, "");
+    await ui.flush();
+    assert.equal(ui.geocodes.length, 0, "Checkout waits for the full destination address");
+  } finally { await ui.close(); }
+});
+
+test("Quick defers to the full checkout address and automatically quotes its matched location", async () => {
   const ui = await mount({ initialPincode: "400001" });
   try {
     await ui.flush();
     await ui.click(ui.container.querySelector('input[value="quick"]'));
     await ui.flush();
-    assert.equal(ui.requests.length, 1, "Quick cannot quote before a point is confirmed");
-    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
-    await ui.click(ui.container.querySelector('[data-testid="confirm-point"]'));
-    await ui.flush();
-    assert.equal(ui.requests.at(-1).body.service, "quick");
-    const point = { latitude: 19.076, longitude: 72.8777 };
-    assert.deepEqual(ui.requests.at(-1).body.deliveryLocation, point);
-    assert.deepEqual(JSON.parse(localStorage.getItem("beyond-invitation-shipping-selection")), { service: "quick", deliveryLocation: point, pincode: "400001" });
+    assert.equal(ui.requests.length, 1, "Cart does not request a Quick rate without the full address");
+    assert.match(ui.container.textContent, /Calculated at checkout/);
+    assert.equal(ui.container.querySelector('[data-testid="delivery-map"]'), null);
+    assert.equal(ui.container.querySelector('a[href="/checkout"]').getAttribute("aria-disabled"), null);
     await ui.render(true);
     assert.equal(ui.container.querySelector('input[value="quick"]').checked, true);
     const pay = [...ui.container.querySelectorAll("button")].find((button) => button.textContent === "Pay Now");
-    assert.equal(pay.disabled, true);
     await ui.flush();
-    assert.equal(pay.disabled, false);
-    await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "Test delivery address");
     assert.equal(pay.disabled, true);
-    assert.equal(ui.context.shippingSelection.deliveryLocation, undefined);
+    assert.equal(ui.geocodes.length, 0, "Pincode alone cannot locate the delivery building");
+    await enterDeliveryAddress(ui);
+    await ui.flush();
+    assert.equal(ui.geocodes.length, 1);
+    assert.deepEqual(Object.keys(ui.geocodes[0].body.address).sort(), ["addressLine1", "addressLine2", "city", "country", "pincode", "state"]);
+    await ui.flush();
+    assert.equal(ui.container.querySelector('[data-testid="delivery-map"]'), null, "A precise match needs no map interaction");
+    assert.equal(ui.container.querySelector('[aria-label="Quick delivery help"]'), null);
+    assert.doesNotMatch(ui.container.textContent, /Delivery location found|Address lookup by|Google Maps/);
+    assert.equal(pay.disabled, false);
+    const point = { latitude: 19.076, longitude: 72.8777 };
+    assert.equal(ui.requests.at(-1).body.service, "quick");
+    assert.deepEqual(ui.requests.at(-1).body.deliveryLocation, point);
+    assert.equal(ui.requests.at(-1).body.deliveryPlaceId, placeId);
+    assert.doesNotMatch(localStorage.getItem("beyond-invitation-shipping-selection"), /deliveryLocation|deliveryPlaceId|ChIJ/);
     await ui.fill(ui.container.querySelector('input[placeholder="Full name"]'), "Test customer");
     await ui.fill(ui.container.querySelector('input[placeholder="Mobile number"]'), "9999999999");
     await ui.fill(ui.container.querySelector('input[placeholder="Email address"]'), "test@example.com");
-    await ui.select(ui.container.querySelectorAll("select")[0], "Maharashtra");
-    await ui.select(ui.container.querySelectorAll("select")[1], "Mumbai");
-    await ui.click(ui.container.querySelector('[data-testid="confirm-point"]'));
-    await ui.flush();
     await ui.click(pay);
     assert.equal(ui.paymentCalls.length, 1);
     assert.equal(ui.paymentCalls[0].service, "quick");
     assert.deepEqual(ui.paymentCalls[0].deliveryLocation, point);
-    assert.equal(ui.paymentCalls[0].expectedShippingAmountPaise, 12345, "UI must not add another ₹50");
+    assert.equal(ui.paymentCalls[0].deliveryPlaceId, placeId);
+    assert.equal(ui.paymentCalls[0].expectedShippingAmountPaise, 12345, "UI must not add another INR50");
+    await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "TEST delivery address  ");
+    await ui.fill(ui.container.querySelector('input[placeholder="6-digit pincode"]'), "400001");
+    assert.equal(pay.disabled, false, "Equivalent normalized address edits retain the verified destination");
+    await ui.flush();
+    assert.equal(ui.geocodes.length, 1, "Whitespace/case-only changes do not repeat lookup");
+    await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "Another delivery address");
+    assert.equal(pay.disabled, true, "Address edits invalidate the quote immediately");
+    await ui.flush(); await ui.flush();
+    assert.equal(pay.disabled, false);
+    assert.equal(ui.geocodes.length, 2);
     await ui.fill(ui.container.querySelector('input[placeholder="6-digit pincode"]'), "560001");
     assert.equal(pay.disabled, true);
-    assert.equal(ui.context.shippingSelection.deliveryLocation, undefined);
   } finally { await ui.close(); }
 });
 
-test("persisted Quick points are restored only for their pincode and never overwrite early edits", async () => {
+test("persisted Quick points cannot quote cart or a different full checkout address", async () => {
   const saved = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, pincode: "400001" };
   let ui = await mount({ initialPincode: "400001", initialSelection: saved });
   try {
-    assert.deepEqual(ui.context.shippingSelection, { service: "quick", deliveryLocation: saved.deliveryLocation });
-    await ui.flush();
-    assert.equal(ui.requests[0].body.service, "quick");
-  } finally { await ui.close(); }
-  ui = await mount({ initialPincode: "560001", initialSelection: saved });
-  try {
-    assert.deepEqual(ui.context.shippingSelection, { service: "quick" });
     await ui.flush();
     assert.equal(ui.requests.length, 0);
+    assert.equal(ui.geocodes.length, 0);
+    await ui.render(true);
+    await ui.flush();
+    assert.equal(ui.requests.length, 0, "A saved pin is not associated with the current full address");
+    assert.equal(ui.geocodes.length, 0);
   } finally { await ui.close(); }
   ui = await mount({ initialPincode: "400001", initialSelection: saved, beforeHydration: (context) => {
     context.setDeliveryPincode("560001");
@@ -344,50 +399,139 @@ test("persisted Quick points are restored only for their pincode and never overw
   } finally { await ui.close(); }
 });
 
-test("payment initialization locks address fields, delivery service and map controls", async () => {
-  const point = { latitude: 19.076, longitude: 72.8777 };
-  const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick", deliveryLocation: point, pincode: "400001" } });
+test("a payment quote change resolves the address again before reusing a Quick quote", async () => {
+  const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick" } });
   try {
-    await ui.flush();
+    await enterDeliveryAddress(ui);
+    await ui.fill(ui.container.querySelector('input[placeholder="Full name"]'), "Test customer");
+    await ui.fill(ui.container.querySelector('input[placeholder="Mobile number"]'), "9999999999");
+    await ui.fill(ui.container.querySelector('input[placeholder="Email address"]'), "test@example.com");
+    await ui.flush(); await ui.flush();
+    const pay = [...ui.container.querySelectorAll("button")].find(button => button.textContent === "Pay Now");
+    await ui.click(pay);
+    assert.equal(ui.paymentCalls.length, 1);
+    await React.act(async () => ui.paymentCalls[0].onQuoteChanged());
+    assert.equal(pay.disabled, true);
+    await ui.flush(); await ui.flush();
+    assert.equal(ui.geocodes.length, 2, "A changed destination or fee triggers a fresh Google address check");
+    assert.equal(ui.requests.at(-1).body.deliveryPlaceId, placeId);
+    assert.equal(pay.disabled, false);
+  } finally { await ui.close(); }
+});
+
+test("a Quick quote with a different Google place ID cannot enable payment", async () => {
+  const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick" },
+    onQuote: body => Response.json({ quote: { ...quoteFor(body), deliveryPlaceId: "ChIJTestDeliveryPlace_Two" } }) });
+  try {
+    await enterDeliveryAddress(ui);
+    await ui.flush(); await ui.flush();
+    const pay = [...ui.container.querySelectorAll("button")].find(button => button.textContent === "Pay Now");
+    assert.equal(pay.disabled, true);
+    assert.match(ui.container.textContent, /Shipping could not be calculated/);
+  } finally { await ui.close(); }
+});
+
+test("an ambiguous or failed Quick lookup cannot enable payment and explicit standard delivery recomputes the charge", async () => {
+  for (const [status, code] of [["review", 200], ["not_found", 200], ["error", 503]]) {
+    const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick" },
+      onGeocode: () => Response.json(status === "error" ? { error: "PRIVATE provider diagnostic" } : {
+        status, ...(status === "review" ? { location: { latitude: 19.076, longitude: 72.8777 }, label: "Postal area centre" } : {}),
+      }, { status: code }) });
+    try {
+      await enterDeliveryAddress(ui);
+      await ui.flush(); await ui.flush();
+      const pay = [...ui.container.querySelectorAll("button")].find(button => button.textContent === "Pay Now");
+      assert.equal(pay.disabled, true, status);
+      assert.equal(ui.requests.length, 0, "A broad address match must not request a Quick shipping quote");
+      assert.equal(ui.container.querySelector('[data-testid="delivery-map"]'), null);
+      assert.doesNotMatch(ui.container.textContent, /PRIVATE provider diagnostic|Confirm the pin|Choose location on map/);
+      const standard = [...ui.container.querySelectorAll("button")].find(button => button.textContent === "Use standard delivery");
+      assert.ok(standard);
+      await ui.setPaymentLoading(true);
+      assert.equal(standard.disabled, true);
+      await ui.click(standard);
+      assert.equal(ui.context.shippingSelection.service, "quick");
+      await ui.setPaymentLoading(false);
+      await ui.click(ui.container.querySelector('input[value="standard"]'));
+      assert.equal(ui.context.shippingSelection.service, "standard");
+      assert.equal(pay.disabled, true, "Switching services waits for its own shipping quote");
+      await ui.flush();
+      assert.equal(ui.requests.length, 1);
+      assert.equal(ui.requests[0].body.service, "standard");
+      assert.equal(ui.requests[0].body.deliveryLocation, undefined);
+      assert.equal(ui.requests[0].body.deliveryPlaceId, undefined);
+      assert.equal(pay.disabled, false);
+      assert.match(ui.container.querySelector("aside").textContent, /1,123\.45/);
+      await ui.fill(ui.container.querySelector('input[placeholder="Full name"]'), "Test customer");
+      await ui.fill(ui.container.querySelector('input[placeholder="Mobile number"]'), "9999999999");
+      await ui.fill(ui.container.querySelector('input[placeholder="Email address"]'), "test@example.com");
+      await ui.click(pay);
+      assert.equal(ui.paymentCalls.length, 1);
+      assert.equal(ui.paymentCalls[0].service, "standard");
+      assert.equal(ui.paymentCalls[0].deliveryLocation, undefined);
+      assert.equal(ui.paymentCalls[0].deliveryPlaceId, undefined);
+      assert.equal(ui.paymentCalls[0].expectedShippingAmountPaise, 12345);
+    } finally { await ui.close(); }
+  }
+});
+
+test("payment initialization locks address fields and service selection", async () => {
+  const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick", pincode: "400001" } });
+  try {
+    await enterDeliveryAddress(ui);
+    await ui.flush(); await ui.flush();
     await ui.setPaymentLoading(true);
     for (const input of ui.container.querySelectorAll("input, select, textarea")) {
-      assert.equal(input.matches(":disabled"), true, `${input.getAttribute("placeholder") || input.name || input.tagName} is locked while payment starts`);
+      assert.equal(input.matches(":disabled"), true);
     }
     await ui.click(ui.container.querySelector('input[value="standard"]'));
-    await ui.click(ui.container.querySelector('[data-testid="move-point"]'));
     await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "Changed while payment starts");
-    assert.deepEqual(ui.context.shippingSelection, { service: "quick", deliveryLocation: point });
-    assert.equal(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]').value, "");
+    assert.equal(ui.context.shippingSelection.service, "quick");
+    assert.equal(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]').value, "Test delivery address");
     await ui.setPaymentLoading(false);
-    assert.equal(ui.container.querySelector('input[value="standard"]').matches(":disabled"), false);
     await ui.click(ui.container.querySelector('input[value="standard"]'));
     assert.deepEqual(ui.context.shippingSelection, { service: "standard" });
   } finally { await ui.close(); }
 });
 
-test("changing service or delivery point aborts old quotes and mismatched Quick echoes are rejected", async () => {
+test("address changes abort stale quotes and mismatched Quick echoes remain unpayable", async () => {
   const pending = [];
-  const ui = await mount({ initialPincode: "400001", onQuote: (body, signal) => new Promise((resolve) => pending.push({ body, signal, resolve })) });
+  let holdGeocode = false;
+  let pendingGeocode;
+  const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick" },
+    onGeocode: (_body, signal) => holdGeocode
+      ? new Promise(resolve => { pendingGeocode = { signal, resolve }; })
+      : Response.json({ status: "matched", provider: "google", placeId, location: { latitude: 19.076, longitude: 72.8777 } }),
+    onQuote: (body, signal) => new Promise((resolve) => pending.push({ body, signal, resolve })) });
   try {
-    await ui.flush({ wait: false });
-    await ui.click(ui.container.querySelector('input[value="quick"]'));
+    await enterDeliveryAddress(ui);
+    await ui.flush(); await ui.flush({ wait: false });
+    assert.equal(pending.length, 1);
+    await ui.fill(ui.container.querySelector('input[placeholder="Area / Landmark"]'), "New landmark");
     assert.equal(pending[0].signal.aborted, true);
-    await ui.click(ui.container.querySelector('[data-testid="confirm-point"]'));
-    await ui.flush({ wait: false });
+    await ui.flush(); await ui.flush({ wait: false });
     await React.act(async () => pending[0].resolve(Response.json({ quote: quoteFor(pending[0].body) })));
-    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
-    await React.act(async () => ui.context.setShippingSelection({ service: "quick", deliveryLocation: { latitude: 19.08, longitude: 72.88 } }));
-    assert.equal(pending[1].signal.aborted, true);
-    await ui.flush({ wait: false });
-    await React.act(async () => pending[1].resolve(Response.json({ quote: quoteFor(pending[1].body) })));
-    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
-    const wrongPoint = { ...quoteFor(pending[2].body), deliveryLocation: { latitude: 19.076, longitude: 72.8777 } };
-    await React.act(async () => pending[2].resolve(Response.json({ quote: wrongPoint })));
+    const pay = [...ui.container.querySelectorAll("button")].find(button => button.textContent === "Pay Now");
+    assert.equal(pay.disabled, true);
+    const wrongPoint = { ...quoteFor(pending[1].body), deliveryLocation: { latitude: 20, longitude: 73 } };
+    await React.act(async () => pending[1].resolve(Response.json({ quote: wrongPoint })));
     assert.match(ui.container.textContent, /Shipping could not be calculated/);
+    assert.equal(pay.disabled, true);
     await ui.click(ui.container.querySelector('input[value="standard"]'));
     await ui.flush({ wait: false });
-    await React.act(async () => pending[3].resolve(Response.json({ quote: { ...quoteFor(pending[3].body), service: "quick" } })));
+    await React.act(async () => pending[2].resolve(Response.json({ quote: { ...quoteFor(pending[2].body), service: "quick" } })));
     assert.match(ui.container.textContent, /Shipping could not be calculated/);
-    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
+    assert.equal(pay.disabled, true);
+    holdGeocode = true;
+    await ui.click(ui.container.querySelector('input[value="quick"]'));
+    await ui.flush({ wait: false });
+    assert.ok(pendingGeocode);
+    assert.equal(ui.container.querySelector('[aria-label="Quick delivery help"]'), null);
+    const quoteCount = ui.requests.length;
+    await ui.click(ui.container.querySelector('input[value="standard"]'));
+    assert.equal(pendingGeocode.signal.aborted, true, "Persistent service selector cancels the hidden lookup");
+    await React.act(async () => pendingGeocode.resolve(Response.json({ status: "matched", provider: "google", placeId, location: { latitude: 19.076, longitude: 72.8777 } })));
+    assert.equal(ui.context.shippingSelection.service, "standard");
+    assert.equal(ui.requests.length, quoteCount, "A late lookup cannot request a Quick quote");
   } finally { await ui.close(); }
 });

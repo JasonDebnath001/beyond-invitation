@@ -39,10 +39,16 @@ function loadModule(filename, imports = {}, globals = {}) {
   return loaded.exports;
 }
 
-function createRoute(filename, { quoteError, rawCourierRate, rawQuickRate } = {}) {
-  const calls = { resolve: [], quote: [], save: [], createPayment: [], attach: [], rates: [], quickRates: [] };
+function createRoute(filename, { quoteError, rawCourierRate, rawQuickRate, geocodeStatus = "matched", geocodeError = false, budgetExhausted = false } = {}) {
+  const calls = { resolve: [], quote: [], save: [], createPayment: [], attach: [], rates: [], quickRates: [], geocode: [], budget: [] };
   class ShippingQuoteError extends Error {
     constructor(code, message, status = 422) { super(message); this.code = code; this.status = status; }
+  }
+  class AddressGeocodingError extends Error {
+    constructor() { super("Address lookup is temporarily unavailable."); this.code = "GEOCODING_UNAVAILABLE"; this.status = 503; }
+  }
+  class AddressGeocodingBudgetError extends Error {
+    constructor() { super("Too many address lookups. Please try again later or select standard delivery."); this.code = "GEOCODING_RATE_LIMITED"; this.status = 429; }
   }
   const shipping = loadModule("lib/shipping.ts");
   const actualQuoter = rawCourierRate === undefined && rawQuickRate === undefined ? null : loadModule("lib/cart-shipping.ts", {
@@ -69,6 +75,16 @@ function createRoute(filename, { quoteError, rawCourierRate, rawQuickRate } = {}
     "server-only": {},
     "next/server": { NextResponse: { json: (body, init) => Response.json(body, init) } },
     "@/lib/shipping": shipping,
+    "@/lib/address-geocoding": { AddressGeocodingError, lookupDeliveryPlace: async (placeId, address) => {
+      calls.geocode.push({ placeId, address });
+      if (geocodeError) throw new AddressGeocodingError();
+      return { status: geocodeStatus, provider: "google", placeId,
+        location: { latitude: 19.076, longitude: 72.8777 } };
+    } },
+    "@/lib/address-geocoding-budget": { AddressGeocodingBudgetError, claimAddressGeocodingBudget: (request) => {
+      calls.budget.push(request);
+      if (budgetExhausted) throw new AddressGeocodingBudgetError();
+    } },
     "@/lib/checkout": { ...checkout, resolveCartProducts: async (items, reseller) => {
       calls.resolve.push({ items, reseller });
       return structuredClone(cart);
@@ -230,12 +246,13 @@ test("a browser total without the fifty-rupee addition must refresh before payme
 });
 
 test("Quick selection and location flow through a fresh server quote into saved order and payment", async () => {
-  const selection = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 } };
+  const selection = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, deliveryPlaceId: "ChIJTestDeliveryPlace" };
   const quoteRoute = createRoute("app/api/shipping/quote/route.ts", { rawQuickRate: 65 });
   const quoted = await quoteRoute.post({ pincode: customer.pincode, items: paymentBody().items, ...selection });
   assert.equal(quoted.status, 200);
   const { quote: result } = await quoted.json();
   assert.equal(result.service, "quick"); assert.equal(result.amountPaise, 11_500);
+  assert.equal(result.deliveryPlaceId, selection.deliveryPlaceId);
   const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65 });
   const response = await fixture.post(paymentBody({ ...selection, expectedShippingAmountPaise: result.amountPaise, expectedAmountPaise: result.totalPaise, courierId: 999 }));
   assert.equal(response.status, 200);
@@ -243,12 +260,17 @@ test("Quick selection and location flow through a fresh server quote into saved 
   assert.equal(fixture.calls.rates.length, 0);
   assert.deepEqual(fixture.calls.save[0].cart.shipping.deliveryLocation, selection.deliveryLocation);
   assert.equal(fixture.calls.save[0].cart.shipping.service, "quick");
+  assert.equal(fixture.calls.save[0].cart.shipping.deliveryPlaceId, selection.deliveryPlaceId);
+  assert.equal(fixture.calls.geocode.length, 1);
+  assert.equal(fixture.calls.geocode[0].placeId, selection.deliveryPlaceId);
+  assert.equal(fixture.calls.geocode[0].address.addressLine1, customer.addressLine1);
+  assert.equal(fixture.calls.geocode[0].address.pincode, customer.pincode);
   assert.equal(fixture.calls.save[0].cart.shipping.courierId, null);
   assert.equal(fixture.calls.createPayment[0].amount, 61_500);
 });
 
 test("Quick rejects stale totals, missing locations and unknown services before creating payments", async () => {
-  const selection = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 } };
+  const selection = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, deliveryPlaceId: "ChIJTestDeliveryPlace" };
   for (const [input, status] of [[selection, 409], [{ service: "quick" }, 400], [{ service: "quick-unknown" }, 400]]) {
     const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65 });
     const response = await fixture.post(paymentBody(input));
@@ -256,6 +278,47 @@ test("Quick rejects stale totals, missing locations and unknown services before 
     assert.equal(fixture.calls.createPayment.length, 0); assert.equal(fixture.calls.save.length, 0);
     assert.equal(fixture.calls.rates.length, 0, "Quick must not silently fall back to standard delivery");
   }
+});
+
+test("Quick re-resolves its place reference and ignores substituted browser coordinates before payment", async () => {
+  const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65 });
+  const response = await fixture.post(paymentBody({ service: "quick", deliveryPlaceId: "ChIJTestDeliveryPlace",
+    deliveryLocation: { latitude: 0, longitude: 0 }, expectedShippingAmountPaise: 11_500, expectedAmountPaise: 61_500 }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(fixture.calls.quickRates[0].deliveryLocation, { latitude: 19.076, longitude: 72.8777 });
+  assert.deepEqual(fixture.calls.save[0].cart.shipping.deliveryLocation, { latitude: 19.076, longitude: 72.8777 });
+});
+
+test("Quick cannot save an order or start payment with a missing, invalid or mismatched Google destination", async () => {
+  for (const [selection, options, expectedStatus] of [
+    [{}, {}, 400], [{ deliveryPlaceId: "https://private.invalid" }, {}, 400],
+    [{ deliveryPlaceId: "ChIJWrongAddress" }, { geocodeStatus: "review" }, 409],
+    [{ deliveryPlaceId: "ChIJMissingAddress" }, { geocodeStatus: "not_found" }, 409],
+    [{ deliveryPlaceId: "ChIJTestDeliveryPlace" }, { geocodeError: true }, 503],
+  ]) {
+    const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65, ...options });
+    const response = await fixture.post(paymentBody({ service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, ...selection }));
+    assert.equal(response.status, expectedStatus);
+    assert.equal(fixture.calls.quote.length, 0);
+    assert.equal(fixture.calls.save.length, 0);
+    assert.equal(fixture.calls.createPayment.length, 0);
+  }
+});
+
+test("Quick payment shares the address lookup budget before contacting Google or saving orders", async () => {
+  const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65, budgetExhausted: true });
+  const response = await fixture.post(paymentBody({ service: "quick", deliveryPlaceId: "ChIJTestDeliveryPlace",
+    deliveryLocation: { latitude: 19.076, longitude: 72.8777 } }));
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).code, "GEOCODING_RATE_LIMITED");
+  assert.equal(fixture.calls.budget.length, 1);
+  assert.equal(fixture.calls.geocode.length, 0);
+  assert.equal(fixture.calls.quote.length, 0);
+  assert.equal(fixture.calls.save.length, 0);
+  assert.equal(fixture.calls.createPayment.length, 0);
+  const standard = createRoute("app/api/razorpay/order/route.ts", { budgetExhausted: true });
+  assert.equal((await standard.post(paymentBody())).status, 200);
+  assert.equal(standard.calls.budget.length, 0);
 });
 
 test("unavailable shipping cannot create an order or initiate payment", async () => {
@@ -282,6 +345,7 @@ test("the website order snapshot stores the accepted shipping fee and gross paym
   const tracking = loadModule("lib/order-tracking-token.ts", { "server-only": {}, "node:crypto": require("node:crypto") });
   const websiteOrders = loadModule("lib/website-orders.ts", {
     "server-only": {},
+    "@/lib/shipping": loadModule("lib/shipping.ts"),
     "@/lib/order-tracking-token": tracking,
     "@/lib/razorpay": {
       getRazorpay: () => assert.fail("Saving a snapshot must not initiate payment"),

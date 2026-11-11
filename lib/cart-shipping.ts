@@ -37,7 +37,7 @@ function unavailable() {
 export async function quoteCartShipping(
   cart: ResolvedCart,
   pincode: string,
-  options: { refresh?: boolean; service?: unknown; deliveryLocation?: unknown } = {},
+  options: { refresh?: boolean; service?: unknown; deliveryLocation?: unknown; deliveryPlaceId?: unknown } = {},
 ): Promise<ShippingQuote> {
   let selection;
   try { selection = parseShippingSelection(options); }
@@ -110,6 +110,7 @@ export async function quoteCartShipping(
     cart.amountPaise,
     selection.service,
     selection.deliveryLocation,
+    selection.deliveryPlaceId,
   ]);
   const cached = cache.get(key);
   if (!options.refresh && cached && cached.expiresAt > Date.now())
@@ -130,7 +131,7 @@ export async function quoteCartShipping(
       if (error instanceof ShiprocketError && error.httpStatus === 404) {
         throw new ShippingQuoteError(
           "UNSERVICEABLE",
-          selection.service === "quick" ? "Shiprocket Quick is unavailable for this location and parcel. Choose standard delivery or check your map pin." : "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
+          selection.service === "quick" ? "Shiprocket Quick is unavailable for this address and parcel. Choose standard delivery or check your delivery address." : "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
         );
       }
       throw unavailable();
@@ -138,7 +139,7 @@ export async function quoteCartShipping(
     if (!couriers.length) {
       throw new ShippingQuoteError(
         "UNSERVICEABLE",
-        selection.service === "quick" ? "Shiprocket Quick is unavailable for this location and parcel. Choose standard delivery or check your map pin." : "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
+        selection.service === "quick" ? "Shiprocket Quick is unavailable for this address and parcel. Choose standard delivery or check your delivery address." : "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
       );
     }
     if (
@@ -169,6 +170,7 @@ export async function quoteCartShipping(
     }
     return {
       ...(selection.service === "quick" ? { service: "quick" as const, deliveryLocation: { ...selection.deliveryLocation! } } : {}),
+      ...(selection.deliveryPlaceId ? { deliveryPlaceId: selection.deliveryPlaceId } : {}),
       pincode,
       subtotalPaise: cart.amountPaise,
       amountPaise,

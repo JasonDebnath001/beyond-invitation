@@ -27,7 +27,7 @@ function load(file, dependencies = {}, globals = {}) {
   return module.exports;
 }
 
-async function setup({ initialPoint, mapFails = false } = {}) {
+async function setup({ initialPoint, suggestedLocation, mapFails = false } = {}) {
   const mapEvents = {};
   const markerEvents = {};
   let coordinates = [0, 0];
@@ -37,8 +37,11 @@ async function setup({ initialPoint, mapFails = false } = {}) {
   let removed = 0;
   let tiles;
   let setDisabled;
+  let setSuggestion;
+  let setAcceptedPoint;
+  const views = [];
   const fakeMap = {
-    setView() { return this; },
+    setView(point, zoom) { views.push({ point, zoom }); return this; },
     on(name, callback) { mapEvents[name] = callback; return this; },
     getCenter() { return { lat: 19.07, lng: 72.87 }; },
     remove() { removed++; },
@@ -61,10 +64,13 @@ async function setup({ initialPoint, mapFails = false } = {}) {
   }, { navigator: { geolocation: { getCurrentPosition(success, failure, options) { geolocation = { success, failure, options }; } } } }).default;
   function Controlled() {
     const [value, setValue] = React.useState(initialPoint);
+    const [suggestion, updateSuggestion] = React.useState(suggestedLocation);
     const [disabled, updateDisabled] = React.useState(false);
     setDisabled = updateDisabled;
+    setSuggestion = updateSuggestion;
+    setAcceptedPoint = (point) => { saved = point; setValue(point); };
     return React.createElement(Picker, {
-      value, disabled,
+      value, disabled, suggestedLocation: suggestion,
       onConfirm(point) { saved = point; setValue(point); },
       onInvalidate() { invalidated++; saved = undefined; setValue(undefined); },
     });
@@ -74,7 +80,8 @@ async function setup({ initialPoint, mapFails = false } = {}) {
   const root = createRoot(container);
   await React.act(async () => root.render(React.createElement(Controlled)));
   return {
-    container, mapEvents, markerEvents,
+    container, mapEvents, markerEvents, views,
+    get coordinates() { return coordinates; },
     get saved() { return saved; }, get invalidated() { return invalidated; }, get removed() { return removed; },
     get tiles() { return tiles; }, get geolocation() { return geolocation; },
     async click(text) {
@@ -84,6 +91,8 @@ async function setup({ initialPoint, mapFails = false } = {}) {
     },
     async drag(point) { coordinates = point; await React.act(async () => markerEvents.dragend()); },
     async lock(value) { await React.act(async () => setDisabled(value)); },
+    async suggest(value) { await React.act(async () => setSuggestion(value)); },
+    async accept(value) { await React.act(async () => setAcceptedPoint(value)); },
     async close() { await React.act(async () => root.unmount()); container.remove(); },
   };
 }
@@ -108,6 +117,42 @@ test("map click and dragging invalidate the saved point until explicitly confirm
     assert.deepEqual(ui.saved, { latitude: 19.07, longitude: 72.87 });
   } finally { await ui.close(); }
   assert.equal(ui.removed, 1);
+});
+
+test("a geocoded suggestion centres and prefills the map without accepting the destination", async () => {
+  const point = { latitude: 19.076, longitude: 72.8777 };
+  const ui = await setup({ suggestedLocation: point });
+  try {
+    assert.deepEqual(ui.views[0], { point: [point.latitude, point.longitude], zoom: 17 });
+    assert.deepEqual(ui.coordinates, [point.latitude, point.longitude]);
+    assert.equal(ui.saved, undefined);
+    assert.equal(ui.invalidated, 0);
+    await ui.click("Confirm delivery location");
+    assert.deepEqual(ui.saved, point);
+    await ui.drag([19.08, 72.88]);
+    assert.deepEqual(ui.coordinates, [19.08, 72.88], "Invalidation must not restore the earlier geocoded suggestion");
+    await ui.click("Confirm delivery location");
+    assert.deepEqual(ui.saved, { latitude: 19.08, longitude: 72.88 });
+  } finally { await ui.close(); }
+});
+
+test("late suggestions and accepted points move the map without invalidating a saved destination", async () => {
+  const ui = await setup();
+  try {
+    await ui.suggest({ latitude: 19.1, longitude: 72.9 });
+    assert.deepEqual(ui.coordinates, [19.1, 72.9]);
+    assert.deepEqual(ui.views.at(-1), { point: [19.1, 72.9], zoom: 17 });
+    assert.equal(ui.saved, undefined);
+    assert.equal(ui.invalidated, 0);
+    await ui.accept({ latitude: 19.2, longitude: 73.0 });
+    assert.deepEqual(ui.coordinates, [19.2, 73.0]);
+    assert.match(ui.container.textContent, /Delivery location confirmed/);
+    assert.equal(ui.invalidated, 0);
+    await ui.lock(true);
+    await ui.suggest({ latitude: 19.3, longitude: 73.1 });
+    await ui.lock(false);
+    assert.deepEqual(ui.coordinates, [19.2, 73.0], "A late suggestion cannot replace an accepted payment destination");
+  } finally { await ui.close(); }
 });
 
 test("geolocation is requested only by the customer and still requires pin confirmation", async () => {

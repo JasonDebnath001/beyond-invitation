@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getRazorpay } from "@/lib/razorpay";
 import { CheckoutValidationError, resolveCartProducts } from "@/lib/checkout";
 import { quoteCartShipping, ShippingQuoteError } from "@/lib/cart-shipping";
-import { isValidIndianPincode } from "@/lib/shipping";
+import { isValidIndianPincode, isValidDeliveryPlaceId } from "@/lib/shipping";
+import { AddressGeocodingError, lookupDeliveryPlace } from "@/lib/address-geocoding";
+import { AddressGeocodingBudgetError, claimAddressGeocodingBudget } from "@/lib/address-geocoding-budget";
 import {
   attachRazorpayOrder,
   createWebsiteOrder,
@@ -125,12 +127,35 @@ export async function POST(request: NextRequest) {
 
     const reseller = await getActiveResellerFromCookies();
     const products = await resolveCartProducts(body.items, reseller);
+    let deliveryLocation = body.deliveryLocation;
+    let deliveryPlaceId: string | undefined;
+    if (body.service === "quick") {
+      if (!isValidDeliveryPlaceId(body.deliveryPlaceId)) {
+        return NextResponse.json({
+          error: "Please locate your delivery address again before paying.",
+          code: "DELIVERY_LOCATION_REQUIRED",
+        }, { status: 400 });
+      }
+      // Revalidate the provider reference against the actual checkout address.
+      // Browser coordinates and a place ID must not be allowed to point at different destinations.
+      claimAddressGeocodingBudget(request);
+      const destination = await lookupDeliveryPlace(body.deliveryPlaceId, customer);
+      if (destination.status !== "matched" || !destination.location || !destination.placeId) {
+        return NextResponse.json({
+          error: "Your delivery location needs to be checked again. Review your address before paying.",
+          code: "DELIVERY_LOCATION_CHANGED",
+        }, { status: 409 });
+      }
+      deliveryLocation = destination.location;
+      deliveryPlaceId = destination.placeId;
+    }
     // Recheck with Shiprocket before taking any payment. Never accept a fee,
     // product weight, courier or total supplied by the browser as authoritative.
     const shipping = await quoteCartShipping(products, customer.pincode, {
       refresh: true,
       ...(body.service !== undefined ? { service: body.service } : {}),
-      ...(body.deliveryLocation !== undefined ? { deliveryLocation: body.deliveryLocation } : {}),
+      ...(deliveryLocation !== undefined ? { deliveryLocation } : {}),
+      ...(deliveryPlaceId ? { deliveryPlaceId } : {}),
     });
     if (
       body.expectedAmountPaise !== shipping.totalPaise ||
@@ -244,6 +269,9 @@ export async function POST(request: NextRequest) {
       shipping,
     }, { headers: { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" } });
   } catch (err) {
+    if (err instanceof AddressGeocodingError || err instanceof AddressGeocodingBudgetError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
+    }
     if (err instanceof ShippingQuoteError) {
       return NextResponse.json(
         { error: err.message, code: err.code },

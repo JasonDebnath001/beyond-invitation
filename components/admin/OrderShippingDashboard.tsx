@@ -27,6 +27,22 @@ function orderDate(value: string) {
     : "—";
 }
 
+function deliveryMapUrl(order: FulfillmentOrder): string | null {
+  const url = new URL("https://www.google.com/maps/search/");
+  url.searchParams.set("api", "1");
+  if (order.deliveryPlaceId) {
+    const address = order.address;
+    url.searchParams.set("query", [address.addressLine1, address.addressLine2, address.city,
+      address.state, address.pincode, address.country].filter(Boolean).join(", "));
+    url.searchParams.set("query_place_id", order.deliveryPlaceId);
+    // The ID identifies the building; keep the address fallback within Maps URL limits.
+    if (url.toString().length > 2048) url.searchParams.set("query", `${address.pincode}, India`);
+  } else if (order.deliveryLocation) {
+    url.searchParams.set("query", `${order.deliveryLocation.latitude},${order.deliveryLocation.longitude}`);
+  } else return null;
+  return url.toString();
+}
+
 function OrderShell({ children }: { children: ReactNode }) {
   return <div className={workspace.app}>
     <aside className={workspace.sidebar}>
@@ -230,6 +246,7 @@ function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
   }
 
   const isCreated = order.fulfillment.state === "created";
+  const mapUrl = canManageShipments && order.deliveryService === "quick" ? deliveryMapUrl(order) : null;
   return <section className={styles.detail} aria-label="Selected order">
     <div className={styles.detailHeading}>
       <div><span className={styles.eyebrow}>ORDER DETAILS</span><h2>{order.customer.name}</h2></div>
@@ -246,7 +263,7 @@ function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
       <div><h3>Delivery address</h3><p>{order.address.addressLine1}<br />{order.address.addressLine2 && <>{order.address.addressLine2}<br /></>}{order.address.city}, {order.address.state} {order.address.pincode}<br />{order.address.country}</p></div>
       <div><h3>Contact</h3><p>{order.customer.phone}<br /><span className={styles.email}>{order.customer.email}</span></p></div>
     </div>
-    {canManageShipments && order.deliveryService === "quick" && order.deliveryLocation && <a className={styles.mapLink} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.deliveryLocation.latitude},${order.deliveryLocation.longitude}`)}`} target="_blank" rel="noreferrer">View customer&apos;s delivery pin</a>}
+    {mapUrl && <a className={styles.mapLink} href={mapUrl} target="_blank" rel="noreferrer">View delivery location in Google Maps</a>}
     <div className={styles.items}>
       {order.items.map((item, index) => <div key={`${item.itemCode}-${index}`}>
         <span><strong>{item.name}</strong><small>{item.itemCode} · {item.quantity} pcs</small></span>

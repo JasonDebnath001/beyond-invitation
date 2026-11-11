@@ -1,22 +1,15 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { isValidIndianPincode, type ShippingSelection } from "@/lib/shipping";
-
-const DeliveryLocationPicker = dynamic(() => import("@/components/DeliveryLocationPicker"), {
-  ssr: false,
-  loading: () => <p className="mt-3 text-sm text-ink-mid">Loading delivery map…</p>,
-});
+import type { ShippingSelection } from "@/lib/shipping";
 
 type Props = {
   selection: ShippingSelection;
   onChange: (selection: ShippingSelection) => void;
-  pincode: string;
-  locationResetKey?: string;
+  atCheckout?: boolean;
   disabled?: boolean;
 };
 
-export default function DeliveryServiceSelector({ selection, onChange, pincode, locationResetKey = "", disabled = false }: Props) {
+export default function DeliveryServiceSelector({ selection, onChange, atCheckout = false, disabled = false }: Props) {
   const updateSelection = (next: ShippingSelection) => { if (!disabled) onChange(next); };
   return (
     <fieldset disabled={disabled} className="mt-5 rounded-2xl border border-gold/20 p-4">
@@ -31,11 +24,7 @@ export default function DeliveryServiceSelector({ selection, onChange, pincode, 
           <span><strong className="block text-maroon">Shiprocket Quick</strong><span className="text-ink-mid">Local delivery once your invitations are ready. Subject to availability.</span></span>
         </label>
       </div>
-      {selection.service === "quick" && (isValidIndianPincode(pincode) ? (
-        <DeliveryLocationPicker key={`${pincode}:${locationResetKey}`} disabled={disabled} value={selection.deliveryLocation} onConfirm={(deliveryLocation) => updateSelection({ service: "quick", deliveryLocation })} onInvalidate={() => {
-          if (selection.deliveryLocation) updateSelection({ service: "quick" });
-        }} />
-      ) : <p className="mt-3 text-sm text-ink-mid">Enter a valid delivery pincode, then pin your exact delivery location.</p>)}
+      {selection.service === "quick" && !atCheckout && <p className="mt-3 text-sm text-ink-mid">Quick shipping will be calculated from your full delivery address at checkout. No map pin is needed here.</p>}
     </fieldset>
   );
 }

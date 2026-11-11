@@ -92,6 +92,23 @@ test("Quick cannot reuse another service or location quote, and cached locations
   assert.equal(fixture.calls.length, 1);
 });
 
+test("Quick quotes preserve the Google reference and keep different places out of each other's cache", async () => {
+  const fixture = createQuoter();
+  const first = await fixture.api.quoteCartShipping(cart(), "400001", { ...quickSelection, deliveryPlaceId: "ChIJPlaceOne" });
+  const second = await fixture.api.quoteCartShipping(cart(), "400001", { ...quickSelection, deliveryPlaceId: "ChIJPlaceTwo" });
+  assert.equal(first.deliveryPlaceId, "ChIJPlaceOne");
+  assert.equal(second.deliveryPlaceId, "ChIJPlaceTwo");
+  assert.equal(fixture.quickCalls.length, 2);
+  const cached = await fixture.api.quoteCartShipping(cart(), "400001", { ...quickSelection, deliveryPlaceId: "ChIJPlaceOne" });
+  assert.equal(cached.deliveryPlaceId, "ChIJPlaceOne");
+  assert.equal(fixture.quickCalls.length, 2);
+  for (const deliveryPlaceId of ["", "https://bad.invalid", "x".repeat(513), null, 123]) {
+    await assert.rejects(fixture.api.quoteCartShipping(cart(), "400001", { ...quickSelection, deliveryPlaceId }),
+      (error) => error.code === "INVALID_DELIVERY_LOCATION");
+  }
+  assert.equal(fixture.quickCalls.length, 2);
+});
+
 test("unknown delivery services and unconfirmed Quick locations fail before provider requests", async () => {
   for (const selection of [{ service: "other" }, { service: null }, { service: "quick" },
     { service: "quick", deliveryLocation: { latitude: "19", longitude: 72 } },

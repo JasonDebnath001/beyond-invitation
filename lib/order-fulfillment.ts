@@ -15,6 +15,8 @@ import {
   type ShiprocketOrderPayload,
 } from "@/lib/shiprocket";
 import type { FulfillmentOrder, FulfillmentState, ShipmentPackage, QuickBookingState, QuickFulfillmentQuote } from "@/lib/fulfillment-types";
+import { lookupDeliveryPlace } from "@/lib/address-geocoding";
+import { isValidDeliveryLocation, isValidDeliveryPlaceId, type DeliveryLocation } from "@/lib/shipping";
 
 export type { FulfillmentOrder, ShipmentPackage } from "@/lib/fulfillment-types";
 
@@ -88,13 +90,36 @@ function deliveryService(row: OrderRow): "standard" | "quick" {
   throw new FulfillmentError("INVALID_SERVICE", "The saved delivery service needs review.", 409);
 }
 
-function quickDestination(row: OrderRow) {
-  const point = object(object(row.shipping_address.shippingQuote).deliveryLocation);
-  const { latitude, longitude } = point;
-  if (typeof latitude !== "number" || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
-      typeof longitude !== "number" || !Number.isFinite(longitude) || longitude < -180 || longitude > 180)
-    throw new FulfillmentError("QUICK_LOCATION_MISSING", "The saved Quick delivery map location is missing or invalid. Review this order before shipping.", 409);
-  return { latitude, longitude };
+function quickDestinationReference(row: OrderRow): { placeId: string | null; location: DeliveryLocation | null } {
+  const quote = object(row.shipping_address.shippingQuote);
+  // A malformed Google reference must not fall back to stale or client-supplied coordinates.
+  if (quote.deliveryPlaceId !== undefined) {
+    if (!isValidDeliveryPlaceId(quote.deliveryPlaceId))
+      throw new FulfillmentError("QUICK_LOCATION_MISSING", "The saved Quick delivery location reference is invalid. Review this order before shipping.", 409);
+    return { placeId: quote.deliveryPlaceId, location: null };
+  }
+  if (!isValidDeliveryLocation(quote.deliveryLocation))
+    throw new FulfillmentError("QUICK_LOCATION_MISSING", "The saved Quick delivery location is missing or invalid. Review this order before shipping.", 409);
+  return { placeId: null, location: { latitude: quote.deliveryLocation.latitude, longitude: quote.deliveryLocation.longitude } };
+}
+
+/** Resolve only for an operation that needs coordinates; never add them to the persisted CAS snapshot. */
+async function resolveQuickDestination(row: OrderRow): Promise<DeliveryLocation> {
+  const reference = quickDestinationReference(row);
+  if (reference.location) return reference.location;
+  const address = row.shipping_address;
+  let result;
+  try {
+    result = await lookupDeliveryPlace(reference.placeId!, {
+      addressLine1: string(address.addressLine1), addressLine2: string(address.addressLine2),
+      city: string(address.city), state: string(address.state), pincode: string(address.pincode), country: string(address.country),
+    });
+  } catch {
+    throw new FulfillmentError("QUICK_LOCATION_UNAVAILABLE", "The saved delivery address could not be located right now. Try again before creating or booking its shipment.", 503);
+  }
+  if (result.status !== "matched" || result.provider !== "google" || result.placeId !== reference.placeId || !isValidDeliveryLocation(result.location))
+    throw new FulfillmentError("QUICK_LOCATION_MISSING", "The saved delivery address no longer has a precise matching location. Review this order before shipping.", 409);
+  return { latitude: result.location.latitude, longitude: result.location.longitude };
 }
 
 function quickBookingState(row: OrderRow): QuickBookingState {
@@ -131,7 +156,16 @@ function view(row: OrderRow): FulfillmentOrder {
   const quick = quote.service === "quick";
   const booking = object(saved.quickBooking);
   let deliveryLocation = null;
-  try { if (quick) deliveryLocation = quickDestination(row); } catch { /* Invalid locations cannot be booked. */ }
+  let deliveryPlaceId: string | undefined;
+  let hasQuickDestination = false;
+  try {
+    if (quick) {
+      const destination = quickDestinationReference(row);
+      deliveryLocation = destination.location;
+      deliveryPlaceId = destination.placeId ?? undefined;
+      hasQuickDestination = true;
+    }
+  } catch { /* Invalid locations cannot be booked. */ }
   let parcel: ShipmentPackage | null = null;
   try { if (saved.package) parcel = validateShipmentPackage(saved.package); } catch { /* Remains unavailable. */ }
   const mode = address.paymentMode === "test" || address.paymentMode === "live" ? address.paymentMode : "unknown";
@@ -147,6 +181,7 @@ function view(row: OrderRow): FulfillmentOrder {
     items: row.items.map(({ itemCode, name, quantity, price }) => ({ itemCode, name, quantity, price })),
     shippingAmountPaise: Number.isSafeInteger(quote.amountPaise) ? quote.amountPaise as number : null,
     deliveryService: quick ? "quick" : "standard", deliveryLocation,
+    ...(deliveryPlaceId ? { deliveryPlaceId } : {}),
     fulfillment: {
       state, merchantOrderId: merchantOrderId(row.id), package: parcel,
       shiprocketOrderId: positiveId(saved.shiprocketOrderId), shipmentId: positiveId(saved.shipmentId),
@@ -159,7 +194,7 @@ function view(row: OrderRow): FulfillmentOrder {
     },
     canCreateShipment: !eligibility && (state === "not_created" || state === "failed"),
     canReconcileShipment: !eligibility && !!parcel && ["creating", "needs_review", "failed"].includes(state),
-    canBookQuickPickup: !eligibility && quick && !!deliveryLocation && !!parcel && state === "created" &&
+    canBookQuickPickup: !eligibility && quick && hasQuickDestination && !!parcel && state === "created" &&
       !!positiveId(saved.shiprocketOrderId) && !!positiveId(saved.shipmentId) && ["not_booked", "failed"].includes(quickBookingState(row)),
     blockedReason: eligibility?.message ?? (state === "creating" || state === "needs_review"
       ? "A creation attempt may already exist in Shiprocket. Check it there and link its order ID; do not create a second shipment." : null),
@@ -247,9 +282,7 @@ function buildPayload(row: OrderRow, parcel: ShipmentPackage, pickup: string): S
   const created = new Date(row.created_at);
   if (!Number.isFinite(created.getTime())) throw new FulfillmentError("DATE_INVALID", "The saved order date is invalid.");
   const [firstName, ...lastName] = row.customer_name.trim().split(/\s+/);
-  const quick = deliveryService(row) === "quick" ? quickDestination(row) : null;
   return {
-    ...(quick ? { latitude: quick.latitude, longitude: quick.longitude, shipping_method: "HL" as const } : {}),
     order_id: merchantOrderId(row.id),
     // Shiprocket accepts local YYYY-MM-DD HH:mm. This store ships within India.
     order_date: new Date(created.getTime() + 330 * 60_000).toISOString().slice(0, 19).replace("T", " "),
@@ -287,10 +320,17 @@ export async function createOrderShipment(id: string, packageInput: unknown): Pr
   const parcel = validateShipmentPackage(packageInput);
   // Validate the entire snapshot before any external write or durable claim.
   const payload = buildPayload(row, parcel, "pending-pickup");
+  if (deliveryService(row) === "quick") quickDestinationReference(row);
   await verifyCapturedPayment(row);
   try { payload.pickup_location = (await (deliveryService(row) === "quick" ? getShiprocketQuickPickupLocation() : getShiprocketPickupLocation())).name; }
   catch { throw new FulfillmentError("PICKUP_UNAVAILABLE", "The configured Shiprocket pickup location could not be verified. No shipment was created.", 503); }
-  if (deliveryService(row) === "quick") await quickRate(row, parcel);
+  if (deliveryService(row) === "quick") {
+    const destination = await resolveQuickDestination(row);
+    payload.latitude = destination.latitude;
+    payload.longitude = destination.longitude;
+    payload.shipping_method = "HL";
+    await quickRate(row, parcel, destination);
+  }
   const started = new Date().toISOString();
   const attempt: Json = {
     version: 1, state: "creating", attemptId: randomUUID(), merchantOrderId: payload.order_id,
@@ -372,7 +412,7 @@ function quickOrderContext(row: OrderRow) {
   if (blocked) throw blocked;
   if (deliveryService(row) !== "quick")
     throw new FulfillmentError("NOT_QUICK_ORDER", "This order uses standard delivery and cannot book a Quick pickup.", 409);
-  quickDestination(row);
+  quickDestinationReference(row);
   const saved = object(row.shipping_address.fulfillment);
   const providerId = positiveId(saved.shiprocketOrderId);
   const shipmentId = positiveId(saved.shipmentId);
@@ -381,8 +421,8 @@ function quickOrderContext(row: OrderRow) {
   return { saved, providerId, shipmentId, parcel: validateShipmentPackage(saved.package) };
 }
 
-async function quickRate(row: OrderRow, parcel: ShipmentPackage): Promise<QuickFulfillmentQuote> {
-  const deliveryLocation = quickDestination(row);
+async function quickRate(row: OrderRow, parcel: ShipmentPackage, resolvedLocation?: DeliveryLocation): Promise<QuickFulfillmentQuote> {
+  const deliveryLocation = resolvedLocation ?? await resolveQuickDestination(row);
   let rates;
   try {
     rates = await getShiprocketQuickRates({ deliveryPincode: string(row.shipping_address.pincode), deliveryLocation, weightKg: parcel.weightKg, cod: false });

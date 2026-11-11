@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Read the Privacy Policy of Beyond Invitation, covering how we collect, use, store and protect customer information, order details, payment information, cookies and communication data.",
 };
 
-const lastUpdated = "16 September 2026";
+const lastUpdated = "11 November 2026";
 
 const sections = [
   {
@@ -67,6 +67,7 @@ const sections = [
     body: [
       `We do not sell your personal information. However, we may share necessary information with trusted service providers and business partners who help us operate our website and fulfil customer orders.`,
       `This may include website hosting providers, payment gateway providers, authentication providers, ERP or CRM systems, accounting systems, email and SMS providers, WhatsApp communication providers, analytics providers, cloud storage providers, IT support providers, designers, production teams, vendors, job workers, courier partners and logistics partners.`,
+      `When you select Shiprocket Quick, we send your delivery address to Google Maps to locate the building. This lookup does not include your name, phone number, email or order notes. We use the resulting location to request delivery rates and arrange delivery through Shiprocket. We keep Google's place reference with your order and look up its location again when preparing the shipment.`,
       `For customized products, we may share required artwork, text, design instructions, names, event details and order specifications with internal teams or external vendors involved in design, printing, finishing, packing or delivery.`,
       `We may also disclose information if required by law, court order, government request, tax regulation, legal proceeding, fraud prevention, security investigation or to protect our legal rights.`,
     ],
@@ -232,6 +233,12 @@ export default function PrivacyPolicyPage() {
                           {paragraph}
                         </p>
                       ))}
+                      {section.title === "13. Third-Party Links and Services" && (
+                        <p className="text-base leading-7 text-neutral-700 sm:leading-8">
+                          Google Maps processes address lookups under the{" "}
+                          <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2">Google Privacy Policy</a>.
+                        </p>
+                      )}
                     </div>
                   </section>
                 );

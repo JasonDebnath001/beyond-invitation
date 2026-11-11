@@ -17,7 +17,7 @@ The customer shipping fee is the cheapest eligible Shiprocket estimate **plus a 
 
 ## Configuration
 
-Shiprocket Quick uses the Hyperlocal section of the shared API documentation and the same API credentials. Customers can select Quick and confirm a map pin in cart/checkout; staff create the hyperlocal order and explicitly book the local pickup after packing. The pickup must have valid saved coordinates. See [Shiprocket Quick setup and workflow](SHIPROCKET_QUICK.md).
+Shiprocket Quick uses the Hyperlocal section of the shared API documentation and the same API credentials. Customers select Quick in the cart; Google looks up their full checkout address using the server-only `GOOGLE_MAPS_API_KEY`. A matching building and pincode calculate shipping without a map. Approximate or missing matches ask for address correction or allow the customer to explicitly choose standard delivery and receive a new quote. Staff create the hyperlocal order and explicitly book the local pickup after packing. The business pickup must have valid saved coordinates. See [Shiprocket Quick setup and workflow](SHIPROCKET_QUICK.md).
 
 Keep these server settings in the deployment environment:
 
@@ -26,11 +26,16 @@ SHIPROCKET_EMAIL=your-api-user-email
 SHIPROCKET_PASSWORD=your-api-user-password
 SHIPROCKET_PICKUP_LOCATION=exact-saved-pickup-nickname
 ADMIN_USER_IDS=verified-supabase-user-uuid
+GOOGLE_MAPS_API_KEY=your-server-side-google-geocoding-key
 ```
 
 The Shiprocket API user needs permission to read pickup locations, rates, orders, courier options and tracking, create orders, and assign AWBs for Quick bookings. The selected pickup nickname must already exist in Shiprocket. This integration uses the live external API at `https://apiv2.shiprocket.in/v1/external`; it does not claim to be a Shiprocket sandbox. See the [official API documentation](https://apidocs.shiprocket.in/).
 
 Existing Supabase order storage and server credentials remain required. **No new database migration is required.** The existing `website_orders.shipping_address` JSONB snapshot stores trusted `paymentMode`, `paymentKeyId` and a `fulfillment` record. Direct customer database access remains protected by RLS; the public admin listing uses the backend server client and deliberately exposes the order view independently of that RLS policy. Only the backend writes orders.
+
+Google address lookup requires the Geocoding API enabled in a Google Cloud project with billing enabled. Restrict the server key to the Geocoding API and, where the server has fixed outbound IP addresses, restrict it to those addresses. Browser-referrer restrictions do not work for this server request. Configure provider quotas for the deployment and keep the key out of `NEXT_PUBLIC_` variables. The old `GEOAPIFY_API_KEY` is no longer used. See [Google's setup instructions](https://developers.google.com/maps/documentation/geocoding/get-api-key).
+
+New Google-based Quick orders store the accepted Google place ID with the customer's own written address, not the Google coordinates. Before payment and again when staff need to create or price a shipment, the server resolves and checks that place against the address. Legacy Quick orders with saved coordinates remain supported. Shipment creation still requires a precise destination; failed lookup never causes a guessed destination or a rider booking.
 
 ## Test and live payment separation
 

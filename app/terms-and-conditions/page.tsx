@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Read the Terms and Conditions of Beyond Invitation, covering website use, product orders, customization, payment, delivery, cancellation, refunds and customer responsibilities.",
 };
 
-const lastUpdated = "16 September 2026";
+const lastUpdated = "11 November 2026";
 
 const sections = [
   {
@@ -301,6 +301,13 @@ export default function TermsAndConditionsPage() {
                           {paragraph}
                         </p>
                       ))}
+                      {section.title === "12. Delivery and Shipping" && (
+                        <p className="text-base leading-7 text-neutral-700 sm:leading-8">
+                          Address lookup for Shiprocket Quick uses Google Maps. Your use of this feature is also subject to the{" "}
+                          <a href="https://www.google.com/intl/en/help/terms_maps/" target="_blank" rel="noreferrer" className="underline underline-offset-2">Google Maps/Google Earth Additional Terms of Service</a>{" "}
+                          and the <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="underline underline-offset-2">Google Privacy Policy</a>.
+                        </p>
+                      )}
                     </div>
                   </section>
                 );

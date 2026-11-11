@@ -1,131 +1,79 @@
-"use client";
-
-import { Alice } from "next/font/google";
+﻿import { Cormorant_Garamond } from "next/font/google";
 import Image from "next/image";
-import { type CSSProperties, useLayoutEffect, useRef } from "react";
-import gsap from "gsap";
+import Link from "next/link";
 import styles from "./HeroCarousel.module.css";
 
-const alice = Alice({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  weight: "400",
+  weight: ["300", "400"],
+  style: ["normal", "italic"],
+  variable: "--font-potli-serif",
   display: "swap",
 });
 
-const HERO_WIDTH = 1366;
-const HERO_HEIGHT = 438;
-
-// Coordinates include each PNG's transparent padding in the reference artwork.
-const HERO_CARDS = [
-  { src: "/hero-card-1.png", width: 219, height: 273, x: -15, y: 240, mobile: { width: 27, x: -4, y: 14 } },
-  { src: "/hero-card-2.png", width: 273, height: 360, x: 232, y: 180, mobile: { width: 35, x: 10, y: -16 } },
-  { src: "/hero-card-3.png", width: 265, height: 353, x: 532, y: 205, mobile: { width: 35, x: 33, y: -2 } },
-  { src: "/hero-card-4.png", width: 242, height: 322, x: 825, y: 234, mobile: { width: 30, x: 57, y: 8 } },
-  { src: "/hero-card-5.png", width: 465, height: 436, x: 1047, y: 161, mobile: { width: 58, x: 72, y: -14 } },
-];
+// Add the supplied image URL here when it is ready.
+const HERO_IMAGE_URL = "https://res.cloudinary.com/dxzuvk7np/image/upload/v1794386620/Arched_potli_portrait_ohzliq.png";
 
 export default function HeroCarousel() {
-  const cardsRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const root = cardsRef.current;
-    if (!root) return;
-
-    const media = gsap.matchMedia();
-
-    media.add(
-      "(prefers-reduced-motion: no-preference)",
-      () => {
-        const cards = Array.from(
-          root.querySelectorAll<HTMLImageElement>("[data-hero-card]"),
-        );
-        const shuffledCards = gsap.utils.shuffle([...cards]);
-
-        // A random shuffle can still return left-to-right order; avoid that result.
-        if (cards.length > 1 && shuffledCards.every((card, index) => card === cards[index])) {
-          [shuffledCards[0], shuffledCards[1]] = [
-            shuffledCards[1],
-            shuffledCards[0],
-          ];
-        }
-
-        // Keep every card visible as it loads. One slow image must not hold
-        // the entire hero behind a decode promise or a hidden animation state.
-        gsap.fromTo(
-          shuffledCards,
-          {
-            y: 24,
-            scale: 0.96,
-            transformOrigin: "center bottom",
-          },
-          {
-            y: 0,
-            scale: 1,
-            duration: 0.85,
-            stagger: 0.12,
-            ease: "back.out(1.35)",
-            clearProps: "transform,transformOrigin",
-          },
-        );
-      },
-      root,
-    );
-
-    return () => media.revert();
-  }, []);
-
   return (
     <section
       aria-labelledby="homepage-hero-title"
       data-no-text-motion
-      className={styles.hero}
-      style={{ backgroundImage: "url('/hero-bg.png')" }}
+      className={`${styles.hero} ${cormorant.variable}`}
     >
-      <div className={styles.content}>
-        <h1
-          id="homepage-hero-title"
-          className={styles.title}
-          style={{ fontFamily: alice.style.fontFamily }}
-        >
-          Invitation that go beyond your expectations
+      <div className={styles.canvas}>
+        <h1 id="homepage-hero-title" className={styles.title}>
+          Potli Bags
         </h1>
-        <p
-          className={styles.subtitle}
-          style={{ fontFamily: alice.style.fontFamily }}
-        >
-          Designed with love, crafted by experts, and delivered on time.
+
+        <p className={styles.tagline}>
+          Small treasures.
+          <br />
+          Grand gestures.
         </p>
-      </div>
-      <div
-        ref={cardsRef}
-        aria-hidden="true"
-        className={styles.cards}
-      >
-        {HERO_CARDS.map((card) => (
-          <Image
-            key={card.src}
-            data-hero-card
-            src={card.src}
-            alt=""
-            width={card.width}
-            height={card.height}
-            sizes={`(max-width: 767px) ${card.mobile.width}vw, (min-width: 1920px) ${Math.ceil((card.width / HERO_WIDTH) * 1920)}px, ${Math.ceil((card.width / HERO_WIDTH) * 100)}vw`}
-            priority
-            quality={90}
-            draggable={false}
-            className={styles.card}
-            style={
-              {
-                "--card-left": `${(card.x / HERO_WIDTH) * 100}%`,
-                "--card-top": `${(card.y / HERO_HEIGHT) * 100}%`,
-                "--card-width": `${(card.width / HERO_WIDTH) * 100}%`,
-                "--card-mobile-left": `${card.mobile.x}%`,
-                "--card-mobile-top": `${card.mobile.y}%`,
-                "--card-mobile-width": `${card.mobile.width}%`,
-              } as CSSProperties
-            }
-          />
-        ))}
+
+        <div className={styles.imageFrame} aria-hidden={!HERO_IMAGE_URL}>
+          {HERO_IMAGE_URL && (
+            <Image
+              src={HERO_IMAGE_URL}
+              alt="Embroidered potli bags"
+              fill
+              priority
+              unoptimized
+              sizes="(max-width: 899px) 76vw, (min-width: 1920px) 652px, 34vw"
+              className={styles.image}
+            />
+          )}
+        </div>
+
+        <div className={styles.intro}>
+          <h2 className={styles.introTitle}>Meet our Potli Bags</h2>
+          <p className={styles.description}>
+            A beautiful home for your thoughtful little gifts. Discover potli bags
+            that bring a touch of tradition and a little more joy to every
+            celebration.
+          </p>
+        </div>
+
+        <Link href="/search?q=potli" className={styles.cta}>
+          <span aria-hidden="true" className={styles.pin} />
+          <span className={styles.ctaEyebrow}>
+            Your next celebration, sorted.
+          </span>
+          <span className={styles.ctaLabel}>Explore Potli Bags</span>
+          <svg
+            aria-hidden="true"
+            className={styles.arrow}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 18 18 6M6 6h12v12" />
+          </svg>
+        </Link>
       </div>
     </section>
   );

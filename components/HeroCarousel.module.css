@@ -1,97 +1,219 @@
-.hero {
-  position: relative;
+﻿.hero {
   width: 100%;
   overflow: hidden;
-  background-color: #ffead5;
-  background-position: center top;
-  background-repeat: no-repeat;
-  /* Crop the artwork's white bottom curve out of the mobile hero. */
-  background-size: auto 110%;
-  color: #6b242c;
-  text-align: center;
+  background: #4b2131;
+  color: #f4ecd9;
 }
 
-.content {
+.canvas {
   position: relative;
-  z-index: 1;
-  min-width: 0;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 1920px;
+  aspect-ratio: 1233 / 619;
   margin-inline: auto;
-  padding: clamp(1.5rem, 7.6vw, 3.5rem) clamp(0.5rem, 5vw, 2rem) 0;
+}
+
+.title,
+.tagline,
+.introTitle {
+  font-family: var(--font-potli-serif), Georgia, serif;
 }
 
 .title {
-  margin: 0;
-  font-size: clamp(1.25rem, 6.6vw, 2.75rem);
-  font-weight: 700;
-  line-height: 1.16;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
-}
-
-.subtitle {
-  max-width: 42ch;
-  margin: clamp(0.75rem, 2.4vw, 1.25rem) auto 0;
-  font-size: clamp(1rem, 3.6vw, 1.375rem);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
-}
-
-/* A separate row lets the text grow without covering the five cards. */
-.cards {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 100 / 30;
-  margin-top: clamp(1rem, 4vw, 2rem);
-  pointer-events: none;
-  user-select: none;
-}
-
-.card {
   position: absolute;
-  top: var(--card-mobile-top);
-  left: var(--card-mobile-left);
-  width: var(--card-mobile-width);
-  height: auto;
+  top: 1.2924%;
+  inset-inline: 0;
+  margin: 0;
+  font-size: 12.9765cqw;
+  font-weight: 300;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+  text-align: center;
 }
 
-@media (min-width: 768px) {
-  .hero {
-    min-height: min(32.0644vw, 615.64px);
-    background-position: center bottom;
-    background-size: cover;
-  }
+.tagline {
+  position: absolute;
+  top: 54.2811%;
+  left: 3.3252%;
+  margin: 0;
+  font-size: 3.2441cqw;
+  font-weight: 300;
+  line-height: 1.1;
+}
 
-  .content {
-    max-width: 1920px;
-    padding: min(7.6vw, 145.92px) 5% min(15.67vw, 300.864px);
+.imageFrame {
+  position: absolute;
+  top: 29.0792%;
+  left: 33.09%;
+  width: 33.9822%;
+  height: 67.3667%;
+  overflow: hidden;
+  border-radius: 50% 50% 0 0;
+}
+
+.image {
+  object-fit: cover;
+}
+
+.intro {
+  position: absolute;
+  top: 49.7577%;
+  left: 73.3982%;
+  width: 20.2758%;
+}
+
+.introTitle {
+  margin: 0;
+  font-size: 1.7843cqw;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.description {
+  margin: 1.4599cqw 0 0;
+  color: #c9b5bc;
+  font-size: max(12px, 1.0543cqw);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.cta {
+  position: absolute;
+  z-index: 1;
+  top: 81.9063%;
+  left: 60.1784%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 0.9732cqw;
+  align-content: center;
+  align-items: center;
+  width: 18.9781%;
+  height: 14.8627%;
+  padding: 1.2165cqw 2.0276cqw 1.2165cqw 2.8386cqw;
+  transform: rotate(5deg);
+  background: #d7dda4;
+  color: #4b2131;
+  text-decoration: none;
+}
+
+.cta:focus-visible {
+  outline: 2px solid #f4ecd9;
+  outline-offset: 5px;
+}
+
+.pin {
+  position: absolute;
+  top: 1.2976cqw;
+  left: 1.2976cqw;
+  width: 0.6488cqw;
+  height: 0.6488cqw;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ctaEyebrow {
+  grid-column: 1 / -1;
+  font-size: 0.5677cqw;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ctaLabel {
+  font-size: 1.2165cqw;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.arrow {
+  width: 1.6221cqw;
+  height: 1.6221cqw;
+}
+
+@media (max-width: 899px) {
+  .canvas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    aspect-ratio: auto;
+    padding: 20px 24px 42px;
   }
 
   .title {
-    font-size: clamp(1.75rem, 3.514vw, 4rem);
-    line-height: 1.2;
+    position: static;
+    font-size: clamp(72px, 16cqw, 140px);
   }
 
-  .subtitle {
-    max-width: none;
-    margin-top: clamp(0.75rem, 1.76vw, 2rem);
-    font-size: clamp(1.125rem, 2.343vw, 2.625rem);
-    line-height: 1.2;
+  .tagline {
+    position: static;
+    align-self: flex-start;
+    margin-top: 26px;
+    font-size: clamp(30px, 5.5cqw, 40px);
   }
 
-  .cards {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    max-width: 1920px;
-    aspect-ratio: 1366 / 438;
-    margin-top: 0;
-    transform: translateX(-50%);
+  .imageFrame {
+    position: relative;
+    top: auto;
+    left: auto;
+    flex: none;
+    width: 84%;
+    max-width: 418px;
+    height: auto;
+    aspect-ratio: 418 / 417;
+    margin-top: 28px;
   }
 
-  .card {
-    top: var(--card-top);
-    left: var(--card-left);
-    width: var(--card-width);
+  .intro {
+    position: static;
+    align-self: flex-end;
+    width: min(100%, 280px);
+    margin-top: 28px;
+  }
+
+  .introTitle {
+    font-size: 24px;
+  }
+
+  .description {
+    margin-top: 16px;
+    font-size: 14px;
+  }
+
+  .cta {
+    position: relative;
+    top: auto;
+    left: auto;
+    align-self: flex-end;
+    flex: none;
+    row-gap: 12px;
+    width: 234px;
+    height: 92px;
+    margin: 32px 4px 0 0;
+    padding: 15px 25px 15px 35px;
+  }
+
+  .pin {
+    top: 16px;
+    left: 16px;
+    width: 8px;
+    height: 8px;
+  }
+
+  .ctaEyebrow {
+    font-size: 7px;
+  }
+
+  .ctaLabel {
+    font-size: 15px;
+  }
+
+  .arrow {
+    width: 20px;
+    height: 20px;
   }
 }

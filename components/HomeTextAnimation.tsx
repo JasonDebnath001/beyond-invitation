@@ -77,7 +77,8 @@ export default function HomeTextAnimation() {
             /view|shop|explore|catalogue|contact|visit|all|products/i.test(
               value
             ) &&
-            !item.closest("[data-home-text-ticker]")
+            !item.closest("[data-home-text-ticker]") &&
+            !item.closest("[data-no-text-motion]")
           );
         });
 

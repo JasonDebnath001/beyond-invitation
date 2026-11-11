@@ -129,6 +129,8 @@ export async function POST(request: NextRequest) {
     // product weight, courier or total supplied by the browser as authoritative.
     const shipping = await quoteCartShipping(products, customer.pincode, {
       refresh: true,
+      ...(body.service !== undefined ? { service: body.service } : {}),
+      ...(body.deliveryLocation !== undefined ? { deliveryLocation: body.deliveryLocation } : {}),
     });
     if (
       body.expectedAmountPaise !== shipping.totalPaise ||

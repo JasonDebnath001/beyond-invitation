@@ -94,3 +94,12 @@
   .primary { width: 100%; }
   .created dl { flex-direction: column; gap: 12px; }
 }
+.created > .quickPickup { display: grid; align-items: stretch; gap: 12px; margin: 18px 0; padding-top: 18px; border-top: 1px solid #dbe3dc; }
+.quickPickup p { margin: 0; }
+.quickStatus { font-weight: 600; }
+.quickForm { display: grid; gap: 14px; padding: 16px; background: #fff; border: 1px solid #dce4de; border-radius: 12px; }
+.quickForm label { display: grid; gap: 8px; font-size: 14px; font-weight: 500; }
+.quickForm select { width: 100%; padding: 11px 12px; border: 1px solid #cfd5d0; border-radius: 8px; background: #fff; color: #25372b; }
+.quickForm .readyCheck { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.readyCheck input { margin-top: 4px; flex: 0 0 auto; }
+.mapLink { display: inline-block; margin: 0 0 18px; font-size: 14px; text-decoration: underline; }

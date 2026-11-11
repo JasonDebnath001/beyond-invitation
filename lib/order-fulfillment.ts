@@ -7,10 +7,14 @@ import {
   createShiprocketOrder,
   getShiprocketOrder,
   getShiprocketPickupLocation,
+  getShiprocketQuickPickupLocation,
+  getShiprocketQuickRates,
+  getShiprocketQuickCouriers,
+  assignShiprocketQuickCourier,
   ShiprocketOrderError,
   type ShiprocketOrderPayload,
 } from "@/lib/shiprocket";
-import type { FulfillmentOrder, FulfillmentState, ShipmentPackage } from "@/lib/fulfillment-types";
+import type { FulfillmentOrder, FulfillmentState, ShipmentPackage, QuickBookingState, QuickFulfillmentQuote } from "@/lib/fulfillment-types";
 
 export type { FulfillmentOrder, ShipmentPackage } from "@/lib/fulfillment-types";
 
@@ -42,6 +46,7 @@ type OrderRow = {
 const ORDER_COLUMNS = "id,created_at,paid_at,payment_status,customer_name,customer_email,customer_phone,shipping_address,notes,items,amount_paise,currency,razorpay_order_id,razorpay_payment_id";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATES: FulfillmentState[] = ["not_created", "creating", "created", "failed", "needs_review"];
+const QUICK_STATES: QuickBookingState[] = ["not_booked", "booking", "pending", "booked", "failed", "needs_review"];
 const object = (value: unknown): Json => value && typeof value === "object" && !Array.isArray(value) ? value as Json : {};
 const string = (value: unknown) => typeof value === "string" ? value : "";
 const positiveId = (value: unknown): number | null => typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
@@ -76,6 +81,29 @@ function fulfillmentState(row: OrderRow): FulfillmentState {
   return STATES.includes(state as FulfillmentState) ? state as FulfillmentState : "needs_review";
 }
 
+function deliveryService(row: OrderRow): "standard" | "quick" {
+  const service = object(row.shipping_address.shippingQuote).service;
+  if (service === undefined || service === "standard") return "standard";
+  if (service === "quick") return "quick";
+  throw new FulfillmentError("INVALID_SERVICE", "The saved delivery service needs review.", 409);
+}
+
+function quickDestination(row: OrderRow) {
+  const point = object(object(row.shipping_address.shippingQuote).deliveryLocation);
+  const { latitude, longitude } = point;
+  if (typeof latitude !== "number" || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+      typeof longitude !== "number" || !Number.isFinite(longitude) || longitude < -180 || longitude > 180)
+    throw new FulfillmentError("QUICK_LOCATION_MISSING", "The saved Quick delivery map location is missing or invalid. Review this order before shipping.", 409);
+  return { latitude, longitude };
+}
+
+function quickBookingState(row: OrderRow): QuickBookingState {
+  const saved = object(row.shipping_address.fulfillment).quickBooking;
+  if (saved === undefined || saved === null) return "not_booked";
+  const state = object(saved).state;
+  return QUICK_STATES.includes(state as QuickBookingState) ? state as QuickBookingState : "needs_review";
+}
+
 function eligibilityError(row: OrderRow): FulfillmentError | null {
   if (row.payment_status !== "paid" || !row.paid_at)
     return new FulfillmentError("NOT_PAID", "Only a captured, paid website order can be sent to Shiprocket.", 409);
@@ -100,6 +128,10 @@ function view(row: OrderRow): FulfillmentOrder {
   const state = fulfillmentState(row);
   const eligibility = eligibilityError(row);
   const quote = object(address.shippingQuote);
+  const quick = quote.service === "quick";
+  const booking = object(saved.quickBooking);
+  let deliveryLocation = null;
+  try { if (quick) deliveryLocation = quickDestination(row); } catch { /* Invalid locations cannot be booked. */ }
   let parcel: ShipmentPackage | null = null;
   try { if (saved.package) parcel = validateShipmentPackage(saved.package); } catch { /* Remains unavailable. */ }
   const mode = address.paymentMode === "test" || address.paymentMode === "live" ? address.paymentMode : "unknown";
@@ -114,13 +146,21 @@ function view(row: OrderRow): FulfillmentOrder {
     notes: row.notes,
     items: row.items.map(({ itemCode, name, quantity, price }) => ({ itemCode, name, quantity, price })),
     shippingAmountPaise: Number.isSafeInteger(quote.amountPaise) ? quote.amountPaise as number : null,
+    deliveryService: quick ? "quick" : "standard", deliveryLocation,
     fulfillment: {
       state, merchantOrderId: merchantOrderId(row.id), package: parcel,
       shiprocketOrderId: positiveId(saved.shiprocketOrderId), shipmentId: positiveId(saved.shipmentId),
       updatedAt: string(saved.updatedAt) || null, error: string(saved.error) || null,
+      quickBooking: quick ? {
+        state: quickBookingState(row), courierId: positiveId(booking.courierId), courierName: string(booking.courierName) || null,
+        awb: string(booking.awb) || null, estimatedRatePaise: Number.isSafeInteger(booking.estimatedRatePaise) ? booking.estimatedRatePaise as number : null,
+        updatedAt: string(booking.updatedAt) || null, error: string(booking.error) || null,
+      } : null,
     },
     canCreateShipment: !eligibility && (state === "not_created" || state === "failed"),
     canReconcileShipment: !eligibility && !!parcel && ["creating", "needs_review", "failed"].includes(state),
+    canBookQuickPickup: !eligibility && quick && !!deliveryLocation && !!parcel && state === "created" &&
+      !!positiveId(saved.shiprocketOrderId) && !!positiveId(saved.shipmentId) && ["not_booked", "failed"].includes(quickBookingState(row)),
     blockedReason: eligibility?.message ?? (state === "creating" || state === "needs_review"
       ? "A creation attempt may already exist in Shiprocket. Check it there and link its order ID; do not create a second shipment." : null),
   };
@@ -207,7 +247,9 @@ function buildPayload(row: OrderRow, parcel: ShipmentPackage, pickup: string): S
   const created = new Date(row.created_at);
   if (!Number.isFinite(created.getTime())) throw new FulfillmentError("DATE_INVALID", "The saved order date is invalid.");
   const [firstName, ...lastName] = row.customer_name.trim().split(/\s+/);
+  const quick = deliveryService(row) === "quick" ? quickDestination(row) : null;
   return {
+    ...(quick ? { latitude: quick.latitude, longitude: quick.longitude, shipping_method: "HL" as const } : {}),
     order_id: merchantOrderId(row.id),
     // Shiprocket accepts local YYYY-MM-DD HH:mm. This store ships within India.
     order_date: new Date(created.getTime() + 330 * 60_000).toISOString().slice(0, 19).replace("T", " "),
@@ -227,7 +269,8 @@ function buildPayload(row: OrderRow, parcel: ShipmentPackage, pickup: string): S
 function providerOrderMatches(row: OrderRow, existing: Awaited<ReturnType<typeof getShiprocketOrder>>) {
   return existing.merchantOrderId === merchantOrderId(row.id) &&
     existing.deliveryPincode === row.shipping_address.pincode &&
-    Math.round(existing.total * 100) === row.amount_paise;
+    Math.round(existing.total * 100) === row.amount_paise &&
+    (deliveryService(row) !== "quick" || existing.shippingMethod === undefined || existing.shippingMethod === "HL");
 }
 
 /** Staff creates the provider order once the cards are ready and the parcel is measured.
@@ -245,8 +288,9 @@ export async function createOrderShipment(id: string, packageInput: unknown): Pr
   // Validate the entire snapshot before any external write or durable claim.
   const payload = buildPayload(row, parcel, "pending-pickup");
   await verifyCapturedPayment(row);
-  try { payload.pickup_location = (await getShiprocketPickupLocation()).name; }
+  try { payload.pickup_location = (await (deliveryService(row) === "quick" ? getShiprocketQuickPickupLocation() : getShiprocketPickupLocation())).name; }
   catch { throw new FulfillmentError("PICKUP_UNAVAILABLE", "The configured Shiprocket pickup location could not be verified. No shipment was created.", 503); }
+  if (deliveryService(row) === "quick") await quickRate(row, parcel);
   const started = new Date().toISOString();
   const attempt: Json = {
     version: 1, state: "creating", attemptId: randomUUID(), merchantOrderId: payload.order_id,
@@ -321,4 +365,147 @@ export async function reconcileOrderShipment(id: string, shiprocketOrderId: unkn
     ...saved, state: "created", shiprocketOrderId: existing.orderId, shipmentId: existing.shipmentId,
     updatedAt: new Date().toISOString(), error: null,
   }));
+}
+
+function quickOrderContext(row: OrderRow) {
+  const blocked = eligibilityError(row);
+  if (blocked) throw blocked;
+  if (deliveryService(row) !== "quick")
+    throw new FulfillmentError("NOT_QUICK_ORDER", "This order uses standard delivery and cannot book a Quick pickup.", 409);
+  quickDestination(row);
+  const saved = object(row.shipping_address.fulfillment);
+  const providerId = positiveId(saved.shiprocketOrderId);
+  const shipmentId = positiveId(saved.shipmentId);
+  if (fulfillmentState(row) !== "created" || !providerId || !shipmentId)
+    throw new FulfillmentError("SHIPMENT_REQUIRED", "Create and verify the Shiprocket order before booking its local pickup.", 409);
+  return { saved, providerId, shipmentId, parcel: validateShipmentPackage(saved.package) };
+}
+
+async function quickRate(row: OrderRow, parcel: ShipmentPackage): Promise<QuickFulfillmentQuote> {
+  const deliveryLocation = quickDestination(row);
+  let rates;
+  try {
+    rates = await getShiprocketQuickRates({ deliveryPincode: string(row.shipping_address.pincode), deliveryLocation, weightKg: parcel.weightKg, cod: false });
+  } catch {
+    throw new FulfillmentError("QUICK_UNAVAILABLE", "Quick availability could not be checked for this packed parcel. Try checking rates again.", 503);
+  }
+  const options = rates.couriers.filter((courier) => typeof courier.rate === "number" && Number.isFinite(courier.rate) && courier.rate >= 0)
+    .sort((a, b) => a.rate - b.rate);
+  if (!options.length)
+    throw new FulfillmentError("QUICK_UNSERVICEABLE", "Shiprocket Quick cannot currently serve this location and packed weight. No pickup was booked.", 422);
+  const amountPaise = Math.round(options[0].rate * 100);
+  if (!Number.isSafeInteger(amountPaise)) throw new FulfillmentError("QUICK_UNAVAILABLE", "The Quick estimate could not be verified.", 503);
+  return { amountPaise, currency: "INR", courierName: options[0].name, weightKg: parcel.weightKg };
+}
+
+async function quickCouriers() {
+  try {
+    const couriers = await getShiprocketQuickCouriers();
+    if (!couriers.length) throw new Error("No hyperlocal couriers");
+    return couriers;
+  } catch {
+    throw new FulfillmentError("QUICK_COURIERS_UNAVAILABLE", "Quick courier options are unavailable. Check your Shiprocket account and try again.", 503);
+  }
+}
+
+async function readLinkedQuickOrder(row: OrderRow, providerId: number, shipmentId: number) {
+  let existing;
+  try { existing = await getShiprocketOrder(providerId); }
+  catch { throw new FulfillmentError("QUICK_LOOKUP_FAILED", "The linked Shiprocket order could not be checked. Check its booking status before taking another action.", 503); }
+  if (!providerOrderMatches(row, existing) || existing.orderId !== providerId || existing.shipmentId !== shipmentId)
+    throw new FulfillmentError("SHIPMENT_MISMATCH", "The linked Shiprocket order, destination, total or shipment does not match. Review it in Shiprocket before booking.", 409);
+  return existing;
+}
+
+export async function quoteQuickPickup(id: string): Promise<{ order: FulfillmentOrder; quote: QuickFulfillmentQuote; couriers: { id: number; name: string }[] }> {
+  const row = await readOrder(id);
+  const { parcel } = quickOrderContext(row);
+  const [quote, couriers] = await Promise.all([quickRate(row, parcel), quickCouriers()]);
+  return { order: view(row), quote, couriers };
+}
+
+/** Claim once before assignment: Quick AWB allocation may dispatch a rider immediately.
+ * An accepted asynchronous response is pending, never evidence of a confirmed booking.
+ */
+export async function bookQuickPickup(id: string, courierInput: unknown, expectedRateInput: unknown): Promise<FulfillmentOrder> {
+  const row = await readOrder(id);
+  const { saved, providerId, shipmentId, parcel } = quickOrderContext(row);
+  if (!["not_booked", "failed"].includes(quickBookingState(row)))
+    throw new FulfillmentError("QUICK_RECONCILIATION_REQUIRED", "A Quick booking may already exist. Use Check booking; do not book another pickup.", 409);
+  const courierId = positiveId(courierInput);
+  if (!courierId || typeof expectedRateInput !== "number" || !Number.isSafeInteger(expectedRateInput) || expectedRateInput < 0)
+    throw new FulfillmentError("INVALID_QUICK_BOOKING", "Check the current Quick estimate and select a courier before booking.", 400);
+  await verifyCapturedPayment(row);
+  const [quote, couriers, existing] = await Promise.all([
+    quickRate(row, parcel), quickCouriers(), readLinkedQuickOrder(row, providerId, shipmentId),
+  ]);
+  const courier = couriers.find((candidate) => candidate.id === courierId);
+  if (!courier) throw new FulfillmentError("INVALID_QUICK_COURIER", "Select a currently available Quick courier or vehicle.", 400);
+  if (quote.amountPaise !== expectedRateInput)
+    throw new FulfillmentError("QUICK_RATE_CHANGED", "The Quick estimate changed. Check rates again and review the new estimate before booking.", 409);
+  if (existing.awb || existing.courierId) {
+    await replaceFulfillment(row, { ...saved, quickBooking: {
+      ...object(saved.quickBooking), state: "needs_review", updatedAt: new Date().toISOString(),
+      error: "Shiprocket already shows a courier assignment. Use Check booking to verify it before any further action.",
+    } });
+    throw new FulfillmentError("QUICK_ALREADY_ASSIGNED", "Shiprocket already shows a courier assignment. Use Check booking to verify it.", 409);
+  }
+  const now = new Date().toISOString();
+  const booking: Json = {
+    state: "booking", attemptId: randomUUID(), courierId, courierName: courier.name,
+    estimatedRatePaise: quote.amountPaise, startedAt: now, updatedAt: now,
+  };
+  const claimed = await replaceFulfillment(row, { ...saved, quickBooking: booking });
+  try {
+    await assignShiprocketQuickCourier(shipmentId, courierId);
+  } catch (error) {
+    const rejected = error instanceof ShiprocketOrderError && error.outcome === "rejected";
+    const message = rejected
+      ? "Shiprocket rejected the Quick booking. Check the order and courier before checking rates again."
+      : "Shiprocket may have received the booking. Use Check booking or review it in Shiprocket; do not book another pickup.";
+    await replaceFulfillment(claimed, { ...saved, quickBooking: { ...booking, state: rejected ? "failed" : "needs_review", updatedAt: new Date().toISOString(), error: message } });
+    throw new FulfillmentError(rejected ? "QUICK_REJECTED" : "QUICK_UNCERTAIN", message, rejected ? 422 : 409);
+  }
+  try {
+    return view(await replaceFulfillment(claimed, { ...saved, quickBooking: {
+      ...booking, state: "pending", updatedAt: new Date().toISOString(),
+      error: "Booking was accepted. Use Check booking to confirm the courier and tracking number.",
+    } }));
+  } catch {
+    throw new FulfillmentError("QUICK_SAVE_PENDING", "Shiprocket accepted the booking, but its progress could not be saved. Refresh and use Check booking; do not book again.", 503);
+  }
+}
+
+/** Read-only at the provider. Never dispatches or retries a rider assignment. */
+export async function refreshQuickBooking(id: string): Promise<FulfillmentOrder> {
+  const row = await readOrder(id);
+  const { saved, providerId, shipmentId } = quickOrderContext(row);
+  const booking = object(saved.quickBooking);
+  const [existing, couriers] = await Promise.all([readLinkedQuickOrder(row, providerId, shipmentId), quickCouriers()]);
+  const selectedId = positiveId(booking.courierId);
+  const actual = couriers.find((courier) => courier.id === existing.courierId);
+  const now = new Date().toISOString();
+  const conflict = (existing.courierId && (!actual || (selectedId && selectedId !== existing.courierId))) || (existing.awb && !actual) ||
+    (string(booking.awb) && existing.awb && booking.awb !== existing.awb);
+  if (conflict) {
+    const message = "The courier or tracking number in Shiprocket differs from this booking. Review it in Shiprocket; another pickup will not be created.";
+    await replaceFulfillment(row, { ...saved, quickBooking: { ...booking, state: "needs_review", updatedAt: now, error: message } });
+    throw new FulfillmentError("QUICK_BOOKING_MISMATCH", message, 409);
+  }
+  if (actual && existing.awb) {
+    return view(await replaceFulfillment(row, { ...saved, quickBooking: {
+      ...booking, state: "booked", courierId: actual.id, courierName: existing.courierName || actual.name,
+      awb: existing.awb, updatedAt: now, error: null,
+    } }));
+  }
+  if (["not_booked", "failed"].includes(quickBookingState(row)) && !existing.courierId) return view(row);
+  return view(await replaceFulfillment(row, { ...saved, quickBooking: {
+    ...booking,
+    // An uncertain or unpersisted attempt remains locked even if the provider
+    // has not yet populated its asynchronous AWB. Never reopen booking here.
+    state: quickBookingState(row) === "booked" ? "needs_review" :
+      ["not_booked", "failed"].includes(quickBookingState(row)) ? "pending" : quickBookingState(row),
+    ...(actual && !selectedId ? { courierId: actual.id, courierName: actual.name } : {}),
+    updatedAt: now, error: "Shiprocket has not confirmed a courier and tracking number yet. Check again or review the existing order in Shiprocket.",
+  } }));
 }

@@ -38,16 +38,19 @@ const sampleItems = [{
 function quoteFor(body, amountPaise = 12345) {
   const subtotalPaise = body.items.reduce((sum, item) => sum + item.quantity * 2000, 0);
   return {
+    service: body.service || "standard",
+    ...(body.deliveryLocation ? { deliveryLocation: body.deliveryLocation } : {}),
     pincode: body.pincode, subtotalPaise, amountPaise, totalPaise: subtotalPaise + amountPaise,
     currency: "INR", weightKg: 2.5, courierId: 1, courierName: "Test Courier",
     estimatedDeliveryDays: 3, expiresAt: Date.now() + 60_000,
   };
 }
 
-async function mount({ initialPincode = "", onQuote, checkout = false, contextOverride } = {}) {
+async function mount({ initialPincode = "", initialSelection, beforeHydration, onQuote, checkout = false, contextOverride } = {}) {
   localStorage.clear();
   localStorage.setItem("beyond-invitation-cart-v2", JSON.stringify(sampleItems));
   if (initialPincode) localStorage.setItem("beyond-invitation-delivery-pincode", initialPincode);
+  if (initialSelection) localStorage.setItem("beyond-invitation-shipping-selection", JSON.stringify(initialSelection));
   const requests = [];
   const timers = new Map();
   let timerId = 0;
@@ -70,21 +73,33 @@ async function mount({ initialPincode = "", onQuote, checkout = false, contextOv
   });
   let context;
   let externalContext = contextOverride;
-  function Probe() { context = provider.useCart(); return null; }
+  function Probe() {
+    context = provider.useCart();
+    React.useLayoutEffect(() => { beforeHydration?.(context); }, []);
+    return null;
+  }
+  const selector = load("components/DeliveryServiceSelector.tsx", {
+    "@/lib/shipping": shippingTypes,
+    "next/dynamic": { __esModule: true, default: () => ({ value, onConfirm, onInvalidate, disabled }) => React.createElement("div", null,
+      React.createElement("button", { type: "button", disabled, "data-testid": "confirm-point", onClick: () => onConfirm({ latitude: 19.076, longitude: 72.8777 }) }, value ? "Delivery location confirmed" : "Confirm delivery location"),
+      React.createElement("button", { type: "button", disabled, "data-testid": "move-point", onClick: onInvalidate }, "Move pin")) },
+  });
   const shared = {
     "next/link": { __esModule: true, default: ({ children, ...props }) => React.createElement("a", props, children) },
     "@/components/CartProvider": contextOverride ? { useCart: () => externalContext } : provider,
     "@/components/useShippingQuote": hook,
+    "@/components/DeliveryServiceSelector": selector,
     "@/components/ProductPrice": { __esModule: true, default: ({ price }) => React.createElement("span", null, `₹${price}`) },
     "@/lib/product-name": { formatProductName: (name) => name },
   };
   const CartPage = load("app/cart/page.tsx", shared).default;
   const paymentCalls = [];
+  let paymentLoading = false;
   const CheckoutPage = load("app/checkout/page.tsx", {
     ...shared,
     "next/navigation": { useRouter: () => ({ push() {} }) },
     "@/components/AuthProvider": { useAuth: () => ({ user: null }) },
-    "@/components/useRazorpayCheckout": { useRazorpayCheckout: () => ({ startCheckout: (args) => paymentCalls.push(args), loading: false }) },
+    "@/components/useRazorpayCheckout": { useRazorpayCheckout: () => ({ startCheckout: (args) => paymentCalls.push(args), loading: paymentLoading }) },
     "@/lib/shipping": shippingTypes,
   }, { fetch: network }).default;
   const container = document.createElement("div");
@@ -100,6 +115,7 @@ async function mount({ initialPincode = "", onQuote, checkout = false, contextOv
     container, requests, paymentCalls, render,
     get context() { return context; },
     async setContext(value) { externalContext = value; await render(true); },
+    async setPaymentLoading(value) { paymentLoading = value; await render(true); },
     async fill(input, value) {
       assert.ok(input, "Expected an input");
       await React.act(async () => {
@@ -107,6 +123,13 @@ async function mount({ initialPincode = "", onQuote, checkout = false, contextOv
         input.dispatchEvent(new window.Event("input", { bubbles: true }));
       });
     },
+    async select(input, value) {
+      await React.act(async () => {
+        Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set.call(input, value);
+        input.dispatchEvent(new window.Event("change", { bubbles: true }));
+      });
+    },
+    async click(element) { assert.ok(element); await React.act(async () => element.click()); },
     async flush({ wait = true } = {}) {
       await React.act(async () => {
         const promises = [];
@@ -151,6 +174,7 @@ test("a late saved pincode never overwrites a customer's checkout edit", async (
   const state = {
     items: sampleItems, totalItems: 50, totalPrice: 1000, clearCart() {},
     deliveryPincode: "", setDeliveryPincode() {},
+    shippingSelection: { service: "standard" }, setShippingSelection() {},
   };
   const ui = await mount({ checkout: true, contextOverride: state });
   try {
@@ -234,12 +258,16 @@ test("a changed shipping price refreshes the quote before any payment window ope
       customer: { pincode: "400001" },
       expectedAmountPaise: 112345,
       expectedShippingAmountPaise: 12345,
+      service: "quick",
+      deliveryLocation: { latitude: 19.076, longitude: 72.8777 },
       onQuoteChanged: () => { refreshes++; },
       onError: (message) => errors.push(message),
     }));
     assert.equal(requests[0].expectedAmountPaise, 112345);
     assert.equal(requests[0].expectedShippingAmountPaise, 12345);
     assert.equal(requests[0].customer.pincode, "400001");
+    assert.equal(requests[0].service, "quick");
+    assert.deepEqual(requests[0].deliveryLocation, { latitude: 19.076, longitude: 72.8777 });
     assert.equal(opened, 0);
     assert.equal(refreshes, 1);
     assert.match(errors[0], /review your updated total/);
@@ -249,4 +277,117 @@ test("a changed shipping price refreshes the quote before any payment window ope
     container.remove();
     window.Razorpay = previousRazorpay;
   }
+});
+
+test("Quick requires a confirmed point, carries into checkout, and address edits invalidate it", async () => {
+  const ui = await mount({ initialPincode: "400001" });
+  try {
+    await ui.flush();
+    await ui.click(ui.container.querySelector('input[value="quick"]'));
+    await ui.flush();
+    assert.equal(ui.requests.length, 1, "Quick cannot quote before a point is confirmed");
+    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
+    await ui.click(ui.container.querySelector('[data-testid="confirm-point"]'));
+    await ui.flush();
+    assert.equal(ui.requests.at(-1).body.service, "quick");
+    const point = { latitude: 19.076, longitude: 72.8777 };
+    assert.deepEqual(ui.requests.at(-1).body.deliveryLocation, point);
+    assert.deepEqual(JSON.parse(localStorage.getItem("beyond-invitation-shipping-selection")), { service: "quick", deliveryLocation: point, pincode: "400001" });
+    await ui.render(true);
+    assert.equal(ui.container.querySelector('input[value="quick"]').checked, true);
+    const pay = [...ui.container.querySelectorAll("button")].find((button) => button.textContent === "Pay Now");
+    assert.equal(pay.disabled, true);
+    await ui.flush();
+    assert.equal(pay.disabled, false);
+    await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "Test delivery address");
+    assert.equal(pay.disabled, true);
+    assert.equal(ui.context.shippingSelection.deliveryLocation, undefined);
+    await ui.fill(ui.container.querySelector('input[placeholder="Full name"]'), "Test customer");
+    await ui.fill(ui.container.querySelector('input[placeholder="Mobile number"]'), "9999999999");
+    await ui.fill(ui.container.querySelector('input[placeholder="Email address"]'), "test@example.com");
+    await ui.select(ui.container.querySelectorAll("select")[0], "Maharashtra");
+    await ui.select(ui.container.querySelectorAll("select")[1], "Mumbai");
+    await ui.click(ui.container.querySelector('[data-testid="confirm-point"]'));
+    await ui.flush();
+    await ui.click(pay);
+    assert.equal(ui.paymentCalls.length, 1);
+    assert.equal(ui.paymentCalls[0].service, "quick");
+    assert.deepEqual(ui.paymentCalls[0].deliveryLocation, point);
+    assert.equal(ui.paymentCalls[0].expectedShippingAmountPaise, 12345, "UI must not add another ₹50");
+    await ui.fill(ui.container.querySelector('input[placeholder="6-digit pincode"]'), "560001");
+    assert.equal(pay.disabled, true);
+    assert.equal(ui.context.shippingSelection.deliveryLocation, undefined);
+  } finally { await ui.close(); }
+});
+
+test("persisted Quick points are restored only for their pincode and never overwrite early edits", async () => {
+  const saved = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, pincode: "400001" };
+  let ui = await mount({ initialPincode: "400001", initialSelection: saved });
+  try {
+    assert.deepEqual(ui.context.shippingSelection, { service: "quick", deliveryLocation: saved.deliveryLocation });
+    await ui.flush();
+    assert.equal(ui.requests[0].body.service, "quick");
+  } finally { await ui.close(); }
+  ui = await mount({ initialPincode: "560001", initialSelection: saved });
+  try {
+    assert.deepEqual(ui.context.shippingSelection, { service: "quick" });
+    await ui.flush();
+    assert.equal(ui.requests.length, 0);
+  } finally { await ui.close(); }
+  ui = await mount({ initialPincode: "400001", initialSelection: saved, beforeHydration: (context) => {
+    context.setDeliveryPincode("560001");
+    context.setShippingSelection({ service: "standard" });
+  } });
+  try {
+    assert.equal(ui.context.deliveryPincode, "560001");
+    assert.deepEqual(ui.context.shippingSelection, { service: "standard" });
+  } finally { await ui.close(); }
+});
+
+test("payment initialization locks address fields, delivery service and map controls", async () => {
+  const point = { latitude: 19.076, longitude: 72.8777 };
+  const ui = await mount({ checkout: true, initialPincode: "400001", initialSelection: { service: "quick", deliveryLocation: point, pincode: "400001" } });
+  try {
+    await ui.flush();
+    await ui.setPaymentLoading(true);
+    for (const input of ui.container.querySelectorAll("input, select, textarea")) {
+      assert.equal(input.matches(":disabled"), true, `${input.getAttribute("placeholder") || input.name || input.tagName} is locked while payment starts`);
+    }
+    await ui.click(ui.container.querySelector('input[value="standard"]'));
+    await ui.click(ui.container.querySelector('[data-testid="move-point"]'));
+    await ui.fill(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]'), "Changed while payment starts");
+    assert.deepEqual(ui.context.shippingSelection, { service: "quick", deliveryLocation: point });
+    assert.equal(ui.container.querySelector('input[placeholder="House / Flat / Building / Street"]').value, "");
+    await ui.setPaymentLoading(false);
+    assert.equal(ui.container.querySelector('input[value="standard"]').matches(":disabled"), false);
+    await ui.click(ui.container.querySelector('input[value="standard"]'));
+    assert.deepEqual(ui.context.shippingSelection, { service: "standard" });
+  } finally { await ui.close(); }
+});
+
+test("changing service or delivery point aborts old quotes and mismatched Quick echoes are rejected", async () => {
+  const pending = [];
+  const ui = await mount({ initialPincode: "400001", onQuote: (body, signal) => new Promise((resolve) => pending.push({ body, signal, resolve })) });
+  try {
+    await ui.flush({ wait: false });
+    await ui.click(ui.container.querySelector('input[value="quick"]'));
+    assert.equal(pending[0].signal.aborted, true);
+    await ui.click(ui.container.querySelector('[data-testid="confirm-point"]'));
+    await ui.flush({ wait: false });
+    await React.act(async () => pending[0].resolve(Response.json({ quote: quoteFor(pending[0].body) })));
+    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
+    await React.act(async () => ui.context.setShippingSelection({ service: "quick", deliveryLocation: { latitude: 19.08, longitude: 72.88 } }));
+    assert.equal(pending[1].signal.aborted, true);
+    await ui.flush({ wait: false });
+    await React.act(async () => pending[1].resolve(Response.json({ quote: quoteFor(pending[1].body) })));
+    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
+    const wrongPoint = { ...quoteFor(pending[2].body), deliveryLocation: { latitude: 19.076, longitude: 72.8777 } };
+    await React.act(async () => pending[2].resolve(Response.json({ quote: wrongPoint })));
+    assert.match(ui.container.textContent, /Shipping could not be calculated/);
+    await ui.click(ui.container.querySelector('input[value="standard"]'));
+    await ui.flush({ wait: false });
+    await React.act(async () => pending[3].resolve(Response.json({ quote: { ...quoteFor(pending[3].body), service: "quick" } })));
+    assert.match(ui.container.textContent, /Shipping could not be calculated/);
+    assert.doesNotMatch(ui.container.querySelector("aside").textContent, /₹123\.45/);
+  } finally { await ui.close(); }
 });

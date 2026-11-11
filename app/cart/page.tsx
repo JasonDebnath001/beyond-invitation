@@ -5,6 +5,7 @@ import Link from "next/link";
 import ProductPrice from "@/components/ProductPrice";
 import { formatProductName } from "@/lib/product-name";
 import { useShippingQuote } from "@/components/useShippingQuote";
+import DeliveryServiceSelector from "@/components/DeliveryServiceSelector";
 
 import {
   useCart,
@@ -21,8 +22,10 @@ export default function CartPage() {
     totalPrice,
     deliveryPincode,
     setDeliveryPincode,
+    shippingSelection,
+    setShippingSelection,
   } = useCart();
-  const shipping = useShippingQuote(items, deliveryPincode);
+  const shipping = useShippingQuote(items, deliveryPincode, shippingSelection);
   const [pincodeTouched, setPincodeTouched] = useState(false);
   const pincodeInvalid = pincodeTouched && !shipping.validPincode;
 
@@ -274,6 +277,8 @@ export default function CartPage() {
             >
               {pincodeInvalid
                 ? "Enter a valid six-digit Indian pincode."
+                : shipping.locationRequired && shipping.validPincode
+                  ? "Pin and confirm your delivery location below to check Shiprocket Quick."
                 : shipping.loading
                   ? "Calculating shipping for your cart…"
                   : shipping.error
@@ -283,6 +288,8 @@ export default function CartPage() {
                       : "Enter your pincode to see the shipping fee."}
             </p>
           </form>
+
+          <DeliveryServiceSelector selection={shippingSelection} onChange={setShippingSelection} pincode={deliveryPincode} />
 
           <div className="mt-5 space-y-3 text-base">
             <div className="flex min-w-0 justify-between gap-4">
@@ -318,7 +325,7 @@ export default function CartPage() {
             </div>
           </div>
           {!shipping.quote && (
-            <p className="mt-3 text-sm text-ink-mid">Your total will include shipping once a valid pincode is checked.</p>
+            <p className="mt-3 text-sm text-ink-mid">Your total will include shipping once your delivery location is checked.</p>
           )}
 
           <Link

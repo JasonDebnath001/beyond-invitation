@@ -49,7 +49,7 @@ function createFixture({
   allowedIds = "",
   serviceError,
 } = {}) {
-  const calls = { authClient: 0, auth: 0, list: [], create: [], reconcile: [] };
+  const calls = { authClient: 0, auth: 0, list: [], create: [], reconcile: [], quickQuote: [], quickBook: [], quickRefresh: [] };
   const auth = loadModule(
     "lib/admin-auth.ts",
     {
@@ -81,6 +81,13 @@ function createFixture({
   }
   const service = {
     FulfillmentError,
+    quoteQuickPickup: async (...args) => {
+      calls.quickQuote.push(args);
+      if (serviceError) throw serviceError;
+      return { order: orderView, quote: { amountPaise: 6500, currency: "INR", courierName: "Shiprocket Quick", weightKg: 2 }, couriers: [{ id: 71, name: "Quick 2 Wheeler" }] };
+    },
+    bookQuickPickup: async (...args) => { calls.quickBook.push(args); if (serviceError) throw serviceError; return orderView; },
+    refreshQuickBooking: async (...args) => { calls.quickRefresh.push(args); if (serviceError) throw serviceError; return orderView; },
     listFulfillmentOrders: async (input) => {
       calls.list.push(input);
       if (serviceError) throw serviceError;
@@ -121,6 +128,7 @@ function createFixture({
     "app/api/admin/orders/[id]/reconcile/route.ts",
     imports,
   );
+  const quick = loadModule("app/api/admin/orders/[id]/quick/route.ts", imports);
   const get = (query = "") => {
     const request = new Request(
       `https://shop.example.test/api/admin/orders${query}`,
@@ -152,12 +160,42 @@ function createFixture({
         body: raw ?? JSON.stringify(body),
       },
     );
-    return (kind === "shipping" ? create : reconcile).POST(request, {
+    return (kind === "shipping" ? create : kind === "quick" ? quick : reconcile).POST(request, {
       params: Promise.resolve({ id }),
     });
   };
   return { calls, auth, service, helper, get, post };
 }
+
+test("Quick quote, booking and refresh require staff authentication and exact origin", async () => {
+  for (const operation of ["quote", "book", "refresh"]) {
+    const anonymous = createFixture({ user: null });
+    assert.equal((await anonymous.post("quick", { operation })).status, 401);
+    assert.equal(anonymous.calls.quickBook.length + anonymous.calls.quickQuote.length + anonymous.calls.quickRefresh.length, 0);
+    const staff = createFixture();
+    for (const origin of [null, "https://evil.example.test"]) {
+      assert.equal((await staff.post("quick", { operation }, { origin })).status, 403);
+    }
+    assert.equal(staff.calls.quickBook.length + staff.calls.quickQuote.length + staff.calls.quickRefresh.length, 0);
+  }
+});
+
+test("Quick route forwards only explicit booking inputs and bounded valid operations", async () => {
+  const fixture = createFixture();
+  const quote = await fixture.post("quick", { operation: "quote", latitude: 1 });
+  assert.equal(quote.status, 200);
+  assert.deepEqual(fixture.calls.quickQuote, [[orderId]]);
+  assert.equal((await quote.json()).quote.amountPaise, 6500);
+  const book = await fixture.post("quick", { operation: "book", courierId: 71, expectedRatePaise: 6500, shipmentId: 999, package: { weightKg: 0.1 } });
+  assert.equal(book.status, 200);
+  assert.deepEqual(fixture.calls.quickBook, [[orderId, 71, 6500]]);
+  assert.match(book.headers.get("Cache-Control"), /no-store/);
+  assert.equal((await fixture.post("quick", { operation: "refresh" })).status, 200);
+  assert.deepEqual(fixture.calls.quickRefresh, [[orderId]]);
+  assert.equal((await fixture.post("quick", { operation: "create" })).status, 400);
+  assert.equal((await fixture.post("quick", { operation: "quote", padding: "x".repeat(10_000) })).status, 413);
+  assert.equal(fixture.calls.quickBook.length, 1);
+});
 
 async function expectStatus(responsePromise, status) {
   const response = await responsePromise;

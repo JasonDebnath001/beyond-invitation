@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DeliveryLocation, ShippingSelection } from "@/lib/shipping";
 
 const SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -92,6 +93,8 @@ interface StartArgs {
   items: CheckoutItem[];
   expectedAmountPaise: number;
   expectedShippingAmountPaise: number;
+  service?: ShippingSelection["service"];
+  deliveryLocation?: DeliveryLocation;
   customer?: CheckoutCustomer;
   onSuccess?: (r: {
     paymentId: string;
@@ -107,21 +110,35 @@ interface StartArgs {
 export function useRazorpayCheckout() {
   const [loading, setLoading] = useState(false);
   const busy = useRef(false);
+  const mounted = useRef(true);
+  const pendingOrder = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      pendingOrder.current?.abort();
+    };
+  }, []);
 
   const reset = useCallback(() => {
-    setLoading(false);
+    if (mounted.current) setLoading(false);
     busy.current = false;
   }, []);
 
   const startCheckout = useCallback(
     async (args: StartArgs) => {
-      if (busy.current) return;
+      if (busy.current || !mounted.current) return;
 
       busy.current = true;
       setLoading(true);
+      const controller = new AbortController();
+      pendingOrder.current = controller;
+      const isCurrent = () => mounted.current && !controller.signal.aborted;
 
       try {
         const ok = await loadRazorpayScript();
+        if (!isCurrent()) { reset(); return; }
 
         if (!ok || !window.Razorpay) {
           throw new Error(
@@ -131,6 +148,7 @@ export function useRazorpayCheckout() {
 
         const orderRes = await fetch("/api/razorpay/order", {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
           },
@@ -139,10 +157,14 @@ export function useRazorpayCheckout() {
             customer: args.customer,
             expectedAmountPaise: args.expectedAmountPaise,
             expectedShippingAmountPaise: args.expectedShippingAmountPaise,
+            service: args.service ?? "standard",
+            ...(args.service === "quick" && args.deliveryLocation ? { deliveryLocation: args.deliveryLocation } : {}),
           }),
         });
 
+        if (!isCurrent()) { reset(); return; }
         const orderData = await orderRes.json();
+        if (!isCurrent()) { reset(); return; }
 
         if (!orderRes.ok) {
           if (orderRes.status === 409) args.onQuoteChanged?.();
@@ -176,7 +198,7 @@ export function useRazorpayCheckout() {
           modal: {
             ondismiss: () => {
               reset();
-              args.onDismiss?.();
+              if (mounted.current) args.onDismiss?.();
             },
           },
           handler: async (response: any) => {
@@ -205,7 +227,9 @@ export function useRazorpayCheckout() {
                 throw new Error("Payment details do not match this checkout. Please contact us with your payment reference.");
               }
 
-              args.onSuccess?.({
+              // Finish verification after navigation, but do not clear a newer cart
+              // or redirect the customer from an abandoned checkout page.
+              if (mounted.current) args.onSuccess?.({
                 paymentId: verifyData.paymentId,
                 websiteOrderId: verifyData.websiteOrderId ?? orderData.websiteOrderId ?? null,
                 paymentPending: !!verifyData.paymentPending,
@@ -213,7 +237,7 @@ export function useRazorpayCheckout() {
                   ? orderData.trackingToken : null,
               });
             } catch (e) {
-              args.onError?.(
+              if (mounted.current) args.onError?.(
                 e instanceof Error
                   ? e.message
                   : "Payment verification failed.",
@@ -226,7 +250,7 @@ export function useRazorpayCheckout() {
 
         rzp.on("payment.failed", (resp: any) => {
           reset();
-          args.onError?.(
+          if (mounted.current) args.onError?.(
             resp?.error?.description ||
               "Payment failed. Please try again.",
           );
@@ -235,11 +259,13 @@ export function useRazorpayCheckout() {
         rzp.open();
       } catch (e) {
         reset();
-        args.onError?.(
+        if (isCurrent()) args.onError?.(
           e instanceof Error
             ? e.message
             : "Something went wrong starting checkout.",
         );
+      } finally {
+        if (pendingOrder.current === controller) pendingOrder.current = null;
       }
     },
     [reset],

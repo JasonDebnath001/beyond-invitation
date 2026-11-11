@@ -39,9 +39,9 @@ function savedAttempt(state = "needs_review") {
   return { version: 1, state, merchantOrderId: reference, attemptId: "private-attempt-id", package: parcel, updatedAt: "2026-11-10T01:00:00.000Z" };
 }
 
-function createFixture({ row = orderSnapshot(), rows, context = { mode: "live", keyId: liveKeyId }, payment = {}, paymentError, pickupError, createError, onCreate, lookup = {}, lookupError, beforeLookup, failWriteNumber, beforeWrite } = {}) {
+function createFixture({ row = orderSnapshot(), rows, context = { mode: "live", keyId: liveKeyId }, payment = {}, paymentError, pickupError, createError, onCreate, lookup = {}, lookupError, beforeLookup, failWriteNumber, beforeWrite, quickRates = [{ name: "Shiprocket Quick", rate: 65 }], quickError, quickCouriers = [{ id: 71, name: "Quick 2 Wheeler" }, { id: 72, name: "Quick 3 Wheeler" }], assignmentError, onAssign } = {}) {
   const stored = new Map((rows ?? [row]).map((item) => [item.id, structuredClone(item)]));
-  const calls = { payments: [], pickups: 0, creates: [], lookups: [], writes: [], selects: [] };
+  const calls = { payments: [], pickups: 0, creates: [], lookups: [], writes: [], selects: [], quickRates: [], quickCouriers: 0, assignments: [], quickPickups: 0 };
   const matches = (item, filters) => filters.every(([operator, key, value]) => {
     if (operator === "lt") return item[key] < value;
     if (key === "shipping_address") return isDeepStrictEqual(item[key], JSON.parse(value));
@@ -114,6 +114,24 @@ function createFixture({ row = orderSnapshot(), rows, context = { mode: "live", 
     },
     "@/lib/shiprocket": {
       ShiprocketOrderError,
+      getShiprocketQuickPickupLocation: async () => {
+        calls.quickPickups++;
+        if (pickupError) throw pickupError;
+        return { id: 99, name: "Configured Office", pincode: "110001", latitude: 28.61, longitude: 77.21 };
+      },
+      getShiprocketQuickRates: async (input) => {
+        calls.quickRates.push(structuredClone(input));
+        if (quickError) throw quickError;
+        return { couriers: quickRates };
+      },
+      getShiprocketQuickCouriers: async () => { calls.quickCouriers++; return quickCouriers; },
+      assignShiprocketQuickCourier: async (shipmentId, courierId) => {
+        calls.assignments.push([shipmentId, courierId]);
+        assert.equal(stored.get(orderId).shipping_address.fulfillment.quickBooking.state, "booking", "Durable booking claim must precede assignment");
+        if (onAssign) await onAssign();
+        if (assignmentError) throw new ShiprocketOrderError("ASSIGNMENT_ERROR", "PRIVATE upstream detail", assignmentError);
+        return { accepted: true, awb: "UNVERIFIED-HINT" };
+      },
       getShiprocketPickupLocation: async () => {
         calls.pickups++;
         if (pickupError) throw pickupError;
@@ -156,6 +174,183 @@ function expectCode(fixture, code) {
     return true;
   };
 }
+
+function quickSnapshot({ created = true, booking, ...overrides } = {}) {
+  const row = orderSnapshot();
+  return orderSnapshot({ ...overrides, shipping_address: {
+    ...row.shipping_address,
+    shippingQuote: { ...row.shipping_address.shippingQuote, service: "quick", courierId: null, deliveryLocation: { latitude: 19.076, longitude: 72.8777 } },
+    ...(created ? { fulfillment: { ...savedAttempt("created"), shiprocketOrderId: 321, shipmentId: 654, ...(booking ? { quickBooking: booking } : {}) } } : {}),
+    ...(overrides.shipping_address ?? {}),
+  } });
+}
+
+test("Quick order creation uses the saved map point, HL route and measured weight without dispatching", async () => {
+  const fixture = createFixture({ row: quickSnapshot({ created: false }) });
+  const order = await fixture.api.createOrderShipment(orderId, parcel);
+  assert.equal(order.deliveryService, "quick");
+  assert.equal(order.fulfillment.quickBooking.state, "not_booked");
+  assert.equal(order.canBookQuickPickup, true);
+  assert.equal(fixture.calls.quickPickups, 1);
+  assert.equal(fixture.calls.pickups, 0);
+  assert.deepEqual(fixture.calls.quickRates, [{ deliveryPincode: "400001", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, weightKg: 2.2, cod: false }]);
+  assert.equal(fixture.calls.creates[0].shipping_method, "HL");
+  assert.equal(fixture.calls.creates[0].latitude, 19.076);
+  assert.equal(fixture.calls.creates[0].longitude, 72.8777);
+  assert.equal(fixture.calls.creates[0].shipping_charges, 55.72, "Paid shipping does not change");
+  assert.equal(fixture.calls.assignments.length, 0);
+});
+
+test("Quick creation fails closed for missing coordinates, pickup coordinates or unavailable service", async () => {
+  for (const [options, code] of [
+    [{ row: quickSnapshot({ created: false, shipping_address: { shippingQuote: { ...orderSnapshot().shipping_address.shippingQuote, service: "quick" } } }) }, "QUICK_LOCATION_MISSING"],
+    [{ row: quickSnapshot({ created: false }), pickupError: new Error("PRIVATE pickup lacks coords") }, "PICKUP_UNAVAILABLE"],
+    [{ row: quickSnapshot({ created: false }), quickRates: [] }, "QUICK_UNSERVICEABLE"],
+    [{ row: quickSnapshot({ created: false }), quickError: new Error("PRIVATE rate failure") }, "QUICK_UNAVAILABLE"],
+  ]) {
+    const fixture = createFixture(options);
+    await assert.rejects(fixture.api.createOrderShipment(orderId, parcel), expectCode(fixture, code));
+    assert.equal(fixture.calls.creates.length, 0);
+    assert.equal(fixture.calls.writes.length, 0);
+  }
+});
+
+test("Quick creation verification and reconciliation reject an explicitly non-HL or malformed provider service", async () => {
+  for (const shippingMethod of ["SR", null]) {
+    const created = createFixture({ row: quickSnapshot({ created: false }), lookup: { shippingMethod } });
+    await assert.rejects(created.api.createOrderShipment(orderId, parcel), expectCode(created, "SHIPMENT_MISMATCH"));
+    assert.equal(created.row.shipping_address.fulfillment.state, "needs_review");
+    assert.equal(created.row.shipping_address.fulfillment.shiprocketOrderId, 321);
+    assert.equal(created.calls.creates.length, 1);
+    assert.equal(created.calls.assignments.length, 0);
+    await assert.rejects(created.api.createOrderShipment(orderId, parcel), expectCode(created, "RECONCILIATION_REQUIRED"));
+    await assert.rejects(created.api.reconcileOrderShipment(orderId, 321), expectCode(created, "SHIPMENT_MISMATCH"));
+    assert.equal(created.calls.creates.length, 1);
+  }
+  const valid = createFixture({ row: quickSnapshot({ created: false }), lookup: { shippingMethod: "HL" } });
+  assert.equal((await valid.api.createOrderShipment(orderId, parcel)).fulfillment.state, "created");
+});
+
+test("Quick quotes use packed weight and never add the customer shipping surcharge again", async () => {
+  const fixture = createFixture({ row: quickSnapshot() });
+  const result = await fixture.api.quoteQuickPickup(orderId);
+  assert.deepEqual(result.quote, { amountPaise: 6500, currency: "INR", courierName: "Shiprocket Quick", weightKg: 2.2 });
+  assert.equal(result.couriers.length, 2);
+  assert.equal(result.order.shippingAmountPaise, 5572);
+  assert.equal(fixture.calls.assignments.length, 0);
+  assert.equal(fixture.calls.writes.length, 0);
+});
+
+test("a valid zero-rupee provider estimate can be reviewed and booked", async () => {
+  const fixture = createFixture({ row: quickSnapshot(), quickRates: [{ name: "Shiprocket Quick", rate: 0 }] });
+  assert.equal((await fixture.api.quoteQuickPickup(orderId)).quote.amountPaise, 0);
+  const result = await fixture.api.bookQuickPickup(orderId, 71, 0);
+  assert.equal(result.fulfillment.quickBooking.state, "pending");
+  assert.equal(result.fulfillment.quickBooking.estimatedRatePaise, 0);
+});
+
+test("Quick booking requires a paid live Quick order, created shipment, current estimate and selected courier", async () => {
+  for (const [options, courier, amount, code] of [
+    [{ row: orderSnapshot({ shipping_address: { fulfillment: { ...savedAttempt("created"), shiprocketOrderId: 321, shipmentId: 654 } } }) }, 71, 6500, "NOT_QUICK_ORDER"],
+    [{ row: quickSnapshot({ payment_status: "pending" }) }, 71, 6500, "NOT_PAID"],
+    [{ row: quickSnapshot({ shipping_address: { paymentMode: "test" } }) }, 71, 6500, "TEST_ORDER"],
+    [{ row: quickSnapshot(), context: { mode: "test", keyId: "rzp_test_current" } }, 71, 6500, "TEST_ENVIRONMENT"],
+    [{ row: quickSnapshot({ created: false }) }, 71, 6500, "SHIPMENT_REQUIRED"],
+    [{ row: quickSnapshot() }, 71, 6400, "QUICK_RATE_CHANGED"],
+    [{ row: quickSnapshot() }, 999, 6500, "INVALID_QUICK_COURIER"],
+    [{ row: quickSnapshot() }, null, 6500, "INVALID_QUICK_BOOKING"],
+    [{ row: quickSnapshot(), payment: { amount_refunded: 1 } }, 71, 6500, "PAYMENT_NOT_ELIGIBLE"],
+    [{ row: quickSnapshot(), lookup: { shipmentId: 999 } }, 71, 6500, "SHIPMENT_MISMATCH"],
+    [{ row: quickSnapshot(), lookup: { shippingMethod: "SR" } }, 71, 6500, "SHIPMENT_MISMATCH"],
+    [{ row: quickSnapshot(), lookup: { shippingMethod: null } }, 71, 6500, "SHIPMENT_MISMATCH"],
+  ]) {
+    const fixture = createFixture(options);
+    await assert.rejects(fixture.api.bookQuickPickup(orderId, courier, amount), expectCode(fixture, code));
+    assert.equal(fixture.calls.assignments.length, 0);
+    assert.equal(fixture.calls.writes.length, 0);
+  }
+});
+
+test("accepted Quick assignment stays pending until matching courier and AWB readback, and cannot replay", async () => {
+  const lookup = {};
+  const fixture = createFixture({ row: quickSnapshot(), lookup });
+  const booked = await fixture.api.bookQuickPickup(orderId, 71, 6500);
+  assert.equal(booked.fulfillment.quickBooking.state, "pending");
+  assert.equal(booked.fulfillment.quickBooking.awb, null, "Immediate response AWB is unverified");
+  assert.equal(booked.canBookQuickPickup, false);
+  await assert.rejects(fixture.api.bookQuickPickup(orderId, 71, 6500), expectCode(fixture, "QUICK_RECONCILIATION_REQUIRED"));
+  const pending = await fixture.api.refreshQuickBooking(orderId);
+  assert.equal(pending.fulfillment.quickBooking.state, "pending");
+  lookup.courierId = 71; lookup.courierName = "Quick 2 Wheeler"; lookup.awb = "AWB-CONFIRMED";
+  const confirmed = await fixture.api.refreshQuickBooking(orderId);
+  assert.equal(confirmed.fulfillment.quickBooking.state, "booked");
+  assert.equal(confirmed.fulfillment.quickBooking.awb, "AWB-CONFIRMED");
+  assert.deepEqual(fixture.calls.assignments, [[654, 71]]);
+  assert.equal(fixture.row.amount_paise, 55572);
+});
+
+test("concurrent Quick booking requests produce exactly one assignment", async () => {
+  const fixture = createFixture({ row: quickSnapshot() });
+  const outcomes = await Promise.allSettled([fixture.api.bookQuickPickup(orderId, 71, 6500), fixture.api.bookQuickPickup(orderId, 72, 6500)]);
+  assert.equal(outcomes.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(fixture.calls.assignments.length, 1);
+  assert.equal(fixture.row.shipping_address.fulfillment.quickBooking.state, "pending");
+});
+
+test("unknown Quick response and failed progress saves never permit another assignment", async () => {
+  for (const [options, code, state] of [
+    [{ assignmentError: "unknown" }, "QUICK_UNCERTAIN", "needs_review"],
+    [{ failWriteNumber: 2 }, "QUICK_SAVE_PENDING", "booking"],
+  ]) {
+    const fixture = createFixture({ row: quickSnapshot(), ...options });
+    await assert.rejects(fixture.api.bookQuickPickup(orderId, 71, 6500), expectCode(fixture, code));
+    assert.equal(fixture.row.shipping_address.fulfillment.quickBooking.state, state);
+    await assert.rejects(fixture.api.bookQuickPickup(orderId, 71, 6500), expectCode(fixture, "QUICK_RECONCILIATION_REQUIRED"));
+    const checked = await fixture.api.refreshQuickBooking(orderId);
+    assert.equal(checked.canBookQuickPickup, false);
+    assert.equal(fixture.calls.assignments.length, 1);
+  }
+});
+
+test("definite Quick rejection allows a new reviewed attempt; existing provider assignment prevents it", async () => {
+  const lookup = {};
+  const fixture = createFixture({ row: quickSnapshot(), lookup, assignmentError: "rejected" });
+  await assert.rejects(fixture.api.bookQuickPickup(orderId, 71, 6500), expectCode(fixture, "QUICK_REJECTED"));
+  assert.equal(fixture.row.shipping_address.fulfillment.quickBooking.state, "failed");
+  const checked = await fixture.api.refreshQuickBooking(orderId);
+  assert.equal(checked.fulfillment.quickBooking.state, "failed");
+  assert.equal(checked.canBookQuickPickup, true);
+  lookup.courierId = 71;
+  await assert.rejects(fixture.api.bookQuickPickup(orderId, 71, 6500), expectCode(fixture, "QUICK_ALREADY_ASSIGNED"));
+  assert.equal(fixture.row.shipping_address.fulfillment.quickBooking.state, "needs_review");
+  assert.equal(fixture.calls.assignments.length, 1);
+});
+
+test("Quick reconciliation verifies the linked order and selected hyperlocal courier before showing booked", async () => {
+  for (const [lookup, code] of [
+    [{ merchantOrderId: "other" }, "SHIPMENT_MISMATCH"],
+    [{ deliveryPincode: "110001" }, "SHIPMENT_MISMATCH"],
+    [{ total: 1 }, "SHIPMENT_MISMATCH"],
+    [{ shipmentId: 55 }, "SHIPMENT_MISMATCH"],
+    [{ courierId: 999, awb: "AWB" }, "QUICK_BOOKING_MISMATCH"],
+    [{ courierId: 72, awb: "AWB" }, "QUICK_BOOKING_MISMATCH"],
+    [{ awb: "AWB" }, "QUICK_BOOKING_MISMATCH"],
+  ]) {
+    const fixture = createFixture({ row: quickSnapshot({ booking: { state: "pending", courierId: 71 } }), lookup });
+    await assert.rejects(fixture.api.refreshQuickBooking(orderId), expectCode(fixture, code));
+    assert.equal(fixture.calls.assignments.length, 0);
+    assert.notEqual(fixture.row.shipping_address.fulfillment.quickBooking.state, "booked");
+  }
+});
+
+test("Quick reconciliation can safely adopt an external hyperlocal booking and never leaks attempt ids", async () => {
+  const fixture = createFixture({ row: quickSnapshot(), lookup: { courierId: 72, awb: "AWB-EXTERNAL" } });
+  const order = await fixture.api.refreshQuickBooking(orderId);
+  assert.equal(order.fulfillment.quickBooking.state, "booked");
+  assert.equal(order.fulfillment.quickBooking.courierId, 72);
+  assert.equal(fixture.calls.assignments.length, 0);
+  assert.doesNotMatch(JSON.stringify(order), /private-attempt-id|attemptId|paymentKeyId/);
+});
 
 test("only a paid live order using its original live Razorpay account is eligible", async () => {
   const scenarios = [

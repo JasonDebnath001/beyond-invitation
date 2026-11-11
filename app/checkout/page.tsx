@@ -9,6 +9,7 @@ import ProductPrice from "@/components/ProductPrice";
 import { formatProductName } from "@/lib/product-name";
 import { useRazorpayCheckout } from "@/components/useRazorpayCheckout";
 import { useShippingQuote } from "@/components/useShippingQuote";
+import DeliveryServiceSelector from "@/components/DeliveryServiceSelector";
 import { isValidIndianPincode } from "@/lib/shipping";
 
 type CheckoutForm = {
@@ -48,14 +49,14 @@ const initialForm: CheckoutForm = {
 };
 
 export default function CheckoutPage() {
-  const { items, totalItems, totalPrice, clearCart, deliveryPincode, setDeliveryPincode } = useCart();
+  const { items, totalItems, totalPrice, clearCart, deliveryPincode, setDeliveryPincode, shippingSelection, setShippingSelection } = useCart();
   const { user } = useAuth();
   const router = useRouter();
   const { startCheckout, loading } = useRazorpayCheckout();
 
   const [form, setForm] = useState<CheckoutForm>(() => ({ ...initialForm, pincode: deliveryPincode }));
   const pincodeEdited = useRef(false);
-  const shipping = useShippingQuote(items, form.pincode);
+  const shipping = useShippingQuote(items, form.pincode, shippingSelection);
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
@@ -176,12 +177,16 @@ export default function CheckoutPage() {
     key: K,
     value: CheckoutForm[K],
   ) {
+    if (loading) return;
     if (key === "pincode") {
       const pincode = value.replace(/\D/g, "").slice(0, 6);
       pincodeEdited.current = true;
       setDeliveryPincode(pincode);
       setForm((current) => ({ ...current, pincode }));
       return;
+    }
+    if (["addressLine1", "addressLine2", "city", "state", "country"].includes(key) && form[key] !== value && shippingSelection.service === "quick") {
+      setShippingSelection({ service: "quick" });
     }
     setForm((prev) => ({
       ...prev,
@@ -190,6 +195,8 @@ export default function CheckoutPage() {
   }
 
   function handleStateChange(value: string) {
+    if (loading) return;
+    if (form.state !== value && shippingSelection.service === "quick") setShippingSelection({ service: "quick" });
     setForm((prev) => ({
       ...prev,
       state: value,
@@ -210,6 +217,7 @@ export default function CheckoutPage() {
     if (!form.city.trim()) return "Please select city.";
     if (!isValidIndianPincode(form.pincode)) return "Please enter a valid six-digit Indian PIN code.";
     if (form.country !== "India") return "Online delivery is currently available within India.";
+    if (shipping.locationRequired) return "Pin and confirm your delivery location for Shiprocket Quick.";
     return "";
   }
 
@@ -230,6 +238,8 @@ export default function CheckoutPage() {
     startCheckout({
       expectedAmountPaise: shipping.quote.totalPaise,
       expectedShippingAmountPaise: shipping.quote.amountPaise,
+      service: shippingSelection.service,
+      deliveryLocation: shippingSelection.service === "quick" ? shippingSelection.deliveryLocation : undefined,
       items: items.map((item) => ({
         itemCode: item.itemCode,
         slug: item.slug,
@@ -319,6 +329,7 @@ export default function CheckoutPage() {
             </p>
           )}
 
+          <fieldset disabled={loading} aria-busy={loading} className="min-w-0 border-0 p-0">
           <div className="mt-6 grid min-w-0 gap-5 md:grid-cols-2">
             <label className="block text-base font-medium text-ink">
               Customer Name *
@@ -482,6 +493,14 @@ export default function CheckoutPage() {
               />
             </label>
           </div>
+          <DeliveryServiceSelector
+            selection={shippingSelection}
+            onChange={setShippingSelection}
+            pincode={form.pincode}
+            disabled={loading}
+            locationResetKey={JSON.stringify([form.addressLine1, form.addressLine2, form.city, form.state, form.country])}
+          />
+          </fieldset>
         </section>
 
         <aside className="h-fit min-w-0 rounded-3xl border border-gold/20 bg-white p-5 shadow-sm lg:sticky lg:top-24">
@@ -531,7 +550,9 @@ export default function CheckoutPage() {
               </div>
 
               <div role="status" aria-live="polite" className={`mt-3 text-sm ${shipping.error ? "text-red-700" : "text-ink-mid"}`}>
-                {shipping.loading
+                {shipping.locationRequired && shipping.validPincode
+                  ? "Pin and confirm the delivery location to calculate Quick shipping."
+                  : shipping.loading
                   ? "Updating shipping for your delivery pincode…"
                   : shipping.error
                     ? shipping.error

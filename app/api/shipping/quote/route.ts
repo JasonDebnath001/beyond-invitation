@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const items = parseCheckoutItems(body?.items);
     const reseller = await getActiveResellerFromCookies();
     const cart = await resolveCartProducts(items, reseller);
-    return json({ quote: await quoteCartShipping(cart, pincode) });
+    return json({ quote: await quoteCartShipping(cart, pincode, { service: body?.service, deliveryLocation: body?.deliveryLocation }) });
   } catch (error) {
     if (error instanceof ShippingQuoteError)
       return json({ error: error.message, code: error.code }, error.status);

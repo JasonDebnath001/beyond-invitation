@@ -11,15 +11,21 @@ const configurationKeys = [
 
 function printHelp() {
   console.log(`Usage: npm run shiprocket:check -- [--pincode <6 digits>] [--weight <kg>]
+       npm run shiprocket:quick:check -- [--pincode <6 digits> --latitude <degrees> --longitude <degrees>] [--weight <kg>]
 
 Checks Shiprocket authentication, the configured pickup location, and prepaid rates.
 Defaults to a 0.5 kg sample delivered to the pickup location's own pincode.
 This is a diagnostic rate sample, not a checkout shipping charge.
 Only authentication and read-only lookup requests are made; no shipment is booked.
+Quick mode checks the saved pickup coordinates. Supply a complete destination to
+also check Quick rates; a successful pickup check alone does not verify Quick access.
 
 Options:
   --pincode  Destination pincode for the rate sample.
   --weight   Positive parcel weight in kilograms (default: 0.5).
+  --quick    Use Shiprocket's documented Hyperlocal / Quick rate lookup.
+  --latitude Destination latitude, required with --pincode in Quick mode.
+  --longitude Destination longitude, required with --pincode in Quick mode.
   --help     Show this help without loading credentials or making requests.`);
 }
 
@@ -28,23 +34,37 @@ function parseArguments(argumentsList) {
   const seen = new Set();
   for (let index = 0; index < argumentsList.length; index++) {
     const flag = argumentsList[index];
-    if (!["--pincode", "--weight"].includes(flag) || seen.has(flag)) {
-      throw new Error("Use --pincode and/or --weight once each. See --help.");
+    if (!["--pincode", "--weight", "--quick", "--latitude", "--longitude"].includes(flag) || seen.has(flag)) {
+      throw new Error("Use each supported option once. See --help.");
     }
     seen.add(flag);
+    if (flag === "--quick") { options.quick = true; continue; }
     const value = argumentsList[++index];
     if (flag === "--pincode") {
       if (!value || !/^[1-9]\d{5}$/.test(value)) {
         throw new Error("Provide a valid six-digit destination pincode.");
       }
       options.deliveryPincode = value;
-    } else {
+    } else if (flag === "--weight") {
       const weightKg = Number(value);
       if (!value || !Number.isFinite(weightKg) || weightKg <= 0) {
         throw new Error("Provide a positive, finite parcel weight in kilograms.");
       }
       options.weightKg = weightKg;
+    } else {
+      const coordinate = Number(value);
+      const limit = flag === "--latitude" ? 90 : 180;
+      if (!value?.trim() || !Number.isFinite(coordinate) || Math.abs(coordinate) > limit) {
+        throw new Error("Provide valid numeric destination coordinates. See --help.");
+      }
+      options[flag.slice(2)] = coordinate;
     }
+  }
+  const hasPoint = options.latitude !== undefined || options.longitude !== undefined;
+  if (!options.quick && hasPoint) throw new Error("Destination coordinates are only used with --quick.");
+  if (options.quick && (options.deliveryPincode || hasPoint) &&
+      (!options.deliveryPincode || options.latitude === undefined || options.longitude === undefined)) {
+    throw new Error("Quick rate checks need --pincode, --latitude and --longitude together.");
   }
   return options;
 }
@@ -77,7 +97,7 @@ function loadShiprocketModule() {
 
 async function main() {
   const argumentsList = process.argv.slice(2);
-  if (argumentsList.length === 1 && ["--help", "-h"].includes(argumentsList[0])) {
+  if (argumentsList.some((argument) => ["--help", "-h"].includes(argument))) {
     printHelp();
     return;
   }
@@ -110,6 +130,30 @@ async function main() {
 
   const shiprocket = loadShiprocketModule();
   try {
+    if (options.quick) {
+      await shiprocket.getShiprocketQuickPickupLocation();
+      console.log("Authentication: successful. Configured pickup has saved map coordinates.");
+      if (!options.deliveryPincode) {
+        console.log("To check Quick access/rates, supply --pincode, --latitude and --longitude for a local delivery address.");
+        console.log("Quick access and booking are not verified by this pickup-only check.");
+        return;
+      }
+      const rates = await shiprocket.getShiprocketQuickRates({
+        deliveryPincode: options.deliveryPincode,
+        deliveryLocation: { latitude: options.latitude, longitude: options.longitude },
+        weightKg: options.weightKg,
+        cod: false,
+      });
+      console.log(`Quick rate options returned: ${rates.couriers.length}.`);
+      if (rates.couriers.length) {
+        const amounts = rates.couriers.map((courier) => courier.rate);
+        console.log(`Raw rate range: INR ${Math.min(...amounts).toFixed(2)}-${Math.max(...amounts).toFixed(2)} (before the website's INR 50 addition).`);
+      } else {
+        console.log("No local delivery rate was returned. Confirm Quick access and destination coverage with Shiprocket.");
+      }
+      console.log("Read-only quote check only. No order, courier assignment or pickup was created.");
+      return;
+    }
     const pickupLocation = await shiprocket.getShiprocketPickupLocation();
     console.log("Authentication: successful.");
     console.log("Pickup location: matched the configured nickname.");

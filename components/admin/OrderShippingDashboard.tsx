@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Check, CircleAlert, LayoutGrid, LoaderCircle, Package, RefreshCw, Search, Truck } from "lucide-react";
-import type { FulfillmentOrder, FulfillmentState, ShipmentPackage } from "@/lib/fulfillment-types";
+import type { FulfillmentOrder, FulfillmentState, ShipmentPackage, QuickFulfillmentQuote, QuickBookingState } from "@/lib/fulfillment-types";
 import workspace from "./ItemDashboard.module.css";
 import styles from "./OrderShipping.module.css";
 
@@ -59,6 +59,91 @@ function ModeBadge({ mode }: { mode: FulfillmentOrder["paymentMode"] }) {
 
 type PackageFields = Record<keyof ShipmentPackage, string>;
 
+const quickLabels: Record<QuickBookingState, string> = {
+  not_booked: "Pickup not booked", booking: "Booking needs confirmation", pending: "Waiting for booking confirmation",
+  booked: "Local pickup booked", failed: "Booking was rejected", needs_review: "Check existing booking",
+};
+
+function QuickPickup({ order, onUpdate, onReload, canManageShipments }: {
+  order: FulfillmentOrder;
+  onUpdate: (order: FulfillmentOrder) => void;
+  onReload: () => Promise<boolean>;
+  canManageShipments: boolean;
+}) {
+  const [quote, setQuote] = useState<QuickFulfillmentQuote | null>(null);
+  const [couriers, setCouriers] = useState<{ id: number; name: string }[]>([]);
+  const [courierId, setCourierId] = useState("");
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [mustRefresh, setMustRefresh] = useState(false);
+  const inFlight = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
+  const booking = order.fulfillment.quickBooking;
+  const state = booking?.state ?? "not_booked";
+  const canBook = canManageShipments && order.canBookQuickPickup && !mustRefresh;
+
+  async function request(operation: "quote" | "book" | "refresh") {
+    if (inFlight.current || !canManageShipments || (operation === "book" && (!canBook || !quote || !courierId || !ready))) return;
+    inFlight.current = true;
+    setBusy(operation);
+    setError("");
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const deadline = setTimeout(() => controller.abort(), 45_000);
+    try {
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(order.id)}/quick`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+        body: JSON.stringify({ operation, ...(operation === "book" ? { courierId: Number(courierId), expectedRatePaise: quote?.amountPaise } : {}) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The Quick booking could not be checked.");
+      if (!result.order || result.order.id !== order.id) throw new Error("The result could not be confirmed. Check the booking again.");
+      onUpdate(result.order);
+      setMustRefresh(false);
+      if (operation === "quote") {
+        if (!result.quote || !Array.isArray(result.couriers)) throw new Error("Quick rates could not be loaded.");
+        setQuote(result.quote); setCouriers(result.couriers); setCourierId(""); setReady(false);
+      } else {
+        setQuote(null); setCouriers([]); setCourierId(""); setReady(false);
+      }
+    } catch (caught) {
+      setQuote(null); setCouriers([]); setCourierId(""); setReady(false);
+      setError(controller.signal.aborted
+        ? "The request timed out. Check the existing booking before taking another action."
+        : caught instanceof Error ? caught.message : "The Quick booking could not be checked.");
+      setMustRefresh(true);
+      if (await onReload()) setMustRefresh(false);
+    } finally {
+      clearTimeout(deadline); setBusy(null); inFlight.current = false;
+    }
+  }
+
+  return <div className={styles.quickPickup} aria-label="Quick local pickup">
+    <h3>Shiprocket Quick</h3>
+    <p className={styles.quickStatus} role="status">{quickLabels[state]}</p>
+    {order.blockedReason && <p className={styles.notice}>{order.blockedReason}</p>}
+    {booking?.error && <p className={styles.notice}>{booking.error}</p>}
+    {booking?.courierName && <p>Courier: <strong>{booking.courierName}</strong></p>}
+    {booking?.awb && <p>Tracking number: <strong>{booking.awb}</strong></p>}
+    {error && <p role="alert" className={styles.error}>{error}</p>}
+    {!canManageShipments && <p className={styles.help}><Link href="/sign-in?next=%2Fadmin%2Forders">Sign in to manage local pickups.</Link></p>}
+    {canBook && <>
+      <p>Check the current estimate for the measured parcel, then select a local courier or vehicle. Booking can assign a rider immediately.</p>
+      <button type="button" className={styles.secondary} disabled={!!busy} onClick={() => void request("quote")}>{busy === "quote" ? "Checking rates..." : "Check Quick rates"}</button>
+    </>}
+    {canBook && quote && <form className={styles.quickForm} onSubmit={(event) => { event.preventDefault(); void request("book"); }}>
+      <p><strong>Quick estimate: {money(quote.amountPaise)}</strong> for {quote.weightKg} kg.</p>
+      <p className={styles.help}>This is a general Quick estimate, not a price for each vehicle. Final charges depend on the selected courier. The customer&apos;s payment stays unchanged.</p>
+      <label>Local courier / vehicle<select required value={courierId} disabled={!!busy} onChange={(event) => setCourierId(event.target.value)}><option value="">Select a courier or vehicle</option>{couriers.map((courier) => <option key={courier.id} value={courier.id}>{courier.name}</option>)}</select></label>
+      <label className={styles.readyCheck}><input type="checkbox" checked={ready} disabled={!!busy} onChange={(event) => setReady(event.target.checked)} />The parcel is packed and ready for pickup.</label>
+      <button type="submit" className={styles.primary} disabled={!!busy || !courierId || !ready}>{busy === "book" ? "Booking pickup..." : "Book local pickup"}</button>
+    </form>}
+    {canManageShipments && !order.blockedReason && <button type="button" className={styles.secondary} disabled={!!busy} onClick={() => void request("refresh")}>{busy === "refresh" ? "Checking booking..." : "Check booking"}</button>}
+  </div>;
+}
+
 function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
   order: FulfillmentOrder;
   onUpdate: (order: FulfillmentOrder) => void;
@@ -111,7 +196,7 @@ function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
       if (!result.order || result.order.id !== order.id) throw new Error("The result could not be confirmed. Refresh the order status.");
       onUpdate(result.order);
       setMustRefresh(false);
-      setSuccess(action === "create" ? "Order created in Shiprocket. It is ready for courier selection there." : "Existing Shiprocket order linked successfully.");
+      setSuccess(action === "create" ? result.order.deliveryService === "quick" ? "Quick order created. Book its local pickup when the parcel is ready." : "Order created in Shiprocket. It is ready for courier selection there." : "Existing Shiprocket order linked successfully.");
     } catch (caught) {
       setError(controller.signal.aborted
         ? "The request did not finish in time. Refresh the status and check Shiprocket before trying again."
@@ -155,11 +240,13 @@ function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
       <div><dt>Payment</dt><dd>{order.paymentStatus === "paid" ? "Paid" : "Pending"} · {money(order.amountPaise, order.currency)}</dd></div>
       <div><dt>Placed</dt><dd>{orderDate(order.createdAt)}</dd></div>
       <div><dt>Shipping status</dt><dd>{states[order.fulfillment.state]}</dd></div>
+      <div><dt>Delivery service</dt><dd>{order.deliveryService === "quick" ? "Shiprocket Quick" : "Standard delivery"}</dd></div>
     </dl>
     <div className={styles.recipientGrid}>
       <div><h3>Delivery address</h3><p>{order.address.addressLine1}<br />{order.address.addressLine2 && <>{order.address.addressLine2}<br /></>}{order.address.city}, {order.address.state} {order.address.pincode}<br />{order.address.country}</p></div>
       <div><h3>Contact</h3><p>{order.customer.phone}<br /><span className={styles.email}>{order.customer.email}</span></p></div>
     </div>
+    {canManageShipments && order.deliveryService === "quick" && order.deliveryLocation && <a className={styles.mapLink} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.deliveryLocation.latitude},${order.deliveryLocation.longitude}`)}`} target="_blank" rel="noreferrer">View customer&apos;s delivery pin</a>}
     <div className={styles.items}>
       {order.items.map((item, index) => <div key={`${item.itemCode}-${index}`}>
         <span><strong>{item.name}</strong><small>{item.itemCode} · {item.quantity} pcs</small></span>
@@ -176,7 +263,7 @@ function OrderDetails({ order, onUpdate, onReload, canManageShipments }: {
     {isCreated ? <div className={styles.created}>
       <div><Check size={20} /><h3>Created in Shiprocket</h3></div>
       <dl><div><dt>Shiprocket order ID</dt><dd>{order.fulfillment.shiprocketOrderId}</dd></div><div><dt>Shipment ID</dt><dd>{order.fulfillment.shipmentId}</dd></div></dl>
-      <p>Select the courier and arrange pickup in Shiprocket when the parcel is ready.</p>
+      {order.deliveryService === "quick" ? <QuickPickup order={order} onUpdate={onUpdate} onReload={onReload} canManageShipments={canManageShipments} /> : <p>Select the courier and arrange pickup in Shiprocket when the parcel is ready.</p>}
       <a href="https://app.shiprocket.in/" target="_blank" rel="noreferrer" className={styles.secondary}>Open Shiprocket</a>
     </div> : <>
       {order.blockedReason && <p className={styles.notice}>{order.blockedReason}</p>}

@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import type { Product } from "@/types";
-import { isValidIndianPincode } from "@/lib/shipping";
+import { isValidIndianPincode, isValidDeliveryLocation, type ShippingSelection } from "@/lib/shipping";
 import {
   getProductQuantityRules,
   normalizeProductQuantity,
@@ -75,6 +75,7 @@ type CartAction =
  */
 const STORAGE_KEY = "beyond-invitation-cart-v2";
 const PINCODE_STORAGE_KEY = "beyond-invitation-delivery-pincode";
+const SHIPPING_STORAGE_KEY = "beyond-invitation-shipping-selection";
 
 function cartReducer(
   state: CartState,
@@ -213,6 +214,8 @@ interface CartContextValue {
   items: CartItem[];
   deliveryPincode: string;
   setDeliveryPincode: (pincode: string) => void;
+  shippingSelection: ShippingSelection;
+  setShippingSelection: (selection: ShippingSelection) => void;
 
   addItem: (
     product: CartProduct,
@@ -252,15 +255,40 @@ export function CartProvider({
   const [deliveryPincode, setPincode] = useState("");
   const [pincodeHydrated, setPincodeHydrated] = useState(false);
   const pincodeEdited = useRef(false);
+  const [shippingSelection, setSelection] = useState<ShippingSelection>({ service: "standard" });
+  const selectionEdited = useRef(false);
+  const currentPincode = useRef("");
+  const setShippingSelection = useCallback((selection: ShippingSelection) => {
+    selectionEdited.current = true;
+    setSelection(selection.service === "quick" ? {
+      service: "quick",
+      ...(isValidDeliveryLocation(selection.deliveryLocation) ? { deliveryLocation: { ...selection.deliveryLocation } } : {}),
+    } : { service: "standard" });
+  }, []);
   const setDeliveryPincode = useCallback((pincode: string) => {
     pincodeEdited.current = true;
-    setPincode(pincode.replace(/\D/g, "").slice(0, 6));
+    const next = pincode.replace(/\D/g, "").slice(0, 6);
+    if (next !== currentPincode.current) {
+      selectionEdited.current = true;
+      setSelection((selection) => ({ service: selection.service }));
+    }
+    currentPincode.current = next;
+    setPincode(next);
   }, []);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PINCODE_STORAGE_KEY);
-      if (!pincodeEdited.current && saved && isValidIndianPincode(saved)) setPincode(saved);
+      if (!pincodeEdited.current && saved && isValidIndianPincode(saved)) {
+        currentPincode.current = saved;
+        setPincode(saved);
+      }
+      const storedSelection = JSON.parse(localStorage.getItem(SHIPPING_STORAGE_KEY) || "null");
+      if (!selectionEdited.current && storedSelection?.service === "quick") {
+        const locationMatches = storedSelection.pincode === saved && isValidIndianPincode(saved) &&
+          isValidDeliveryLocation(storedSelection.deliveryLocation);
+        setSelection({ service: "quick", ...(locationMatches ? { deliveryLocation: storedSelection.deliveryLocation } : {}) });
+      }
     } catch {
       // The current session still remembers the pincode when storage is unavailable.
     }
@@ -279,6 +307,13 @@ export function CartProvider({
       // Storage may be unavailable in private browsing.
     }
   }, [deliveryPincode, pincodeHydrated]);
+
+  useEffect(() => {
+    if (!pincodeHydrated) return;
+    try {
+      localStorage.setItem(SHIPPING_STORAGE_KEY, JSON.stringify({ ...shippingSelection, pincode: deliveryPincode }));
+    } catch { /* The current session still keeps the delivery selection. */ }
+  }, [shippingSelection, deliveryPincode, pincodeHydrated]);
 
   useEffect(() => {
     try {
@@ -338,6 +373,8 @@ export function CartProvider({
     items: state.items,
     deliveryPincode,
     setDeliveryPincode,
+    shippingSelection,
+    setShippingSelection,
 
     addItem: (product, quantity) => {
       const defaultQuantity = getProductQuantityRules(product).minimum;

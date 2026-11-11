@@ -11,6 +11,8 @@ const samplePickup = {
   status: 2,
 };
 const sampleQuote = { deliveryPincode: "400001", weightKg: 0.5 };
+const quickPickup = { ...samplePickup, lat: "28.509223937988", long: "77.067848205566" };
+const quickQuote = { deliveryPincode: "110002", deliveryLocation: { latitude: 28.50724220275879, longitude: 77.06745147705078 }, weightKg: 2 };
 const fakeCredentials = {
   SHIPROCKET_EMAIL: "shipping-api@example.test",
   SHIPROCKET_PASSWORD: "private-test-password",
@@ -19,10 +21,10 @@ const fakeCredentials = {
 
 // Each test gets isolated env, clock and network boundaries. No request can
 // escape this mock or reach the seller's real account.
-function createClient({ env = {}, onAuth, onPickup, onRates, onCreate, onOrder, onTracking } = {}) {
+function createClient({ env = {}, onAuth, onPickup, onRates, onCreate, onOrder, onTracking, onCouriers, onAssign } = {}) {
   const calls = [];
   let now = 1_800_000_000_000;
-  const counts = { auth: 0, pickup: 0, rates: 0, create: 0, order: 0, tracking: 0 };
+  const counts = { auth: 0, pickup: 0, rates: 0, create: 0, order: 0, tracking: 0, couriers: 0, assign: 0 };
   const fetchStub = async (input, options = {}) => {
     const url = new URL(input);
     assert.equal(url.origin, "https://apiv2.shiprocket.in");
@@ -66,6 +68,17 @@ function createClient({ env = {}, onAuth, onPickup, onRates, onCreate, onOrder, 
         counts.tracking++;
         assert.equal(options.method, "GET");
         return onTracking ? onTracking(call, counts) : Response.json(sampleTracking);
+      case "/v1/external/courier/courierListWithCounts":
+        counts.couriers++;
+        assert.equal(options.method, "GET");
+        return onCouriers ? onCouriers(call, counts) : Response.json({ courier_data: [
+          { id: 9001, name: "Quick Test 2W", is_hyperlocal: 1 },
+          { id: 42, name: "Standard Test", is_hyperlocal: 0 },
+        ] });
+      case "/v1/external/courier/assign/awb":
+        counts.assign++;
+        assert.equal(options.method, "POST");
+        return onAssign ? onAssign(call, counts) : Response.json({ success: true });
       default:
         assert.fail(`Unexpected endpoint in Shiprocket client: ${url.pathname}`);
     }
@@ -107,6 +120,111 @@ test("missing required settings fail locally without exposing configuration valu
     const client = createClient({ env: { [key]: "" } });
     await assert.rejects(client.api.getShiprocketPickupLocation(), safeError(client.api));
     assert.equal(client.calls.length, 0);
+  }
+});
+
+test("Quick pickup reads exact saved coordinates and exposes no address/contact data", async () => {
+  const client = createClient({ onPickup: () => Response.json({ data: { shipping_address: [
+    { ...quickPickup, address: "UPSTREAM-PRIVATE", phone: "9999999999", email: "private-test@example.test" },
+    { ...quickPickup, id: 124, pickup_location: "Another warehouse", lat: 19.01, long: 72.01 },
+  ] } }) });
+  assert.deepEqual(await client.api.getShiprocketQuickPickupLocation(), {
+    id: 123, name: "Test Office", pincode: "110001", latitude: 28.509223937988, longitude: 77.067848205566,
+  });
+  assert.equal(client.counts.rates, 0);
+});
+
+test("Quick quotes reject invalid pincode, weight, coordinates or COD before network access", async () => {
+  const inputs = [null, {}, { ...quickQuote, deliveryPincode: "000001" },
+    ...[0, -1, Infinity, NaN, "2", 1000.01].map((weightKg) => ({ ...quickQuote, weightKg })),
+    ...[null, {}, { latitude: "28.5", longitude: 77 }, { latitude: 28.5, longitude: "77" },
+      { latitude: 91, longitude: 77 }, { latitude: -91, longitude: 77 },
+      { latitude: 28, longitude: 181 }, { latitude: 28, longitude: -181 },
+      { latitude: NaN, longitude: 77 }, { latitude: 28, longitude: Infinity },
+    ].map((deliveryLocation) => ({ ...quickQuote, deliveryLocation })),
+    { ...quickQuote, cod: 1 },
+  ];
+  for (const input of inputs) {
+    const client = createClient();
+    await assert.rejects(client.api.getShiprocketQuickRates(input), (error) => {
+      assert.equal(error.code, "INVALID_INPUT"); return safeError(client.api)(error);
+    });
+    assert.equal(client.calls.length, 0);
+  }
+});
+
+test("Quick does not substitute zero or pincode coordinates for missing/invalid saved pickup coordinates", async () => {
+  for (const point of [{}, { lat: null, long: 77 }, { lat: "", long: 77 }, { lat: " ", long: 77 },
+    { lat: true, long: 77 }, { lat: [], long: 77 }, { lat: "0x1", long: 77 }, { lat: 28, long: undefined },
+    { lat: 91, long: 77 }, { lat: 28, long: -181 }]) {
+    const client = createClient({ onPickup: () => Response.json({ data: { shipping_address: [{ ...samplePickup, ...point }] } }) });
+    await assert.rejects(client.api.getShiprocketQuickRates(quickQuote), (error) => {
+      assert.equal(error.code, "QUICK_PICKUP_LOCATION_MISSING"); return safeError(client.api)(error);
+    });
+    assert.equal(client.counts.rates, 0);
+  }
+});
+
+test("Quick uses documented geographic serviceability parameters and does not invent courier IDs", async () => {
+  const client = createClient({ onPickup: () => Response.json({ data: { shipping_address: [quickPickup] } }),
+    onRates: (call) => {
+      assert.deepEqual(Object.fromEntries(call.url.searchParams), {
+        pickup_postcode: "110001", delivery_postcode: "110002", weight: "2", cod: "1", is_new_hyperlocal: "1",
+        lat_from: "28.509223937988", long_from: "77.067848205566", lat_to: "28.50724220275879", long_to: "77.06745147705078",
+      });
+      return Response.json({ status: true, data: [{ courier_name: "Shiprocket Quick", rates: "345.3", private: "UPSTREAM-PRIVATE" }] });
+    },
+  });
+  const result = await client.api.getShiprocketQuickRates({ ...quickQuote, cod: true });
+  assert.deepEqual(result, {
+    pickupLocation: { id: 123, name: "Test Office", pincode: "110001", latitude: 28.509223937988, longitude: 77.067848205566 },
+    ...quickQuote, cod: true, currency: "INR", couriers: [{ name: "Shiprocket Quick", rate: 345.3 }],
+  });
+  assert.equal(client.calls.filter((call) => call.options.method === "POST").length, 1, "Only authentication may POST");
+  assert.equal(client.counts.create, 0);
+  assert.doesNotMatch(JSON.stringify(result), /UPSTREAM-PRIVATE|courierId|estimatedDelivery/);
+});
+
+test("Quick accepts an empty successful rate list and preserves explicit numeric zero coordinates", async () => {
+  const client = createClient({
+    onPickup: () => Response.json({ data: { shipping_address: [{ ...samplePickup, lat: "0", long: 0 }] } }),
+    onRates: () => Response.json({ status: true, data: [] }),
+  });
+  const result = await client.api.getShiprocketQuickRates({ ...quickQuote, deliveryLocation: { latitude: 0, longitude: 0 } });
+  assert.deepEqual(result.couriers, []);
+  assert.equal(result.cod, false);
+  assert.equal(result.pickupLocation.latitude, 0);
+  assert.equal(result.deliveryLocation.longitude, 0);
+});
+
+test("Quick rejects ordinary courier responses, malformed shapes and failed payloads", async () => {
+  const badResponses = [
+    { status: 200, data: { available_courier_companies: [] } },
+    { data: [] }, { status: true, data: null }, { status: false, data: [] },
+    { status: true, error: "UPSTREAM-PRIVATE", data: [] },
+    { status: true, errors: ["UPSTREAM-PRIVATE"], data: [] },
+    { status: true, currency: "USD", data: [] },
+    { status: true, data: Array.from({ length: 101 }, () => ({ courier_name: "Quick", rates: "10" })) },
+    ...[null, {}, { courier_name: "Quick", rate: 345.3 }, { courier_name: "", rates: "345.3" },
+      { courier_name: "x".repeat(161), rates: "345.3" }, { courier_name: "Quick\u0000bad", rates: "345.3" },
+      ...[-1, null, true, "", "0x10", "NaN", "Infinity", 21_474_836.48].map((rates) => ({ courier_name: "Quick", rates })),
+    ].map((value) => ({ status: true, data: [value] })),
+  ];
+  for (const body of badResponses) {
+    const client = createClient({ onPickup: () => Response.json({ data: { shipping_address: [quickPickup] } }), onRates: () => Response.json(body) });
+    await assert.rejects(client.api.getShiprocketQuickRates(quickQuote), safeError(client.api));
+  }
+});
+
+test("Quick provider failures remain safe and never mutate shipments", async () => {
+  for (const status of [403, 404, 429, 500]) {
+    const client = createClient({ onPickup: () => Response.json({ data: { shipping_address: [quickPickup] } }),
+      onRates: () => Response.json({ message: "UPSTREAM-PRIVATE" }, { status }),
+    });
+    await assert.rejects(client.api.getShiprocketQuickRates(quickQuote), (error) => {
+      assert.equal(error.httpStatus, status); return safeError(client.api)(error);
+    });
+    assert.equal(client.counts.create, 0);
   }
 });
 
@@ -400,6 +518,200 @@ test("duplicate merchant references require linking the existing order instead o
 test("creation returns only known status labels and identifiers", async () => {
   const client = createClient({ onCreate: () => Response.json({ order_id: 456, shipment_id: 789, status: "UPSTREAM-PRIVATE" }) });
   assert.deepEqual(await client.api.createShiprocketOrder(sampleOrder), { orderId: 456, shipmentId: 789 });
+});
+
+test("Quick order creation sends the exact delivery point and HL shipping method", async () => {
+  for (const point of [{ latitude: 28.50724, longitude: 77.06745 }, { latitude: 0, longitude: 0 }]) {
+    const payload = { ...sampleOrder, ...point, shipping_method: "HL" };
+    const client = createClient({ onCreate: (call) => {
+      assert.deepEqual(JSON.parse(call.options.body), payload);
+      return Response.json({ order_id: 456, shipment_id: 789 });
+    } });
+    await client.api.createShiprocketOrder(payload);
+    assert.equal(client.counts.create, 1);
+    assert.equal(client.counts.assign, 0);
+  }
+});
+
+test("Quick coordinates must be a complete numeric pair and HL requires that pair before auth", async () => {
+  for (const patch of [{ latitude: 28 }, { longitude: 77 }, { latitude: "28", longitude: 77 },
+    { latitude: 28, longitude: "77" }, { latitude: null, longitude: null },
+    { latitude: 91, longitude: 77 }, { latitude: 28, longitude: 181 },
+    { latitude: NaN, longitude: 77 }, { latitude: 28, longitude: Infinity },
+    { shipping_method: "HL" }, { shipping_method: "SR_QUICK", latitude: 28, longitude: 77 }]) {
+    const client = createClient();
+    await assert.rejects(client.api.createShiprocketOrder({ ...sampleOrder, ...patch }), createError(client.api, "rejected", "INVALID_INPUT"));
+    assert.equal(client.calls.length, 0);
+  }
+});
+
+test("Quick courier catalog uses explicit hyperlocal flags and returns only current IDs and names", async () => {
+  const client = createClient({ onCouriers: (call) => {
+    assert.equal(call.headers.get("authorization"), "Bearer private-test-token-1");
+    assert.equal(call.url.search, "");
+    return Response.json({ courier_data: [
+      { id: "9003", name: "Quick C", is_hyperlocal: "1", phone: "UPSTREAM-PRIVATE" },
+      { id: 9001, name: "Quick A", is_hyperlocal: true },
+      { id: 9002, name: "Quick B", is_hyperlocal: 1 },
+      ...[false, 0, "0", "true", undefined, null].map((is_hyperlocal, index) => ({ id: index + 100, name: "Quick in name only", is_hyperlocal })),
+    ] });
+  } });
+  assert.deepEqual(await client.api.getShiprocketQuickCouriers(), [
+    { id: 9001, name: "Quick A" }, { id: 9002, name: "Quick B" }, { id: 9003, name: "Quick C" },
+  ]);
+  assert.equal(client.counts.assign, 0);
+});
+
+test("Quick courier catalog rejects malformed candidates without sending a booking", async () => {
+  for (const body of [{}, { courier_data: {} }, { courier_data: [null] },
+    { courier_data: [{ id: 0, name: "Quick", is_hyperlocal: 1 }] },
+    { courier_data: [{ id: Number.MAX_SAFE_INTEGER + 1, name: "Quick", is_hyperlocal: 1 }] },
+    { courier_data: [{ id: 9001, name: "Quick\n", is_hyperlocal: 1 }] },
+    { courier_data: [{ id: 9001, name: "", is_hyperlocal: 1 }] },
+    { courier_data: [{ id: 9001, name: "Quick", is_hyperlocal: 1 }, { id: 9001, name: "Another", is_hyperlocal: 1 }] },
+    { courier_data: [], errors: { permission: "UPSTREAM-PRIVATE" } }]) {
+    const client = createClient({ onCouriers: () => Response.json(body) });
+    await assert.rejects(client.api.getShiprocketQuickCouriers(), safeError(client.api));
+    assert.equal(client.counts.assign, 0);
+  }
+  const empty = createClient({ onCouriers: () => Response.json({ courier_data: [] }) });
+  assert.deepEqual(await empty.api.getShiprocketQuickCouriers(), []);
+});
+
+test("Quick assignment validates numeric IDs before auth and rejects standard or stale courier IDs", async () => {
+  for (const ids of [[0, 9001], [789, -1], ["789", 9001], [789, "9001"], [NaN, 9001], [789, Number.MAX_SAFE_INTEGER + 1]]) {
+    const client = createClient();
+    await assert.rejects(client.api.assignShiprocketQuickCourier(...ids), createError(client.api, "rejected", "INVALID_INPUT"));
+    assert.equal(client.calls.length, 0);
+  }
+  for (const courierId of [42, 9999]) {
+    const client = createClient();
+    await assert.rejects(client.api.assignShiprocketQuickCourier(789, courierId), createError(client.api, "rejected", "QUICK_COURIER_UNAVAILABLE"));
+    assert.equal(client.counts.assign, 0);
+  }
+  const changed = createClient({ onCouriers: (_, counts) => Response.json({ courier_data: counts.couriers === 1
+    ? [{ id: 9001, name: "Quick", is_hyperlocal: 1 }] : [] }) });
+  await changed.api.getShiprocketQuickCouriers();
+  await assert.rejects(changed.api.assignShiprocketQuickCourier(789, 9001), createError(changed.api, "rejected", "QUICK_COURIER_UNAVAILABLE"));
+  assert.equal(changed.counts.couriers, 2);
+  assert.equal(changed.counts.assign, 0);
+});
+
+test("Quick booking preparation failures are definite rejections with no write", async () => {
+  for (const overrides of [
+    { onAuth: () => Response.json({ message: "UPSTREAM-PRIVATE" }, { status: 401 }) },
+    { onAuth: () => { throw new Error("UPSTREAM-PRIVATE private-test-password"); } },
+    { onCouriers: () => Response.json({ message: "UPSTREAM-PRIVATE" }, { status: 403 }) },
+    { onCouriers: () => { throw new DOMException("UPSTREAM-PRIVATE", "TimeoutError"); } },
+  ]) {
+    const client = createClient(overrides);
+    await assert.rejects(client.api.assignShiprocketQuickCourier(789, 9001), createError(client.api, "rejected"));
+    assert.equal(client.counts.assign, 0);
+  }
+});
+
+test("Quick booking sends one explicit courier and treats asynchronous success as accepted pending", async () => {
+  const client = createClient({ onAssign: (call) => {
+    assert.equal(call.headers.get("authorization"), "Bearer private-test-token-1");
+    assert.equal(call.headers.get("content-type"), "application/json");
+    assert.deepEqual(JSON.parse(call.options.body), { shipment_id: 789, courier_id: 9001 });
+    return Response.json({ success: true, message: "We are processing your request" });
+  } });
+  assert.deepEqual(await client.api.assignShiprocketQuickCourier(789, 9001), { accepted: true, awb: null });
+  assert.deepEqual(client.calls.map((call) => call.url.pathname), [
+    "/v1/external/auth/login", "/v1/external/courier/courierListWithCounts", "/v1/external/courier/assign/awb",
+  ]);
+  assert.equal(client.counts.assign, 1);
+  assert.equal(client.counts.create, 0);
+});
+
+test("Quick assignment accepts a synchronous AWB only when both returned IDs match", async () => {
+  const client = createClient({ onAssign: () => Response.json({ awb_assign_status: 1, response: { data: {
+    shipment_id: "789", courier_company_id: "9001", awb_code: "QUICK12345", shipper_email: "UPSTREAM-PRIVATE",
+  } } }) });
+  assert.deepEqual(await client.api.assignShiprocketQuickCourier(789, 9001), { accepted: true, awb: "QUICK12345" });
+  assert.equal(client.counts.assign, 1);
+});
+
+test("Quick assignment explicit rejections never refresh authentication or retry the write", async () => {
+  for (const onAssign of [
+    ...[400, 401, 403, 404, 422, 429].map((status) => () => Response.json({ message: "UPSTREAM-PRIVATE" }, { status })),
+    () => Response.json({ success: false, message: "UPSTREAM-PRIVATE" }),
+    () => Response.json({ status: false, message: "UPSTREAM-PRIVATE" }),
+    () => Response.json({ status_code: 422, message: "UPSTREAM-PRIVATE" }),
+    () => Response.json({ awb_assign_status: 0, response: { data: { message: "UPSTREAM-PRIVATE" } } }),
+    () => Response.json({ errors: { courier_id: "UPSTREAM-PRIVATE" } }),
+  ]) {
+    const client = createClient({ onAssign });
+    await assert.rejects(client.api.assignShiprocketQuickCourier(789, 9001), createError(client.api, "rejected", "QUICK_BOOKING_REJECTED"));
+    assert.equal(client.counts.assign, 1);
+    assert.equal(client.counts.auth, 1);
+  }
+});
+
+test("Quick timeouts, mismatched IDs and ambiguous responses remain unknown without retry", async () => {
+  const assignment = { awb_assign_status: 1, response: { data: { shipment_id: 789, courier_company_id: 9001, awb_code: "QUICK12345" } } };
+  for (const onAssign of [
+    () => { throw new DOMException("UPSTREAM-PRIVATE private-test-token-1", "TimeoutError"); },
+    ...[408, 409, 500, 502, 503, 504].map((status) => () => Response.json({ message: "UPSTREAM-PRIVATE" }, { status })),
+    () => new Response("UPSTREAM-PRIVATE", { status: 200 }),
+    () => Response.json({}),
+    () => Response.json({ status_code: 500 }),
+    () => Response.json({ awb_assign_status: 1 }),
+    () => Response.json({ success: false, ...assignment }),
+    () => Response.json({ success: true, shipment_id: 790 }),
+    () => Response.json({ success: true, courier_id: 42 }),
+    () => Response.json({ success: false, courier_id: 42 }),
+    () => Response.json({ success: true, awb_code: "QUICK12345" }),
+    () => Response.json({ success: true, awb_assign_status: "invalid" }),
+    () => Response.json({ success: true, response: [] }),
+    () => Response.json({ success: true, response: { success: false } }),
+    () => Response.json({ success: true, data: { success: false } }),
+    () => Response.json({ success: false, awb_code: "malformed\nawb" }),
+    ...[{ shipment_id: 790 }, { shipment_id: null }, { courier_company_id: 42 },
+      { courier_company_id: Number.MAX_SAFE_INTEGER + 1 }, { awb_code: "bad\nawb" }, { awb_code: null }]
+      .map((patch) => () => Response.json({ ...assignment, response: { data: { ...assignment.response.data, ...patch } } })),
+  ]) {
+    const client = createClient({ onAssign });
+    await assert.rejects(client.api.assignShiprocketQuickCourier(789, 9001), createError(client.api, "unknown", "QUICK_BOOKING_UNKNOWN"));
+    assert.equal(client.counts.assign, 1);
+    assert.equal(client.counts.auth, 1);
+  }
+});
+
+test("Quick reconciliation reads courier and AWB only from the exact linked shipment", async () => {
+  const client = createClient({ onOrder: () => Response.json({ data: {
+    ...sampleExistingOrder, courier_id: 42, awb: "WRONG123",
+    shipments: [
+      { id: 790, order_id: 457, courier_id: 42, awb: "WRONG123" },
+      { ...sampleExistingOrder.shipments, courier_id: "9001", courier: "Quick Test 2W", awb: "QUICK12345", phone: "UPSTREAM-PRIVATE" },
+    ],
+  } }) });
+  assert.deepEqual(await client.api.getShiprocketOrder(456), {
+    orderId: 456, shipmentId: 789, merchantOrderId: sampleOrder.order_id, total: 150, deliveryPincode: "110001", status: "NEW",
+    courierId: 9001, awb: "QUICK12345", courierName: "Quick Test 2W",
+  });
+  for (const shipment of [
+    { courier_id: "", courier: "", awb: null },
+    { courier_id: -1, courier: null, awb: "bad\nawb" },
+  ]) {
+    const empty = createClient({ onOrder: () => Response.json({ data: {
+      ...sampleExistingOrder, shipments: { ...sampleExistingOrder.shipments, ...shipment },
+    } }) });
+    const result = await empty.api.getShiprocketOrder(456);
+    assert.equal(result.courierId, null);
+    assert.equal(result.courierName, null);
+    assert.equal(result.awb, null);
+  }
+});
+
+test("order readback exposes the documented shipping method only when present and recognized", async () => {
+  for (const [method, expected] of [["HL", "HL"], ["SR", "SR"], [null, null], ["", null], ["UPSTREAM-PRIVATE", null]]) {
+    const client = createClient({ onOrder: () => Response.json({ data: { ...sampleExistingOrder, shipping_method: method } }) });
+    assert.equal((await client.api.getShiprocketOrder(456)).shippingMethod, expected);
+  }
+  const absent = createClient();
+  assert.equal(Object.hasOwn(await absent.api.getShiprocketOrder(456), "shippingMethod"), false);
 });
 
 test("order reconciliation reads one exact matching shipment and returns only verification fields", async () => {

@@ -8,6 +8,23 @@ export interface ShipmentPackage {
 
 export type FulfillmentState = "not_created" | "creating" | "created" | "failed" | "needs_review";
 
+export type QuickBookingState = "not_booked" | "booking" | "pending" | "booked" | "failed" | "needs_review";
+export interface QuickBooking {
+  state: QuickBookingState;
+  courierId: number | null;
+  courierName: string | null;
+  awb: string | null;
+  estimatedRatePaise: number | null;
+  updatedAt: string | null;
+  error: string | null;
+}
+export interface QuickFulfillmentQuote {
+  amountPaise: number;
+  currency: "INR";
+  courierName: string;
+  weightKg: number;
+}
+
 export interface FulfillmentOrder {
   id: string;
   createdAt: string;
@@ -28,6 +45,8 @@ export interface FulfillmentOrder {
   notes: string;
   items: { itemCode: string; name: string; quantity: number; price: number }[];
   shippingAmountPaise: number | null;
+  deliveryService: "standard" | "quick";
+  deliveryLocation: { latitude: number; longitude: number } | null;
   fulfillment: {
     state: FulfillmentState;
     merchantOrderId: string;
@@ -36,8 +55,10 @@ export interface FulfillmentOrder {
     shipmentId: number | null;
     updatedAt: string | null;
     error: string | null;
+    quickBooking: QuickBooking | null;
   };
   canCreateShipment: boolean;
   canReconcileShipment: boolean;
+  canBookQuickPickup: boolean;
   blockedReason: string | null;
 }

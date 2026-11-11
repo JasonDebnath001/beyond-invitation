@@ -9,11 +9,15 @@ Creating or linking a Shiprocket shipment still requires a verified Supabase use
 1. Select a paid **live** order. Its saved contact/address, line items and accepted shipping charge appear in the details.
 2. Finish personalisation and packing. Enter the **actual packed weight in kilograms** and length, breadth and height in centimetres. There are no guessed box dimensions. Each dimension must exceed 0.5 cm. Packed weight must include the cards and packaging.
 3. Select **Create Shiprocket Order**. The server checks the payment again with Razorpay and uses the saved order prices/address, never browser-supplied payment or product data.
-4. The page saves the Shiprocket order and shipment IDs, reads the created order back, and checks its stored merchant reference, delivery pincode, total and shipment ID. Only a matching result is marked **Created in Shiprocket**. A delayed read or mismatch remains **Check Shiprocket** with its known IDs preserved. Open Shiprocket to select a courier, assign an AWB and schedule pickup when ready. Creating an order here does **not** perform those actions.
+4. The page saves the Shiprocket order and shipment IDs, reads the created order back, and checks its stored merchant reference, delivery pincode, total and shipment ID. Only a matching result is marked **Created in Shiprocket**. A delayed read or mismatch remains **Check Shiprocket** with its known IDs preserved. For standard delivery, open Shiprocket to select a courier, assign an AWB and schedule pickup. For Quick, check the estimate, select a local courier/vehicle and explicitly book the pickup from the admin page. Creating an order here does **not** perform those booking actions.
 
 The cart's shipping price remains the amount accepted at checkout. Actual courier charges can change with the final packed weight, dimensions and courier selected in Shiprocket. Creating a shipment does not charge the customer again.
 
+The customer shipping fee is the cheapest eligible Shiprocket estimate **plus a flat INR 50 per order**. The server rounds the courier estimate to paise and adds 5,000 paise when creating the quote. Cart, checkout, payment and the saved order all use this final shipping fee. Cached quotes already contain the markup; refreshed quotes calculate it once from the current courier estimate.
+
 ## Configuration
+
+Shiprocket Quick uses the Hyperlocal section of the shared API documentation and the same API credentials. Customers can select Quick and confirm a map pin in cart/checkout; staff create the hyperlocal order and explicitly book the local pickup after packing. The pickup must have valid saved coordinates. See [Shiprocket Quick setup and workflow](SHIPROCKET_QUICK.md).
 
 Keep these server settings in the deployment environment:
 
@@ -24,7 +28,7 @@ SHIPROCKET_PICKUP_LOCATION=exact-saved-pickup-nickname
 ADMIN_USER_IDS=verified-supabase-user-uuid
 ```
 
-The Shiprocket API user needs permission to read pickup locations, orders and tracking, and create orders. The selected pickup nickname must already exist in Shiprocket. This integration uses the live external API at `https://apiv2.shiprocket.in/v1/external`; it does not claim to be a Shiprocket sandbox. See the [official API documentation](https://apidocs.shiprocket.in/).
+The Shiprocket API user needs permission to read pickup locations, rates, orders, courier options and tracking, create orders, and assign AWBs for Quick bookings. The selected pickup nickname must already exist in Shiprocket. This integration uses the live external API at `https://apiv2.shiprocket.in/v1/external`; it does not claim to be a Shiprocket sandbox. See the [official API documentation](https://apidocs.shiprocket.in/).
 
 Existing Supabase order storage and server credentials remain required. **No new database migration is required.** The existing `website_orders.shipping_address` JSONB snapshot stores trusted `paymentMode`, `paymentKeyId` and a `fulfillment` record. Direct customer database access remains protected by RLS; the public admin listing uses the backend server client and deliberately exposes the order view independently of that RLS policy. Only the backend writes orders.
 
@@ -52,7 +56,7 @@ This feature does not create invoices, decrement inventory, send email, or handl
 
 - **Signed-in checkout:** open `/account`, then **Track order** beneath the paid order. The server verifies the signed-in user and reads only that user's saved order using RLS and an explicit ownership filter. Existing linked live orders can be tracked this way too.
 - **Guest checkout:** new checkouts show **Track your order** and **Copy private tracking link** on the payment confirmation page. Save or bookmark the link. The `/track-order?order=...#token=...` link works without an account. It is not emailed automatically. Anyone holding the complete link can view that order's delivery tracking; it does not expose the customer's address, email, phone, items or payment references.
-- The website displays the carrier's latest status, courier/AWB when supplied, estimated or actual delivery date and available activity history. Dates are shown in India time. Courier timestamps with no timezone are interpreted as India time for this domestic integration. Creating the order alone does not guarantee an AWB or carrier scans; select the courier and book the shipment in Shiprocket first. Until then the website shows preparation or waiting for tracking updates.
+- The website displays the carrier's latest status, courier/AWB when supplied, estimated or actual delivery date and available activity history, including Quick rider updates when supplied. Dates are shown in India time. Courier timestamps with no timezone are interpreted as India time for this domestic integration. Creating the order alone does not guarantee an AWB or carrier scans; book standard delivery in Shiprocket or use the admin Quick booking controls. Until then the website shows preparation or waiting for tracking updates.
 - Tracking loads when the customer clicks **Track order**. **Refresh tracking** requests the latest available update; identical provider reads are shared for up to 60 seconds. This is on-demand reading, not a webhook/background notification system. Provider delays may mean the newest physical movement is not yet visible. On a failed refresh, the browser keeps the last result and labels it potentially out of date.
 - Test orders show that they have no live delivery. Tracking never creates shipments, assigns couriers, books pickups or changes the customer's payment. Tracking an already-linked live order does not require the current Razorpay key to remain in live mode.
 

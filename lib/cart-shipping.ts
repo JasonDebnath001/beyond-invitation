@@ -1,14 +1,18 @@
 import "server-only";
 
 import type { ResolvedCart } from "@/lib/checkout";
-import { getShiprocketRates, ShiprocketError } from "@/lib/shiprocket";
-import { isValidIndianPincode, type ShippingQuote } from "@/lib/shipping";
+import { getShiprocketRates, getShiprocketQuickRates, ShiprocketError } from "@/lib/shiprocket";
+import { isValidIndianPincode, parseShippingSelection, ShippingSelectionError, type ShippingQuote } from "@/lib/shipping";
 
 const QUOTE_LIFETIME_MS = 5 * 60 * 1000;
+const SHIPPING_MARKUP_PAISE = 5_000; // Flat INR 50 per order, included in the customer's shipping fee.
 const MAX_PAYMENT_PAISE = 2147483647;
 const MAX_CACHED_QUOTES = 200;
 const cache = new Map<string, ShippingQuote>();
 const pending = new Map<string, Promise<ShippingQuote>>();
+const copyQuote = (quote: ShippingQuote): ShippingQuote => ({ ...quote,
+  ...(quote.deliveryLocation ? { deliveryLocation: { ...quote.deliveryLocation } } : {}),
+});
 
 export class ShippingQuoteError extends Error {
   constructor(
@@ -33,8 +37,14 @@ function unavailable() {
 export async function quoteCartShipping(
   cart: ResolvedCart,
   pincode: string,
-  options: { refresh?: boolean } = {},
+  options: { refresh?: boolean; service?: unknown; deliveryLocation?: unknown } = {},
 ): Promise<ShippingQuote> {
+  let selection;
+  try { selection = parseShippingSelection(options); }
+  catch (error) {
+    if (error instanceof ShippingSelectionError) throw new ShippingQuoteError(error.code, error.message, 400);
+    throw error;
+  }
   if (!isValidIndianPincode(pincode)) {
     throw new ShippingQuoteError(
       "INVALID_PINCODE",
@@ -98,51 +108,53 @@ export async function quoteCartShipping(
     pincode,
     weightKg,
     cart.amountPaise,
+    selection.service,
+    selection.deliveryLocation,
   ]);
   const cached = cache.get(key);
   if (!options.refresh && cached && cached.expiresAt > Date.now())
-    return { ...cached };
+    return copyQuote(cached);
   if (!options.refresh && pending.has(key))
-    return { ...(await pending.get(key)!) };
+    return copyQuote(await pending.get(key)!);
 
   const lookup = (async (): Promise<ShippingQuote> => {
-    let rates;
+    let couriers: { id: number | null; name: string; rate: number; estimatedDeliveryDays: number | null }[];
     try {
-      rates = await getShiprocketRates({
-        deliveryPincode: pincode,
-        weightKg,
-        cod: false,
-      });
+      if (selection.service === "quick") {
+        const rates = await getShiprocketQuickRates({ deliveryPincode: pincode, deliveryLocation: selection.deliveryLocation!, weightKg, cod: false });
+        couriers = rates.couriers.map((courier) => ({ ...courier, id: null, estimatedDeliveryDays: null }));
+      } else {
+        couriers = (await getShiprocketRates({ deliveryPincode: pincode, weightKg, cod: false })).couriers;
+      }
     } catch (error) {
       if (error instanceof ShiprocketError && error.httpStatus === 404) {
         throw new ShippingQuoteError(
           "UNSERVICEABLE",
-          "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
+          selection.service === "quick" ? "Shiprocket Quick is unavailable for this location and parcel. Choose standard delivery or check your map pin." : "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
         );
       }
       throw unavailable();
     }
-    if (!rates.couriers.length) {
+    if (!couriers.length) {
       throw new ShippingQuoteError(
         "UNSERVICEABLE",
-        "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
+        selection.service === "quick" ? "Shiprocket Quick is unavailable for this location and parcel. Choose standard delivery or check your map pin." : "Delivery is currently unavailable for this pincode. Please try another pincode or contact us.",
       );
     }
     if (
-      rates.couriers.some(
+      couriers.some(
         (courier) =>
           !Number.isFinite(courier.rate) ||
           courier.rate < 0 ||
-          !Number.isSafeInteger(courier.id) ||
-          courier.id <= 0 ||
+          (selection.service !== "quick" && (!Number.isSafeInteger(courier.id) || courier.id! <= 0)) ||
           !courier.name,
       )
     )
       throw unavailable();
-    const courier = [...rates.couriers].sort(
-      (a, b) => a.rate - b.rate || a.id - b.id,
+    const courier = [...couriers].sort(
+      (a, b) => a.rate - b.rate || (a.id ?? 0) - (b.id ?? 0) || a.name.localeCompare(b.name),
     )[0];
-    const amountPaise = Math.round(courier.rate * 100);
+    const amountPaise = Math.round(courier.rate * 100) + SHIPPING_MARKUP_PAISE;
     const totalPaise = cart.amountPaise + amountPaise;
     if (
       !Number.isSafeInteger(amountPaise) ||
@@ -156,6 +168,7 @@ export async function quoteCartShipping(
       );
     }
     return {
+      ...(selection.service === "quick" ? { service: "quick" as const, deliveryLocation: { ...selection.deliveryLocation! } } : {}),
       pincode,
       subtotalPaise: cart.amountPaise,
       amountPaise,
@@ -178,7 +191,7 @@ export async function quoteCartShipping(
     if (cache.size >= MAX_CACHED_QUOTES)
       cache.delete(cache.keys().next().value!);
     cache.set(key, quote);
-    return { ...quote };
+    return copyQuote(quote);
   } finally {
     if (pending.get(key) === lookup) pending.delete(key);
   }

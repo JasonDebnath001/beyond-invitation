@@ -22,6 +22,18 @@ export interface ShiprocketPickupLocation {
   pincode: string;
 }
 
+export interface ShiprocketGeoPoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface ShiprocketQuickRateInput {
+  deliveryPincode: string;
+  deliveryLocation: ShiprocketGeoPoint;
+  weightKg: number;
+  cod?: boolean;
+}
+
 export interface ShiprocketRateInput {
   deliveryPincode: string;
   weightKg: number;
@@ -77,6 +89,10 @@ export interface ShiprocketOrderPayload {
   shipping_country?: "India";
   shipping_email?: string;
   shipping_phone?: string;
+  /** Exact delivery coordinates and method required by Shiprocket Hyperlocal. */
+  latitude?: number;
+  longitude?: number;
+  shipping_method?: "HL";
   order_items: ShiprocketOrderItem[];
   payment_method: "Prepaid" | "COD";
   shipping_charges?: number;
@@ -311,7 +327,7 @@ function validPincode(value: unknown): value is string {
 }
 
 /** Resolve the configured nickname exactly; never silently choose another warehouse. */
-export async function getShiprocketPickupLocation(): Promise<ShiprocketPickupLocation> {
+async function configuredPickupLocation() {
   const { pickupLocation } = getConfiguration();
   const response = await authenticatedGet("/settings/company/pickup");
   const addresses = record(response.data)?.shipping_address;
@@ -334,7 +350,75 @@ export async function getShiprocketPickupLocation(): Promise<ShiprocketPickupLoc
       : "";
   if (!id || !Number.isInteger(id) || id < 0 || !validPincode(pincode))
     throw invalidResponse();
-  return { id, name: pickupLocation, pincode };
+  return { location, summary: { id, name: pickupLocation, pincode } };
+}
+
+export async function getShiprocketPickupLocation(): Promise<ShiprocketPickupLocation> {
+  return (await configuredPickupLocation()).summary;
+}
+
+function decimalNumber(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string" || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim())) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isGeoPoint(value: unknown): value is ShiprocketGeoPoint {
+  const point = record(value);
+  return !!point && typeof point.latitude === "number" && Number.isFinite(point.latitude) &&
+    point.latitude >= -90 && point.latitude <= 90 &&
+    typeof point.longitude === "number" && Number.isFinite(point.longitude) &&
+    point.longitude >= -180 && point.longitude <= 180;
+}
+
+/** Quick needs the saved pickup's exact coordinates; a pincode is not a location substitute. */
+export async function getShiprocketQuickPickupLocation(): Promise<ShiprocketPickupLocation & ShiprocketGeoPoint> {
+  const { location, summary } = await configuredPickupLocation();
+  const point = { latitude: decimalNumber(location.lat), longitude: decimalNumber(location.long) };
+  if (!isGeoPoint(point)) {
+    throw new ShiprocketError("QUICK_PICKUP_LOCATION_MISSING",
+      "Save valid latitude and longitude for the configured Shiprocket pickup location before checking Quick delivery.");
+  }
+  return { ...summary, ...point };
+}
+
+/** Documented read-only Quick/Hyperlocal quote. This never creates an order or assigns a rider. */
+export async function getShiprocketQuickRates(input: ShiprocketQuickRateInput) {
+  if (!validPincode(input?.deliveryPincode) || !isGeoPoint(input?.deliveryLocation) ||
+      typeof input?.weightKg !== "number" || !Number.isFinite(input.weightKg) || input.weightKg <= 0 || input.weightKg > 1000 ||
+      (input.cod !== undefined && typeof input.cod !== "boolean")) {
+    throw new ShiprocketError("INVALID_INPUT", "Provide a valid delivery pincode, exact delivery coordinates and shipment weight between 0 and 1,000 kg.");
+  }
+  const pickupLocation = await getShiprocketQuickPickupLocation();
+  const deliveryLocation = { latitude: input.deliveryLocation.latitude, longitude: input.deliveryLocation.longitude };
+  const cod = input.cod ?? false;
+  const query = new URLSearchParams({
+    pickup_postcode: pickupLocation.pincode,
+    delivery_postcode: input.deliveryPincode,
+    weight: String(input.weightKg),
+    cod: cod ? "1" : "0",
+    is_new_hyperlocal: "1",
+    lat_from: String(pickupLocation.latitude),
+    long_from: String(pickupLocation.longitude),
+    lat_to: String(deliveryLocation.latitude),
+    long_to: String(deliveryLocation.longitude),
+  });
+  const response = await authenticatedGet(`/courier/serviceability/?${query}`);
+  if (response.status !== true || response.error || response.errors || !Array.isArray(response.data) ||
+      response.data.length > 100 || (response.currency !== undefined && response.currency !== "INR")) throw invalidResponse();
+  const couriers = response.data.map((value) => {
+    const courier = record(value);
+    const rate = decimalNumber(courier?.rates);
+    const name = typeof courier?.courier_name === "string" ? courier.courier_name.trim() : "";
+    if (rate === undefined || rate < 0 || rate > 21_474_836.47 || !name || name.length > 160 || /[\u0000-\u001f\u007f]/.test(name)) {
+      throw invalidResponse();
+    }
+    // Quick's documented response does not supply a courier ID or a pickup ETA.
+    return { name, rate };
+  }).sort((a, b) => a.rate - b.rate || a.name.localeCompare(b.name));
+  return { pickupLocation, deliveryPincode: input.deliveryPincode, deliveryLocation, weightKg: input.weightKg,
+    cod, currency: "INR" as const, couriers };
 }
 
 /** Read-only estimate. Call with packed shipment weight (kg) and dimensions (cm). */
@@ -443,6 +527,10 @@ function orderInputError(message: string): never {
 
 function validateOrderPayload(input: ShiprocketOrderPayload): void {
   if (!record(input)) orderInputError("Provide complete shipment order details.");
+  if ((input.latitude !== undefined || input.longitude !== undefined) && !isGeoPoint(input))
+    orderInputError("Provide both delivery latitude and longitude as valid numeric coordinates.");
+  if (input.shipping_method !== undefined && (input.shipping_method !== "HL" || !isGeoPoint(input)))
+    orderInputError("Hyperlocal shipments require the HL shipping method and exact delivery coordinates.");
   const text = (value: unknown) => typeof value === "string" && !!value.trim();
   if (!text(input.order_id) || input.order_id.length > 50)
     orderInputError("Use a stable merchant order reference of at most 50 characters.");
@@ -591,6 +679,10 @@ export async function getShiprocketOrder(orderId: number): Promise<ShiprocketCre
   merchantOrderId: string;
   total: number;
   deliveryPincode: string;
+  courierId?: number | null;
+  awb?: string | null;
+  courierName?: string | null;
+  shippingMethod?: string | null;
 }> {
   if (!positiveId(orderId) || typeof orderId !== "number")
     throw new ShiprocketError("INVALID_INPUT", "Provide a positive numeric Shiprocket order ID.");
@@ -613,7 +705,130 @@ export async function getShiprocketOrder(orderId: number): Promise<ShiprocketCre
       total === undefined || total <= 0 || !validPincode(deliveryPincode) ||
       (order.currency !== undefined && order.currency !== "INR")) throw invalidResponse();
   const status = safeOrderStatus(order.status);
-  return { orderId, shipmentId: positiveId(shipment.id)!, merchantOrderId, total, deliveryPincode, ...(status ? { status } : {}) };
+  return {
+    orderId, shipmentId: positiveId(shipment.id)!, merchantOrderId, total, deliveryPincode,
+    ...(status ? { status } : {}),
+    ...(Object.hasOwn(shipment, "courier_id") ? { courierId: positiveId(shipment.courier_id) ?? null } : {}),
+    ...(Object.hasOwn(shipment, "awb") ? { awb: safeAwb(shipment.awb) } : {}),
+    ...(Object.hasOwn(shipment, "courier") ? { courierName: trackingText(shipment.courier, 100) } : {}),
+    ...(Object.hasOwn(order, "shipping_method") ? {
+      shippingMethod: order.shipping_method === "HL" || order.shipping_method === "SR" ? order.shipping_method : null,
+    } : {}),
+  };
+}
+
+/** Reads the current account catalog; names never determine whether a courier is hyperlocal. */
+export async function getShiprocketQuickCouriers(): Promise<Array<{ id: number; name: string }>> {
+  const response = await authenticatedGet("/courier/courierListWithCounts");
+  if (response.error || response.errors || !Array.isArray(response.courier_data) || response.courier_data.length > 5000)
+    throw invalidResponse();
+  const ids = new Set<number>();
+  const couriers: Array<{ id: number; name: string }> = [];
+  for (const value of response.courier_data) {
+    const courier = record(value);
+    if (!courier) throw invalidResponse();
+    if (![true, 1, "1"].includes(courier.is_hyperlocal as boolean | number | string)) continue;
+    const id = positiveId(courier.id);
+    const name = typeof courier.name === "string" ? courier.name.trim() : "";
+    if (!id || ids.has(id) || !name || name.length > 160 || /[\u0000-\u001f\u007f]/.test(String(courier.name)))
+      throw invalidResponse();
+    ids.add(id);
+    couriers.push({ id, name });
+  }
+  return couriers.sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id);
+}
+
+function safeAwb(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{1,99}$/.test(value.trim())
+    ? value.trim() : null;
+}
+
+function unknownQuickAssignment(httpStatus?: number): ShiprocketOrderError {
+  return new ShiprocketOrderError(
+    "QUICK_BOOKING_UNKNOWN",
+    "Shiprocket may have accepted this Quick booking. Refresh its status or check Shiprocket before booking again.",
+    "unknown", httpStatus,
+  );
+}
+
+/** Sends one explicit Quick assignment. An accepted response does not confirm a rider or pickup. */
+export async function assignShiprocketQuickCourier(shipmentId: number, courierId: number): Promise<{ accepted: true; awb: string | null }> {
+  if (typeof shipmentId !== "number" || !positiveId(shipmentId) || typeof courierId !== "number" || !positiveId(courierId))
+    orderInputError("Provide valid numeric shipment and Quick courier IDs.");
+  let state: AuthState;
+  let token: string;
+  try {
+    // Fetch on every attempt: no stale selection or standard-courier fallback can reach the write.
+    const couriers = await getShiprocketQuickCouriers();
+    if (!couriers.some((courier) => courier.id === courierId))
+      throw new ShiprocketOrderError("QUICK_COURIER_UNAVAILABLE", "Select a current Shiprocket Quick courier before booking.", "rejected");
+    state = getAuthState();
+    token = await tokenFor(state);
+  } catch (error) {
+    if (error instanceof ShiprocketOrderError) throw error;
+    if (error instanceof ShiprocketError)
+      throw new ShiprocketOrderError(error.code, error.message, "rejected", error.httpStatus);
+    throw new ShiprocketOrderError("QUICK_NOT_SUBMITTED", "The Quick booking could not be prepared.", "rejected");
+  }
+
+  let response: Response;
+  let result: Record<string, unknown> | undefined;
+  try {
+    response = await fetch(`${API_BASE}/courier/assign/awb`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ shipment_id: shipmentId, courier_id: courierId }),
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    try { result = record(await response.json()); } catch { /* HTTP status can still prove a rejection. */ }
+  } catch {
+    throw unknownQuickAssignment();
+  }
+  // Do not retry a write, including a 401. A later independent attempt may authenticate again.
+  if (response.status === 401 && state.token === token) {
+    state.token = undefined;
+    state.expiresAt = 0;
+  }
+  const providerStatus = numeric(result?.status_code) ?? numeric(result?.status);
+  if (response.status === 408 || response.status === 409 || response.status >= 500 ||
+      providerStatus === 408 || providerStatus === 409 || (providerStatus !== undefined && providerStatus >= 500))
+    throw unknownQuickAssignment(response.status);
+  const nested = record(result?.response);
+  const data = record(nested?.data) ?? record(result?.data);
+  if ((result?.response !== undefined && !nested) ||
+      (nested?.data !== undefined && !record(nested.data)) ||
+      (result?.data !== undefined && !record(result.data))) throw unknownQuickAssignment(response.status);
+  // Every returned identifier must describe the shipment/courier requested. Never trust a mismatched AWB.
+  for (const part of [result, nested, data]) {
+    if (!part) continue;
+    for (const [field, expected] of [["shipment_id", shipmentId], ["courier_id", courierId], ["courier_company_id", courierId]] as const) {
+      if (part[field] !== undefined && positiveId(part[field]) !== expected)
+        throw unknownQuickAssignment(response.status);
+    }
+  }
+  const assignmentStatus = numeric(result?.awb_assign_status);
+  const hasError = (value: unknown) => value !== undefined && value !== null && value !== false && value !== "" &&
+    (!Array.isArray(value) || value.length > 0) && (!record(value) || Object.keys(record(value)!).length > 0);
+  const explicitlyRejected = !response.ok || (providerStatus !== undefined && providerStatus >= 400) ||
+    assignmentStatus === 0 || [result, nested, data].some((part) =>
+      part?.success === false || part?.status === false || part?.status === 0 || part?.status === "0" || part?.status === "error" ||
+      hasError(part?.error) || hasError(part?.errors));
+  const awb = safeAwb(data?.awb_code ?? result?.awb_code);
+  if (explicitlyRejected) {
+    if (result?.success === true || assignmentStatus === 1 || hasError(data?.awb_code) || hasError(result?.awb_code))
+      throw unknownQuickAssignment(response.status);
+    const status = providerStatus !== undefined && providerStatus >= 400 ? providerStatus : response.status;
+    throw new ShiprocketOrderError("QUICK_BOOKING_REJECTED", requestError(status).message, "rejected", status);
+  }
+  if (assignmentStatus === 1) {
+    if (!data || positiveId(data.shipment_id) !== shipmentId || positiveId(data.courier_company_id ?? data.courier_id) !== courierId || !awb)
+      throw unknownQuickAssignment(response.status);
+    return { accepted: true, awb };
+  }
+  // Hyperlocal's documented success is asynchronous and contains no AWB. Readback confirms booking later.
+  if (result?.success === true && result.awb_assign_status === undefined && !awb && data?.awb_code === undefined && result.awb_code === undefined)
+    return { accepted: true, awb: null };
+  throw unknownQuickAssignment(response.status);
 }
 
 function trackingText(value: unknown, limit = 160): string | null {

@@ -39,12 +39,27 @@ function loadModule(filename, imports = {}, globals = {}) {
   return loaded.exports;
 }
 
-function createRoute(filename, { quoteError } = {}) {
-  const calls = { resolve: [], quote: [], save: [], createPayment: [], attach: [] };
+function createRoute(filename, { quoteError, rawCourierRate, rawQuickRate } = {}) {
+  const calls = { resolve: [], quote: [], save: [], createPayment: [], attach: [], rates: [], quickRates: [] };
   class ShippingQuoteError extends Error {
     constructor(code, message, status = 422) { super(message); this.code = code; this.status = status; }
   }
   const shipping = loadModule("lib/shipping.ts");
+  const actualQuoter = rawCourierRate === undefined && rawQuickRate === undefined ? null : loadModule("lib/cart-shipping.ts", {
+    "server-only": {},
+    "@/lib/shipping": shipping,
+    "@/lib/shiprocket": {
+      ShiprocketError: class extends Error {},
+      getShiprocketQuickRates: async (input) => {
+        calls.quickRates.push(input);
+        return { couriers: [{ name: "Shiprocket Quick", rate: rawQuickRate }] };
+      },
+      getShiprocketRates: async (input) => {
+        calls.rates.push(input);
+        return { couriers: [{ id: 10, name: "Test Courier", rate: rawCourierRate, estimatedDeliveryDays: 3 }] };
+      },
+    },
+  });
   const checkout = loadModule("lib/checkout.ts", {
     "@/lib/catalog": { buildErpProductList: async () => [] },
     "@/lib/product-quantity": loadModule("lib/product-quantity.ts"),
@@ -58,9 +73,10 @@ function createRoute(filename, { quoteError } = {}) {
       calls.resolve.push({ items, reseller });
       return structuredClone(cart);
     } },
-    "@/lib/cart-shipping": { ShippingQuoteError, quoteCartShipping: async (input, pincode, options) => {
+    "@/lib/cart-shipping": { ShippingQuoteError: actualQuoter?.ShippingQuoteError ?? ShippingQuoteError, quoteCartShipping: async (input, pincode, options) => {
       calls.quote.push({ cart: input, pincode, options });
       if (quoteError) throw new ShippingQuoteError(...quoteError);
+      if (actualQuoter) return actualQuoter.quoteCartShipping(input, pincode, options);
       return { ...quote, pincode };
     } },
     "@/lib/reseller": { getActiveResellerFromCookies: async () => ({ code: "TEST-RESELLER", active: true, marginPercent: 10 }) },
@@ -175,6 +191,71 @@ test("successful checkout charges the authoritative merchandise plus shipping to
   assert.match(response.headers.get("Cache-Control"), /private, no-store/);
   assert.equal(response.headers.get("Referrer-Policy"), "no-referrer");
   assert.equal(JSON.stringify(fixture.calls.createPayment).includes(trackingToken), false, "Private token must not be sent to Razorpay");
+});
+
+test("the customer quote and payment both add the flat fifty rupees exactly once", async () => {
+  const quoteRoute = createRoute("app/api/shipping/quote/route.ts", { rawCourierRate: 55.72 });
+  const quoted = await quoteRoute.post({ pincode: customer.pincode, items: paymentBody().items });
+  assert.equal(quoted.status, 200);
+  const quoteBody = await quoted.json();
+  const markedUpQuote = quoteBody.quote ?? quoteBody;
+  assert.equal(markedUpQuote.amountPaise, 10_572);
+  assert.equal(markedUpQuote.totalPaise, 60_572);
+  const payment = createRoute("app/api/razorpay/order/route.ts", { rawCourierRate: 55.72 });
+  const response = await payment.post(paymentBody({
+    expectedShippingAmountPaise: markedUpQuote.amountPaise,
+    expectedAmountPaise: markedUpQuote.totalPaise,
+  }));
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.shipping.amountPaise, 10_572);
+  assert.equal(result.amount, 60_572);
+  assert.equal(payment.calls.save[0].cart.shipping.amountPaise, 10_572);
+  assert.equal(payment.calls.save[0].cart.amountPaise, 60_572);
+  assert.equal(payment.calls.createPayment[0].amount, 60_572);
+  assert.equal(payment.calls.rates.length, 1);
+  assert.deepEqual(payment.calls.quote[0].options, { refresh: true });
+});
+
+test("a browser total without the fifty-rupee addition must refresh before payment", async () => {
+  const fixture = createRoute("app/api/razorpay/order/route.ts", { rawCourierRate: 55.72 });
+  const response = await fixture.post(paymentBody({ expectedShippingAmountPaise: 5_572, expectedAmountPaise: 55_572 }));
+  assert.equal(response.status, 409);
+  const result = await response.json();
+  assert.equal(result.code, "QUOTE_CHANGED");
+  assert.equal(result.quote.amountPaise, 10_572);
+  assert.equal(result.quote.totalPaise, 60_572);
+  assert.equal(fixture.calls.save.length, 0);
+  assert.equal(fixture.calls.createPayment.length, 0);
+});
+
+test("Quick selection and location flow through a fresh server quote into saved order and payment", async () => {
+  const selection = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 } };
+  const quoteRoute = createRoute("app/api/shipping/quote/route.ts", { rawQuickRate: 65 });
+  const quoted = await quoteRoute.post({ pincode: customer.pincode, items: paymentBody().items, ...selection });
+  assert.equal(quoted.status, 200);
+  const { quote: result } = await quoted.json();
+  assert.equal(result.service, "quick"); assert.equal(result.amountPaise, 11_500);
+  const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65 });
+  const response = await fixture.post(paymentBody({ ...selection, expectedShippingAmountPaise: result.amountPaise, expectedAmountPaise: result.totalPaise, courierId: 999 }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(fixture.calls.quickRates, [{ deliveryPincode: "400001", deliveryLocation: selection.deliveryLocation, weightKg: 2, cod: false }]);
+  assert.equal(fixture.calls.rates.length, 0);
+  assert.deepEqual(fixture.calls.save[0].cart.shipping.deliveryLocation, selection.deliveryLocation);
+  assert.equal(fixture.calls.save[0].cart.shipping.service, "quick");
+  assert.equal(fixture.calls.save[0].cart.shipping.courierId, null);
+  assert.equal(fixture.calls.createPayment[0].amount, 61_500);
+});
+
+test("Quick rejects stale totals, missing locations and unknown services before creating payments", async () => {
+  const selection = { service: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 } };
+  for (const [input, status] of [[selection, 409], [{ service: "quick" }, 400], [{ service: "quick-unknown" }, 400]]) {
+    const fixture = createRoute("app/api/razorpay/order/route.ts", { rawQuickRate: 65 });
+    const response = await fixture.post(paymentBody(input));
+    assert.equal(response.status, status);
+    assert.equal(fixture.calls.createPayment.length, 0); assert.equal(fixture.calls.save.length, 0);
+    assert.equal(fixture.calls.rates.length, 0, "Quick must not silently fall back to standard delivery");
+  }
 });
 
 test("unavailable shipping cannot create an order or initiate payment", async () => {

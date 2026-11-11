@@ -87,6 +87,71 @@ async function mount(initialOrder = fixture(), { onMutation, canManageShipments 
   };
 }
 
+function quickOrder(overrides = {}) {
+  const base = fixture();
+  return { ...base, deliveryService: "quick", deliveryLocation: { latitude: 19.076, longitude: 72.8777 }, canCreateShipment: false, canBookQuickPickup: true,
+    fulfillment: { ...base.fulfillment, state: "created", package: { weightKg: 2.5, lengthCm: 30, breadthCm: 20, heightCm: 10 }, shiprocketOrderId: 321, shipmentId: 654,
+      quickBooking: { state: "not_booked", courierId: null, courierName: null, awb: null, estimatedRatePaise: null, updatedAt: null, error: null } }, ...overrides };
+}
+
+test("Quick UI requires a reviewed quote, explicit vehicle and ready parcel before single booking", async () => {
+  const original = quickOrder();
+  const ui = await mount(original, { onMutation: async (url, body, update) => {
+    assert.ok(url.endsWith("/quick"));
+    if (body.operation === "quote") return Response.json({ order: original, quote: { amountPaise: 6500, currency: "INR", courierName: "Shiprocket Quick", weightKg: 2.5 }, couriers: [{ id: 71, name: "Quick 2 Wheeler" }] });
+    assert.deepEqual(body, { operation: "book", courierId: 71, expectedRatePaise: 6500 });
+    const updated = { ...original, canBookQuickPickup: false, fulfillment: { ...original.fulfillment, quickBooking: { ...original.fulfillment.quickBooking, state: "pending", courierId: 71, courierName: "Quick 2 Wheeler" } } };
+    update(updated); return Response.json({ order: updated });
+  } });
+  try {
+    const findButton = (label) => [...ui.container.querySelectorAll("button")].find((button) => button.textContent === label);
+    assert.equal(findButton("Book local pickup"), undefined);
+    assert.match(ui.container.textContent, /Booking can assign a rider immediately/);
+    assert.ok(ui.container.querySelector("a.mapLink"));
+    await React.act(async () => findButton("Check Quick rates").click());
+    const bookingButton = findButton("Book local pickup");
+    assert.equal(bookingButton.disabled, true);
+    const selection = ui.container.querySelector("form.quickForm select");
+    assert.equal(selection.value, "");
+    await React.act(async () => {
+      selection.value = "71"; selection.dispatchEvent(new window.Event("change", { bubbles: true }));
+      ui.container.querySelector('form.quickForm input[type="checkbox"]').click();
+    });
+    assert.equal(findButton("Book local pickup").disabled, false);
+    await React.act(async () => {
+      const form = ui.container.querySelector("form.quickForm");
+      form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+    });
+    assert.equal(ui.requests.filter((request) => request.body?.operation === "book").length, 1);
+    assert.equal(findButton("Book local pickup"), undefined);
+    assert.match(ui.container.textContent, /Waiting for booking confirmation/);
+    assert.ok(findButton("Check booking"));
+  } finally { await ui.close(); }
+});
+
+test("Quick booking controls and exact delivery point stay hidden from anonymous visitors", async () => {
+  const ui = await mount(quickOrder(), { canManageShipments: false });
+  try {
+    assert.match(ui.container.textContent, /Sign in to manage local pickups/);
+    assert.equal(ui.container.querySelector("a.mapLink"), null);
+    assert.equal(ui.container.querySelector("form.quickForm"), null);
+    assert.doesNotMatch(ui.container.textContent, /Check Quick rates|Book local pickup|Check booking/);
+    assert.equal(ui.requests.filter((request) => request.method === "POST").length, 0);
+  } finally { await ui.close(); }
+});
+
+test("uncertain Quick outcomes offer checking without another booking", async () => {
+  const original = quickOrder();
+  const ui = await mount({ ...original, canBookQuickPickup: false, fulfillment: { ...original.fulfillment,
+    quickBooking: { ...original.fulfillment.quickBooking, state: "needs_review", courierId: 71, error: "Check the existing booking." } } });
+  try {
+    assert.match(ui.container.textContent, /Check booking/);
+    assert.doesNotMatch(ui.container.textContent, /Check Quick rates|Book local pickup/);
+    assert.equal(ui.requests.filter((request) => request.method === "POST").length, 0);
+  } finally { await ui.close(); }
+});
+
 test("test payments are visibly blocked and parcel measurements have no invented defaults", async () => {
   const ui = await mount(fixture({ paymentMode: "test", canCreateShipment: false, blockedReason: "Test payments cannot create live Shiprocket shipments." }));
   try {
